@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>LPLK_Sounds</AssemblyName><Version>0.1.6</Version><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>LPLK_Sounds</AssemblyName><Version>0.1.7</Version><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
   <ItemGroup><PackageReference Include="SwiftlyS2.CS2" Version="1.4.13" ExcludeAssets="runtime" PrivateAssets="all" /><Compile Include="../../_Gemeinsam/ModuleSupport.cs" Link="ModuleSupport.cs" /><Content Include="catalog.json" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
   <Target Name="CreateZip" AfterTargets="Publish"><ZipDirectory SourceDirectory="$(PublishDir)../" DestinationFile="$(OutputPath)../$(AssemblyName).zip" Overwrite="true" /></Target>
 </Project>

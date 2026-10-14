@@ -96,8 +96,8 @@ public sealed partial class Plugin
     }
     private void LottoRules(IPlayer p)=>Page(p,"Lotto · Regeln",_=>
     {
-        var rows=new List<(string,Action<IPlayer>)>{("Lose, Gewinn & Superpot",a=>{if(!LottoAvailable(a))throw new BankRejected("Lotto nicht verfügbar.");a.SendChat($"[LPLK Lotto] Los {settings.Lotto.TicketPrice:N0} $ Bank; {settings.Lotto.RoundPrizePercent}% Gewinn, {settings.Lotto.SuperpotPercent}% Superpot, {settings.Lotto.HouseCutPercent}% Hausanteil. Jedes Los gleiche Chance. Gratislose sind finanziert; bei Abbruch werden nur selbst bezahlte Lose erstattet.");})};
-        if(settings.LottoAbilityBonus.Enabled||settings.Lotto.PermanentTicketUpgradeDiscountEnabled||settings.Lotto.CashToSuperpot.Enabled||bank!.UpgradeDiscount(Id(p))>0)rows.Add(("Boni, Rabatte & Rest-Cash",LottoBonusInfo));return rows;
+        var rows=new List<(string,Action<IPlayer>)>{("Gewinne",a=>{if(!LottoAvailable(a))throw new BankRejected("Lotto nicht verfügbar.");a.SendChat($"[LPLK Lotto] Los {settings.Lotto.TicketPrice:N0} $ Bank; {settings.Lotto.RoundPrizePercent}% Gewinn, {settings.Lotto.SuperpotPercent}% Superpot, {settings.Lotto.HouseCutPercent}% Hausanteil. Jedes Los gleiche Chance. Gratislose sind finanziert; bei Abbruch werden nur selbst bezahlte Lose erstattet.");})};
+        if(settings.LottoAbilityBonus.Enabled||settings.Lotto.PermanentTicketUpgradeDiscountEnabled||settings.Lotto.CashToSuperpot.Enabled||bank!.UpgradeDiscount(Id(p))>0)rows.Add(("Boni",LottoBonusInfo));return rows;
     },OpenLotto);
     private void LottoBonusInfo(IPlayer p)
     {
@@ -111,6 +111,6 @@ public sealed partial class Plugin
         ($"Lottofähigkeiten: {(settings.LottoAbilityBonus.Enabled?"AN":"AUS")}",a=>{Save(settings with{LottoAbilityBonus=settings.LottoAbilityBonus with{Enabled=!settings.LottoAbilityBonus.Enabled}});LottoBonusMenu(a);}),
         ($"Dauerlos-Rabatte: {(settings.Lotto.PermanentTicketUpgradeDiscountEnabled?"AN":"AUS")}",a=>{Save(settings with{Lotto=settings.Lotto with{PermanentTicketUpgradeDiscountEnabled=!settings.Lotto.PermanentTicketUpgradeDiscountEnabled}});LottoBonusMenu(a);}),
         ($"Rest-Cash-Sammlung: {(settings.Lotto.CashToSuperpot.Enabled?"AN":"AUS")}",a=>{Save(settings with{Lotto=settings.Lotto with{CashToSuperpot=settings.Lotto.CashToSuperpot with{Enabled=!settings.Lotto.CashToSuperpot.Enabled}}});LottoBonusMenu(a);}),
-        ("Regeln & Laufzeit",a=>a.SendChat($"[LPLK Lotto] Bonuschance {settings.LottoAbilityBonus.ChancePerTicketBasisPoints/100m:0.##}%, Rabattchance {settings.Lotto.PermanentTicketUpgradeDiscountChanceBasisPoints/100m:0.##}% je Dauerlos. Rest-Cash-Mapsperre {cashCollectionMapBlocked}, offene Cashvorgänge {bank?.PendingCount}. Zahlenregeln unter LottoAbilityBonus und Lotto in settings.json."))],LottoAdmin,true);
+        ("Details",a=>a.SendChat($"[LPLK Lotto] Bonuschance {settings.LottoAbilityBonus.ChancePerTicketBasisPoints/100m:0.##}%, Rabattchance {settings.Lotto.PermanentTicketUpgradeDiscountChanceBasisPoints/100m:0.##}% je Dauerlos. Rest-Cash-Mapsperre {cashCollectionMapBlocked}, offene Cashvorgänge {bank?.PendingCount}. Zahlenregeln unter LottoAbilityBonus und Lotto in settings.json."))],LottoAdmin,true);
 }
 

@@ -1,5 +1,7 @@
 # SerververwaltungBridge – Verbindung zur Webverwaltung
 
+**Download:** [SerververwaltungBridge.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/SerververwaltungBridge.zip) · [Ausgabe, Prüfsummen und Teststatus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Diese Ausgabe ist als Teststand gekennzeichnet.
+
 Quellstand **1.6.4**, SwiftlyS2-API **1.4.14**. [Alle Addons](../../docs/ADDONS.md).
 
 ## Funktion

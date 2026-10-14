@@ -32,6 +32,9 @@ public sealed class MenuWorld
     public bool ThirdPersonEnabled;
     public bool EconomyEnabled,BettingEnabled,LotteryEnabled,RobberyEnabled,TitlesEnabled,BountyEnabled;
     public bool RejectEntityAccess;public int EntityAccesses;
+    public bool IncludePlayer;
+    public bool TargetEnabled;public int TargetCalls;
+    public List<string> AdminCalls = [];
     public HashSet<string> FailedPlugins=[];
     private readonly Dictionary<string, IReadOnlyDictionary<string, Delegate>> modules = [];
     public IMenuAPI? Current;
@@ -48,7 +51,7 @@ public sealed class MenuWorld
         Player = Proxy.Make<IPlayer>((m, a) => m.Name switch
         {
             "get_IsValid" or "get_IsAuthorized" => true, "get_IsFakeClient" => false,
-            "get_SteamID" => 76561198000000000UL, "get_SessionId" => Session, "get_PlayerID" or "get_Slot" => 1,
+            "get_SteamID" => 76561198000000000UL, "get_SessionId" => Session, "get_PlayerID" or "get_Slot" => 1, "get_Name" => "Testspieler",
             "SendChat" => Capture(Messages, (string)a![0]!), "ExecuteCommand" => Capture(Commands, (string)a![0]!), _ => Proxy.Empty(m.ReturnType)
         });
         Context = Proxy.Make<ICommandContext>((m, a) => m.Name switch
@@ -56,6 +59,7 @@ public sealed class MenuWorld
         Interfaces = Proxy.Make<IInterfaceManager>((m, a) =>
         { if (m.Name == "TryGetSharedInterface") { bool found = modules.TryGetValue((string)a![0]!, out var api); a[1] = api; return found; } return Proxy.Empty(m.ReturnType); });
         modules["LPLK.Player.Maps.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>MapsEnabled)};
+        modules["LPLK.Bridge.Admin.v1"]=new Dictionary<string,Delegate>{["execute"]=(Func<ulong,string,string,string>)((_,action,payload)=>{AdminCalls.Add(action+":"+payload);return "{\"success\":true,\"message\":\"geprüft\"}";})};
         modules["LPLK.Player.Sounds.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>SoundsEnabled)};
         modules["LPLK.Player.Statistics.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>StatisticsEnabled)};
         modules["LPLK.Player.Demos.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>DemosEnabled)};
@@ -84,7 +88,9 @@ public sealed class MenuWorld
             case "GetPlayerPermissions": return Permissions.ToList();
             case "IsCommandRegistered": return true;
             case "GetPlayer": return Player;
-            case "GetAllPlayers": return new List<IPlayer>();
+            case "GetAllPlayers": return IncludePlayer ? new List<IPlayer>{Player} : new List<IPlayer>();
+            case "GetAllValidPlayers": return IncludePlayer ? new List<IPlayer>{Player} : new List<IPlayer>();
+            case "NextTick": ((Action)a![0]!)(); return Proxy.Empty(m.ReturnType);
             case "NextWorldUpdate": ((Action)a![0]!)(); return Proxy.Empty(m.ReturnType);
             case "CreateBuilder": return Builder();
             case "GetCurrentMenu": return Current;
@@ -106,6 +112,11 @@ public sealed class MenuWorld
     {
         if(!Plugins.Contains("LPLK_Weapons"))Plugins.Add("LPLK_Weapons");
         modules["LPLK.Player.Weapons.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>WeaponsEnabled)};
+    }
+    public void AddTargetModule(string id,string label)
+    {
+        AddModule(id,label);
+        modules["LPLK.Target."+id+".v1"]=new Dictionary<string,Delegate>{["actions"]=(Func<IPlayer,IPlayer,IReadOnlyDictionary<string,Action<IPlayer>>>)((_,_)=>TargetEnabled?new Dictionary<string,Action<IPlayer>>{[label]=_=>TargetCalls++}:new())};
     }
     private IMenuBuilderAPI Builder()
     {

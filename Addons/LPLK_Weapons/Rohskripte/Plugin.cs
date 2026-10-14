@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Weapons;
 
-[PluginMetadata(Id="LPLK_Weapons",Name="LPLK_Weapons",Version="0.1.0",Author="LPLK",Description="Waffenfreigaben, Teamquoten und gruppierte Waffenauswahl",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Weapons",Name="LPLK_Weapons",Version="0.1.1",Author="LPLK",Description="Waffenfreigaben, Teamquoten und gruppierte Waffenauswahl",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -27,13 +27,13 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private long generation;
     public override void Load(bool hotReload)
     {
-        module=new(Core,"LPLK_Weapons","Waffen & Auswahl","lplk.weapons.admin",OpenAdmin);
+        module=new(Core,"LPLK_Weapons","Waffen","lplk.weapons.admin",OpenAdmin);
         settings=module.ReadSettings<WeaponSettings>(WeaponSettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);module.Active=true;
         Core.GameHooks.Items.CanAcquire.Pre+=Acquire;
         Core.GameHooks.Entities.TakeDamage.Pre+=Damage;
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)lives[p.PlayerID]=++generation;return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p)lives[p.PlayerID]=++generation;return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_Weapons 0.1.0 geladen: restrictions={Restrictions}; menu={Menu}",settings.RestrictionEnabled,settings.MenuEnabled);
+        WriteStatus();Core.Logger.LogInformation("LPLK_Weapons 0.1.1 geladen: restrictions={Restrictions}; menu={Menu}",settings.RestrictionEnabled,settings.MenuEnabled);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
@@ -105,7 +105,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         catch(Exception e){if(reloadError is null)Core.Logger.LogWarning(e,"LPLK_Weapons: letzter gültiger Stand bleibt aktiv");reloadError="Ungültige Dateiänderung";}
         WriteStatus();
     }
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",settings.Enabled,settings.RestrictionEnabled,settings.ActivePreset,allowed=settings.AllowedWeapons.Length,settings.MenuEnabled,specialRules=settings.Rules.Count,denied,damageBlocked,given,errors,reloadError});
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings.Enabled,settings.RestrictionEnabled,settings.ActivePreset,allowed=settings.AllowedWeapons.Length,settings.MenuEnabled,specialRules=settings.Rules.Count,denied,damageBlocked,given,errors,reloadError});
     private void Save(WeaponSettings next)
     {
         WeaponSettings.Validate(next);module.SaveSettings(next);settings=next;stamp=File.GetLastWriteTimeUtc(module.SettingsPath);reloadError=null;WriteStatus();
@@ -114,6 +114,6 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     public void Status(ICommandContext c)
     {
         if(c.Sender is {} p){OpenAdmin(p);return;}
-        WriteStatus();c.Reply($"LPLK_Weapons 0.1.0: enabled={settings.Enabled}; restrictions={settings.RestrictionEnabled}; menu={settings.MenuEnabled}; preset={settings.ActivePreset}; rules={settings.Rules.Count}; errors={errors}; reloadError={reloadError??"none"}");
+        WriteStatus();c.Reply($"LPLK_Weapons 0.1.1: enabled={settings.Enabled}; restrictions={settings.RestrictionEnabled}; menu={settings.MenuEnabled}; preset={settings.ActivePreset}; rules={settings.Rules.Count}; errors={errors}; reloadError={reloadError??"none"}");
     }
 }

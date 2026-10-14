@@ -1,5 +1,7 @@
 # CS2-Addons installieren und aktualisieren
 
+**Fertige ZIPs:** [Paketdownloads und Prüfsummen](DOWNLOADS.md) · [GitHub-Release](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Aktuelle Menüausgabe: **Teststand**.
+
 Diese Anleitung gilt für die Pakete unter `Addons/<Name>/Build/`. Welche Funktion ein Addon hat, welche Befehle es mitbringt und welche Sonderfälle gelten, steht in seiner Anleitung im [Addon-Verzeichnis](ADDONS.md). Stand: 14.10.2026.
 
 ## 1. Passendes Paket wählen
@@ -9,7 +11,7 @@ Diese Anleitung gilt für die Pakete unter `Addons/<Name>/Build/`. Welche Funkti
 - `LPLK_Admin` ergänzt das gemeinsame Spieler- und Adminmenü. Viele Module lassen sich auch über ihre direkten Befehle benutzen. `Addons/_Gemeinsam` ist gemeinsam kompilierter Quellcode, kein zusätzlich zu installierendes Plugin.
 - AddonsManager wird für eingebundene Workshop-Inhalte benötigt, beispielsweise Soundpakete. Ein Eintrag in einem Sound- oder Mapkatalog lädt die Inhalte noch nicht automatisch auf jeden Client.
 
-Ein vollständiges fertiges Paket heißt beispielsweise `LPLK_Parachute.zip`. **GitHubs „Download ZIP“ lädt dagegen den Quellcode des Repositorys.** Diesen muss man erst bauen. Der Quellcodeupload erzeugt keine fertigen GitHub-Releases; Paketdownloads nur verwenden, wenn sie tatsächlich als Release-Anhang angeboten werden.
+Ein vollständiges fertiges Paket heißt beispielsweise `LPLK_Parachute.zip`. **GitHubs „Download ZIP“ lädt dagegen den Quellcode des Repositorys.** Diesen muss man erst bauen. Die fertigen Pluginpakete stehen als einzeln benannte Anhänge in der oben verlinkten Testausgabe bereit.
 
 ## 2. SwiftlyS2 vorbereiten
 

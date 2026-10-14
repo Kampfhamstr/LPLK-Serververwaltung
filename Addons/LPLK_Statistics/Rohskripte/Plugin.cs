@@ -12,7 +12,7 @@ using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Statistics;
-[PluginMetadata(Id="LPLK_Statistics",Name="LPLK_Statistics",Version="0.2.1",Author="LPLK; references Michael Zauche, K4ryuu",Description="PvP, Bottraining, Waffen-StatTrak und Schadenübersicht",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Statistics",Name="LPLK_Statistics",Version="0.2.2",Author="LPLK; references Michael Zauche, K4ryuu",Description="PvP, Bottraining, Waffen-StatTrak und Schadenübersicht",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
  private ModuleSupport module=null!;private StatisticsSettings settings=new();private StatsData data=new();
@@ -31,7 +31,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
  private PlayerStats Get(IPlayer p){sessions[p.PlayerID]=Session(p);dirty=true;pendingExports.Add(p.SteamID);return data.Touch(p.SteamID,p.Controller.PlayerName);}
  public override void Load(bool hotReload)
  {
-  module=new(Core,"LPLK_Statistics","Statistik & StatTrak","lplk.statistics.admin",OpenAdmin);
+  module=new(Core,"LPLK_Statistics","Statistik","lplk.statistics.admin",OpenAdmin);
   settings=module.ReadSettings<StatisticsSettings>(StatisticsSettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);
   dataPath=Path.Combine(Core.PluginDataDirectory,"statistics.json");data=StatsData.Read(dataPath);foreach(ulong id in data.Players.Keys)pendingExports.Add(id);dirty=true;module.Active=true;
   Core.GameHooks.Movement.RunCommand.Pre+=Inspect;
@@ -41,7 +41,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(Human(e.UserIdPlayer)){string s=Session(e.UserIdPlayer!);shots.Remove(s);inspect.Remove(s);shown.Remove(s);}return HookResult.Continue;});
   Core.GameEvent.HookPost<EventRoundStart>(_=>{ClearTransient();BeginRound();return HookResult.Continue;});
   Core.GameEvent.HookPost<EventRoundEnd>(e=>{EndRound(e);if(Live&&settings.DamageSummary)foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(Human))Summary(p,null);Flush();return HookResult.Continue;});
-  RegisterExtended();WriteStatus();Core.Logger.LogInformation("LPLK_Statistics 0.2.1 geladen; Datensätze={Count}; InspectOnly=True",data.Players.Count);
+  RegisterExtended();WriteStatus();Core.Logger.LogInformation("LPLK_Statistics 0.2.2 geladen; Datensätze={Count}; InspectOnly=True",data.Players.Count);
  }
  public override void ConfigureSharedInterface(IInterfaceManager manager)
  {
@@ -149,8 +149,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   string path=Path.Combine(Core.PluginDataDirectory,"web","weapons.json");
   weaponExportTask=Task.Run(()=>{var timer=System.Diagnostics.Stopwatch.StartNew();AtomicJson.Write(path,WeaponRankingExport.Create(snapshot));return timer.ElapsedMilliseconds;});
  }
- private void WriteStatus(){CompleteWeaponExport();AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{version="0.2.1",updatedAt=DateTimeOffset.UtcNow,settings.Enabled,settings.PvpEnabled,settings.BotTrainingEnabled,settings.WeaponTracking,settings.InspectHud,trigger="InspectOnly",settings.DamageCenter,settings.DamageConsole,players=data.Players.Count,dirty,errors,saveError,reloadError,weaponExportError,weaponExportMs,weaponExportRunning=weaponExportTask is not null,weaponSnapshotRunning=weaponCapture is not null});}
+ private void WriteStatus(){CompleteWeaponExport();AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{version="0.2.2",updatedAt=DateTimeOffset.UtcNow,settings.Enabled,settings.PvpEnabled,settings.BotTrainingEnabled,settings.WeaponTracking,settings.InspectHud,trigger="InspectOnly",settings.DamageCenter,settings.DamageConsole,players=data.Players.Count,dirty,errors,saveError,reloadError,weaponExportError,weaponExportMs,weaponExportRunning=weaponExportTask is not null,weaponSnapshotRunning=weaponCapture is not null});}
  private void Save(StatisticsSettings next){StatisticsSettings.Validate(next);module.SaveSettings(next);settings=next;stamp=File.GetLastWriteTimeUtc(module.SettingsPath);ClearTransient();MarkExports();reloadError=null;WriteStatus();}
  [Command("lplk_statistics")]
- public void Status(ICommandContext c){if(c.Sender is {} p){OpenAdmin(p);return;}WriteStatus();c.Reply($"LPLK_Statistics 0.2.1: enabled={settings.Enabled}; players={data.Players.Count}; InspectOnly=True; errors={errors}; saveError={saveError??"none"}; reloadError={reloadError??"none"}");}
+ public void Status(ICommandContext c){if(c.Sender is {} p){OpenAdmin(p);return;}WriteStatus();c.Reply($"LPLK_Statistics 0.2.2: enabled={settings.Enabled}; players={data.Players.Count}; InspectOnly=True; errors={errors}; saveError={saveError??"none"}; reloadError={reloadError??"none"}");}
 }

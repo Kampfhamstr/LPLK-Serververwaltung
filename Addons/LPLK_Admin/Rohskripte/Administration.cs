@@ -49,25 +49,14 @@ public sealed partial class Plugin
             .Design.SetMenuTitle(MenuColors.Heading(MenuLayout.Label(title))).Design.SetMaxVisibleItems(5).AddOption(input).AddOption(cancel).Build());
     }
 
-    private void PlayerManagement(IPlayer p) => Menu(p, "LPLK · Spieler verwalten", a =>
-    {
-        var entries = new List<(string, Action<IPlayer>)>();
-        if (HasPlayerActions(a)) entries.Add(("Spieler auswählen", b => PlayerList(b, 0)));
-        if (Can(a, "unban")) entries.Add(("Offline-Ban entfernen", b => Input(b, "SteamID64 entsperren", (c, id) =>
-        {
-            if (!AdminActionPolicy.SteamId(id)) throw new ArgumentException("Ungültige SteamID64.");
-            Confirm(c, "Ban entfernen", null, "unban", id, [], PlayerManagement);
-        }, PlayerManagement, 17)));
-        return entries;
-    }, OpenAdministration, CanManage);
-
-    private void PlayerList(IPlayer p, int page) => Menu(p, "LPLK · Spieler auswählen", _ =>
+    private void PlayerList(IPlayer p, int page, bool extra = false, int advancedPage = 0) => Menu(p, "LPLK · Spieler auswählen", _ =>
         Core.PlayerManager.GetAllPlayers().Where(t => t.IsValid && !t.IsFakeClient && t.IsAuthorized)
-            .OrderBy(t => t.Controller.PlayerName).Select(t =>
+            .OrderBy(t => t.Name).Select(t =>
             {
                 ulong id = t.SteamID; string session = t.SessionId.ToString();
-                return (t.Controller.PlayerName, (Action<IPlayer>)(a => PlayerActions(a, id, session, page)));
-            }), PlayerManagement, CanManage, page, PlayerList);
+                return (t.Name, (Action<IPlayer>)(a => PlayerActions(a, id, session, page, extra, advancedPage)));
+            }), extra ? a => AdvancedMenu(a, advancedPage) : OpenAdministration, CanOpenAdmin, page,
+        (a, next) => PlayerList(a, next, extra, advancedPage), scroll: true);
 
     private IPlayer Target(string id, string? session)
     {
@@ -77,83 +66,71 @@ public sealed partial class Plugin
         return t;
     }
 
-    private void PlayerActions(IPlayer p, ulong steamId, string session, int page)
+    private void PlayerActions(IPlayer p, ulong steamId, string session, int playerPage, bool extra = false, int advancedPage = 0, int actionPage = 0)
     {
         string id = steamId.ToString(); var target = Target(id, session);
-        Action<IPlayer> back = a => PlayerActions(a, steamId, session, page);
-        Menu(p, "LPLK · " + target.Controller.PlayerName, a =>
-        {
-            var entries = new List<(string, Action<IPlayer>)>();
-            foreach (var (group, title, actions) in new[]
-            {
-                ("sanctions", "Kick & Ban", new[] { "kick", "ban" }),
-                ("communication", "Chat & Nachrichten", new[] { "mute", "gag", "silence", "private_message" }),
-                ("movement", "Team & Bewegung", new[] { "team", "freeze", "noclip", "goto_player", "bring_player" }),
-                ("health", "Leben & Ausrüstung", new[] { "slay", "respawn", "health", "armor" })
-            }) if (actions.Any(action => Can(a, action))) entries.Add((title, b => PlayerGroup(b, id, session, group, back)));
-            return entries;
-        }, a => PlayerList(a, page), CanManage);
-    }
-
-    private void PlayerGroup(IPlayer p, string id, string session, string group, Action<IPlayer> back)
-    {
-        var target = Target(id, session);
-        Action<IPlayer> here = a => PlayerGroup(a, id, session, group, back);
-        Menu(p, "LPLK · " + target.Controller.PlayerName + " · " + GroupTitle(group), a =>
+        Action<IPlayer> here = a => PlayerActions(a, steamId, session, playerPage, extra, advancedPage, actionPage);
+        Menu(p, "LPLK · " + target.Name, a =>
         {
             Target(id, session);
             var entries = new List<(string, Action<IPlayer>)>();
-            void Action(string label, string action, Dictionary<string, object>? payload = null)
+            void Add(string label, string action, Dictionary<string, object>? payload = null)
             {
                 if (!Can(a, action)) return;
-                entries.Add((label, b =>
-                {
-                    if (!Can(b, action)) throw new InvalidOperationException("Keine Berechtigung.");
-                    Target(id, session);
-                    if (action is "kick" or "ban" or "mute" or "gag" or "silence") Reasons(b, label, session, action, id, here);
-                    else Confirm(b, label, session, action, id, payload ?? [], here);
-                }));
+                entries.Add((label, b => PlayerAction(b, label, action, id, session, payload, here)));
             }
-            void Sub(string label, string child, params string[] actions)
-            {
-                if (actions.Any(action => Can(a, action))) entries.Add((label, b => PlayerGroup(b, id, session, child, here)));
-            }
-            switch (group)
-            {
-                case "sanctions": Action("Kicken", "kick"); Action("Bannen", "ban"); break;
-                case "communication":
-                    Sub("Sprachchat", "voice", "mute"); Sub("Textchat", "text", "gag"); Sub("Sprache & Text gemeinsam", "silence", "silence");
-                    if (Can(a, "private_message")) entries.Add(("Private Nachricht", b => Input(b, "Private Nachricht", (c, text) =>
-                        Confirm(c, "Nachricht: " + text, session, "private_message", id, new() { ["message"] = text, ["type"] = "chat" }, here), here)));
-                    break;
-                case "voice": Action("Sprachchat sperren", "mute"); Action("Sprachchat freigeben", "unmute"); break;
-                case "text": Action("Textchat sperren", "gag"); Action("Textchat freigeben", "ungag"); break;
-                case "silence": Action("Beides sperren", "silence"); Action("Beides freigeben", "unsilence"); break;
-                case "movement":
-                    Sub("Team wechseln", "team", "team"); Sub("Einfrieren / Freigeben", "freeze", "freeze");
-                    Sub("Teleportieren", "teleport", "goto_player", "bring_player"); Sub("Noclip", "noclip", "noclip"); break;
-                case "team":
-                    Action("Terroristen", "team", new() { ["team"] = "t" }); Action("Counter-Terroristen", "team", new() { ["team"] = "ct" });
-                    Action("Zuschauer", "team", new() { ["team"] = "spectator" }); break;
-                case "freeze":
-                    Action("Einfrieren", "freeze", new() { ["frozen"] = true, ["seconds"] = 0 });
-                    Action("Bewegung freigeben", "freeze", new() { ["frozen"] = false, ["seconds"] = 0 }); break;
-                case "teleport": Action("Zum Spieler teleportieren", "goto_player"); Action("Spieler zu mir holen", "bring_player"); break;
-                case "noclip": Action("Noclip an", "noclip", new() { ["enabled"] = true }); Action("Noclip aus", "noclip", new() { ["enabled"] = false }); break;
-                case "health":
-                    Action("Töten", "slay"); Action("Respawn", "respawn");
-                    Action("100 Lebenspunkte", "health", new() { ["value"] = 100 }); Action("100 Rüstung", "armor", new() { ["value"] = 100 }); break;
-            }
+                Add("Kicken", "kick"); Add("Bannen", "ban");
+                if (new[] { "mute", "gag", "silence", "unmute", "ungag", "unsilence" }.Any(action => Can(a, action)))
+                    entries.Add(("Chat", b => PlayerChoices(b, id, session, "chat", here)));
+                if (Can(a, "team")) entries.Add(("Team", b => PlayerChoices(b, id, session, "team", here)));
+                Add("Töten", "slay"); Add("Respawn", "respawn");
+                Add("Hinteleportieren", "goto_player"); Add("Herholen", "bring_player");
+                Add("Einfrieren", "freeze", new() { ["frozen"] = true, ["seconds"] = 0 });
+                Add("Freigeben", "freeze", new() { ["frozen"] = false, ["seconds"] = 0 });
+                Add("Heilen", "health", new() { ["value"] = 100 }); Add("Rüsten", "armor", new() { ["value"] = 100 });
+                Add("Noclip an", "noclip", new() { ["enabled"] = true }); Add("Noclip aus", "noclip", new() { ["enabled"] = false });
+                if (Can(a, "private_message")) entries.Add(("Nachricht", b => Input(b, "Nachricht", (c, text) =>
+                    Confirm(c, "Nachricht: " + text, session, "private_message", id, new() { ["message"] = text, ["type"] = "chat" }, here), here)));
+            entries.AddRange(TargetModuleActions(a,target));
             return entries;
-        }, back, CanManage);
+        }, a => PlayerList(a, playerPage, extra, advancedPage), CanOpenAdmin, actionPage,
+            (a, next) => PlayerActions(a, steamId, session, playerPage, extra, advancedPage, next), scroll: true);
     }
 
-    private static string GroupTitle(string group) => group switch
+    private void PlayerAction(IPlayer p, string label, string action, string id, string session, Dictionary<string, object>? payload, Action<IPlayer> back)
     {
-        "sanctions" => "Kick & Ban", "communication" => "Chat & Nachrichten", "voice" => "Sprachchat", "text" => "Textchat",
-        "silence" => "Sprache & Text", "movement" => "Team & Bewegung", "team" => "Team wechseln", "freeze" => "Bewegung",
-        "teleport" => "Teleportieren", "noclip" => "Noclip", "health" => "Leben & Ausrüstung", _ => "Spieler"
-    };
+        if (!Can(p, action)) throw new InvalidOperationException("Keine Berechtigung.");
+        Target(id, session);
+        if (action is "kick" or "ban" or "mute" or "gag" or "silence") Reasons(p, label, session, action, id, back);
+        else Confirm(p, label, session, action, id, payload ?? [], back);
+    }
+
+    private void PlayerChoices(IPlayer p, string id, string session, string choice, Action<IPlayer> back, int page = 0)
+    {
+        var target = Target(id, session);
+        Action<IPlayer> here = a => PlayerChoices(a, id, session, choice, back, page);
+        Menu(p, "LPLK · " + target.Name + (choice == "team" ? " · Team" : " · Chat"), a =>
+        {
+            Target(id, session);
+            var entries = new List<(string, Action<IPlayer>)>();
+            void Add(string label, string action, Dictionary<string, object>? payload = null)
+            {
+                if (Can(a, action)) entries.Add((label, b => PlayerAction(b, label, action, id, session, payload, here)));
+            }
+            if (choice == "team")
+            {
+                Add("T", "team", new() { ["team"] = "t" }); Add("CT", "team", new() { ["team"] = "ct" });
+                Add("Zuschauer", "team", new() { ["team"] = "spectator" });
+            }
+            else
+            {
+                Add("Stummschalten", "mute"); Add("Sprache freigeben", "unmute");
+                Add("Schreibsperre", "gag"); Add("Text freigeben", "ungag");
+                Add("Beides sperren", "silence"); Add("Beides freigeben", "unsilence");
+            }
+            return entries;
+        }, back, CanManage, page, (a, next) => PlayerChoices(a, id, session, choice, back, next), scroll: true);
+    }
 
     private void Reasons(IPlayer p, string label, string session, string action, string target, Action<IPlayer> back) =>
         Menu(p, "LPLK · Grund", _ => settings.Reasons.Select(reason => (reason, (Action<IPlayer>)(a =>
@@ -173,7 +150,7 @@ public sealed partial class Plugin
     private void Confirm(IPlayer p, string label, string? session, string action, string? target, Dictionary<string, object> payload, Action<IPlayer> back)
     {
         if (!Can(p, action)) return;
-        string targetName = target is not null && session is not null ? Target(target, session).Controller.PlayerName : target ?? "Server";
+        string targetName = target is not null && session is not null ? Target(target, session).Name : target ?? "Server";
         Menu(p, "LPLK · " + label + " → " + targetName, _ => new (string, Action<IPlayer>)[]
         {
             ("Bestätigen", a =>
@@ -186,14 +163,7 @@ public sealed partial class Plugin
         }, back, a => Can(a, action));
     }
 
-    private void ServerMenu(IPlayer p) => Menu(p, "LPLK · Server & Maps", a =>
-    {
-        var entries = new List<(string, Action<IPlayer>)>();
-        if (Can(a, "round_restart")) entries.Add(("Runde neu starten (5 Sekunden)", b => Confirm(b, "Rundenneustart", null, "round_restart", null, new() { ["countdown_seconds"] = 5 }, ServerMenu)));
-        if (Can(a, "broadcast")) entries.Add(("Nachricht an alle", b => Input(b, "Servernachricht", (c, text) => Confirm(c, "Ansage: " + text, null, "broadcast", null, new() { ["message"] = text, ["type"] = "chat" }, ServerMenu), ServerMenu)));
-        entries.AddRange(ModuleEntries(a, "server", ServerMenu));
-        return entries;
-    }, OpenAdministration, CanOpenAdmin);
+
 }
 
 public sealed record AdminSettings

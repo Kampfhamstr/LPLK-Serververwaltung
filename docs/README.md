@@ -1,5 +1,7 @@
 # LPLK-Serververwaltung: Anleitungen
 
+**Fertige ZIPs:** [Paketdownloads und Prüfsummen](DOWNLOADS.md) · [GitHub-Release](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Aktuelle Menüausgabe: **Teststand**.
+
 Die Sammlung besteht aus CS2-/SwiftlyS2-Addons, einem Windows-Verwaltungsprogramm und einer PHP-Website. Hier beginnt die Dokumentation für Einrichtung und Bedienung.
 
 | Ich möchte … | Hier beginnen |

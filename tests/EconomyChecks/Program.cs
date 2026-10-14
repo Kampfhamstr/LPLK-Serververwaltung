@@ -132,16 +132,16 @@ Check(BankPolicy.Amount("all",9_000_000_000,100,9_000_000_000)==9_000_000_000,"a
 var world=new MenuWorld{DataDirectory=Path.Combine(root,"menus"),RejectEntityAccess=true};
 var plugin=new Plugin(world.Core);plugin.Load(false);Check(world.EntityAccesses==0,"cold load avoids entity system");
 plugin.BankCommand(world.Context);Check(world.Labels.Count==5,"bank root four functions plus back");
-await world.Click("Einzahlen &amp; Abheben");await world.Click("Einzahlen");
+await world.Click("Bargeld");await world.Click("Einzahlen");
 for(int page=0;page<8;page++){Check(world.Current!.Options.Count<=5,"amount page bounded");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
-plugin.Administration(world.Context);Check(!world.Labels.Any(x=>x.Contains("Konten verwalten")),"ordinary player denied admin");
+plugin.Administration(world.Context);Check(!world.Labels.Any(x=>x.Contains("Konten")),"ordinary player denied admin");
 world.Permissions.Add("lplk.economy.admin");plugin.Administration(world.Context);Check(world.Labels.Count==4,"admin root reserves parent back row");
 await world.Click("Einstellungen");await world.Click("Bankregeln");var toggle=world.Find("Bank: AN");world.Permissions.Clear();await world.Click(toggle);
 var saved=JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(Path.Combine(world.DataDirectory,"settings.json")))!;
 Check(saved.BankEnabled,"revoked admin cannot toggle stale menu");world.Permissions.Add("lplk.economy.admin");await world.Click(toggle);
 saved=JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(Path.Combine(world.DataDirectory,"settings.json")))!;Check(!saved.BankEnabled,"permitted toggle saved");
 plugin.Administration(world.Context);Check(world.Labels.Count==4,"disabled module still administrable");await world.Click("Einstellungen");await world.Click("Bankregeln");await world.Click("Bank: AUS");
-plugin.Administration(world.Context);await world.Click("Bankperiode &amp; Reset");await world.Click("Bankperiode zurücksetzen");var confirmation=world.Find("Bestätigen");
+plugin.Administration(world.Context);await world.Click("Bankreset");await world.Click("Zurücksetzen");var confirmation=world.Find("Bestätigen");
 world.Permissions.Clear();await world.Click(confirmation);world.Permissions.Add("lplk.economy.admin");
 var ledger=(Ledger)typeof(Plugin).GetField("bank",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(plugin)!;
 Check(ledger.Period==1,"reset confirmation rechecks permissions");await world.Click(confirmation);Check(ledger.Period==2,"confirmed reset");await world.Click(confirmation);Check(ledger.Period==2,"stale reset callback cannot reset twice");

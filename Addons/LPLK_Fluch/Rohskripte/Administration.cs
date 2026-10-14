@@ -37,11 +37,10 @@ public sealed partial class Plugin
         }
         Status(ctx);
     }
-    private void Status(ICommandContext ctx){WriteStatus();ctx.Reply($"LPLK_Fluch 0.1.0: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; chickens={settings.ChickenCount}; duration={settings.OrbitDurationSeconds}; damage={settings.TotalDamage}; active={curses.Count}; errors={errors}; reloadError={reloadError??"none"}");}
+    private void Status(ICommandContext ctx){WriteStatus();ctx.Reply($"LPLK_Fluch 0.1.1: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; chickens={settings.ChickenCount}; duration={settings.OrbitDurationSeconds}; damage={settings.TotalDamage}; active={curses.Count}; errors={errors}; reloadError={reloadError??"none"}");}
     private void OpenAdmin(IPlayer p)=>module.Menu(p,"LPLK · Hühnerfluch",
-        ("Zielspieler auswählen",a=>Targets(a,0)),
-        ($"Alle Flüche beenden ({curses.Count})",a=>{if(ready)curses.Clear();OpenAdmin(a);}),
-        ($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,settings with{Enabled=!settings.Enabled});OpenAdmin(a);}),
+        ("Spieler",a=>Targets(a,0)),
+        ($"Beenden ({curses.Count})",a=>{if(ready)curses.Clear();OpenAdmin(a);}),
         ("Einstellungen",SettingsMenu));
     private void Targets(IPlayer p,int page)
     {
@@ -76,21 +75,22 @@ public sealed partial class Plugin
     }
     public static string SafeLabel(string name)=>name.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;");
     private void SettingsMenu(IPlayer p)=>module.Menu(p,"Fluch · Einstellungen",1,
-        ("Hühner, Dauer & Schaden",EffectMenu),
-        ("Kreisbahn & Bewegung",OrbitMenu),
-        ("Ziele & Hinweise",MessageMenu),
+        ($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,settings with{Enabled=!settings.Enabled});SettingsMenu(a);}),
+        ("Wirkung",EffectMenu),
+        ("Kreisbahn",OrbitMenu),
+        ("Hinweise",MessageMenu),
         ("Zurück",OpenAdmin));
     private void EffectMenu(IPlayer p)=>module.Menu(p,"Fluch · Wirkung",1,
         ($"Hühner: {settings.ChickenCount}",a=>{Apply(a,settings with{ChickenCount=(int)Next(settings.ChickenCount,[5,10,20,32,64])});EffectMenu(a);}),
         ($"Dauer: {settings.OrbitDurationSeconds:0.#} s",a=>{Apply(a,settings with{OrbitDurationSeconds=Next(settings.OrbitDurationSeconds,[3,5,10,15,30,60])});EffectMenu(a);}),
-        ($"Schaden je Huhn: {settings.ChickenExplosionDamagePerChicken:0.#} (gesamt {settings.TotalDamage:0.#})",a=>{Apply(a,settings with{ChickenExplosionDamagePerChicken=Next(settings.ChickenExplosionDamagePerChicken,[0,1,2,5,10])});EffectMenu(a);}),
+        ($"Hühnerschaden: {settings.ChickenExplosionDamagePerChicken:0.#} (gesamt {settings.TotalDamage:0.#})",a=>{Apply(a,settings with{ChickenExplosionDamagePerChicken=Next(settings.ChickenExplosionDamagePerChicken,[0,1,2,5,10])});EffectMenu(a);}),
         ($"Gleichzeitige Flüche: {settings.MaxActiveCurses}",a=>{Apply(a,settings with{MaxActiveCurses=settings.MaxActiveCurses%4+1});EffectMenu(a);}),
         ("Zurück",SettingsMenu));
     private void OrbitMenu(IPlayer p)=>module.Menu(p,"Fluch · Kreisbahn",1,
         ($"Höhe: {settings.HeadOrbitHeight:0}",a=>{Apply(a,settings with{HeadOrbitHeight=Next(settings.HeadOrbitHeight,[40,60,76,100,150])});OrbitMenu(a);}),
         ($"Radius: {settings.HeadOrbitRadius:0}",a=>{Apply(a,settings with{HeadOrbitRadius=Next(settings.HeadOrbitRadius,[30,40,58,80,120])});OrbitMenu(a);}),
         ($"Geschwindigkeit: {settings.OrbitSpeed:0.0}",a=>{Apply(a,settings with{OrbitSpeed=Next(settings.OrbitSpeed,[1,2,2.7f,4,6])});OrbitMenu(a);}),
-        ("Wellen & Aktualisierung",WaveMenu),
+        ("Bewegung",WaveMenu),
         ("Zurück",SettingsMenu));
     private void WaveMenu(IPlayer p)=>module.Menu(p,"Fluch · Bewegung",1,
         ($"Wellenhöhe: {settings.OrbitWaveHeight:0}",a=>{Apply(a,settings with{OrbitWaveHeight=Next(settings.OrbitWaveHeight,[0,5,9,15,30])});WaveMenu(a);}),
@@ -99,7 +99,7 @@ public sealed partial class Plugin
         ("Zurück",OrbitMenu));
     private void MessageMenu(IPlayer p)=>module.Menu(p,"Fluch · Ziele & Hinweise",1,
         ($"Selbstverfluchen: {(settings.AllowSelfTarget?"AN":"AUS")}",a=>{Apply(a,settings with{AllowSelfTarget=!settings.AllowSelfTarget});MessageMenu(a);}),
-        ($"Chat beim Start: {(settings.NotifyTargetInChat?"AN":"AUS")}",a=>{Apply(a,settings with{NotifyTargetInChat=!settings.NotifyTargetInChat});MessageMenu(a);}),
+        ($"Startchat: {(settings.NotifyTargetInChat?"AN":"AUS")}",a=>{Apply(a,settings with{NotifyTargetInChat=!settings.NotifyTargetInChat});MessageMenu(a);}),
         ("Bildschirmhinweise",CenterMenu),
         ("Zurück",SettingsMenu));
     private void CenterMenu(IPlayer p)=>module.Menu(p,"Fluch · Bildschirmhinweise",1,

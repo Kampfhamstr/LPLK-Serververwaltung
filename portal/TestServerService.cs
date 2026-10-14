@@ -229,7 +229,7 @@ internal static partial class SshService
             if(component is not ("LPLK_WebEconomySet" or "LPLK_WeaponsSet" or "LPLK_StatisticsSet" or "LPLK_ThirdPersonSet" or "LPLK_FluchSet" or "LPLK_NadeEffectsSet" or "LPLK_EconomySet"))
             if(component=="LPLK_TeamsSet"?id is not ("SerververwaltungBridge" or "LPLK_Teams"):component=="LPLK_ChatGuardSet"?id is not ("SerververwaltungBridge" or "LPLK_ChatGuard"):component=="LPLK_MenuSet"?!id.StartsWith("LPLK_",StringComparison.Ordinal):component is not null && id!=component)continue;
             string file = Path.Combine(workspace, "Addons", id, "Build", id + ".zip");
-            if (!File.Exists(file)) { if(component is "LPLK_WebEconomySet" or "LPLK_EconomySet" or "LPLK_NadeEffectsSet" or "LPLK_FluchSet" or "LPLK_ThirdPersonSet" or "LPLK_StatisticsSet" or "LPLK_WeaponsSet" or "LPLK_ChatGuardSet" or "LPLK_TeamsSet")throw new InvalidOperationException("Alle Komponenten der Modulgruppe müssen vorliegen.");continue; }
+            if (!File.Exists(file)) { if(component is "LPLK_MenuSet" or "LPLK_WebEconomySet" or "LPLK_EconomySet" or "LPLK_NadeEffectsSet" or "LPLK_FluchSet" or "LPLK_ThirdPersonSet" or "LPLK_StatisticsSet" or "LPLK_WeaponsSet" or "LPLK_ChatGuardSet" or "LPLK_TeamsSet")throw new InvalidOperationException("Alle Komponenten der Modulgruppe müssen vorliegen.");continue; }
             using var stream = File.OpenRead(file);
             if (stream.Length > 50 * 1024 * 1024) throw new InvalidOperationException("Pluginpaket ist unerwartet groß.");
             var hash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();

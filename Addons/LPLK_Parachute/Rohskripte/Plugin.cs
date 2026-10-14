@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Parachute;
 
-[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.3", Author = "LPLK / schwarper", Description = "Fallschirm mit E; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.4", Author = "LPLK / schwarper", Description = "Fallschirm mit E; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
 public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ParachuteSettings settings = new();
@@ -32,7 +32,7 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Core.GameEvent.HookPre<EventPlayerDeath>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         Core.GameEvent.HookPre<EventPlayerSpawn>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         module.Active = true;
-        Core.Logger.LogInformation("LPLK_Parachute 0.1.3 bereit; Parachute-v5-Mechanik: E, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
+        Core.Logger.LogInformation("LPLK_Parachute 0.1.4 bereit; Parachute-v5-Mechanik: E, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
     }
 
     public override void Unload() { if (module is not null) module.Active = false; ReleaseAll(); }
@@ -74,7 +74,7 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
     public void Command(ICommandContext ctx)
     {
         if (ctx.IsSentByPlayer && ctx.Sender is { } player) OpenAdmin(player);
-        else ctx.Reply($"LPLK_Parachute 0.1.3: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored");
+        else ctx.Reply($"LPLK_Parachute 0.1.4: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored");
     }
 
     private void Apply(ParachuteSettings next, IPlayer player)
@@ -92,5 +92,5 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
         ("Fallgeschwindigkeit −10", p => Apply(settings with { FallSpeed = Math.Max(20, settings.FallSpeed - 10) }, p)),
         ($"Gleichmäßiges Sinken: {(settings.Linear ? "Ja" : "Nein")}", p => Apply(settings with { Linear = !settings.Linear }, p)),
         ($"Bremsschritt: {settings.BrakePerTick:0} → +5 (0=sofort)", p => Apply(settings with { BrakePerTick = settings.BrakePerTick>=50 ? 0 : settings.BrakePerTick+5 }, p)),
-        ($"Mit Geisel sperren: {(settings.DisableWhenCarryingHostage ? "Ja" : "Nein")}", p => Apply(settings with { DisableWhenCarryingHostage = !settings.DisableWhenCarryingHostage }, p)));
+        ($"Geiselsperre: {(settings.DisableWhenCarryingHostage ? "Ja" : "Nein")}", p => Apply(settings with { DisableWhenCarryingHostage = !settings.DisableWhenCarryingHostage }, p)));
 }

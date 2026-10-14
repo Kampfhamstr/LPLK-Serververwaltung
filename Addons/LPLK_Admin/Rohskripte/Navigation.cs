@@ -14,10 +14,11 @@ public sealed partial class Plugin
     private bool CanOpenAdmin(IPlayer p) => Connected(p) && (CanManage(p) || Modules(p).Length > 0);
 
     private void Menu(IPlayer p, string caption, Func<IPlayer, IEnumerable<(string Label, Action<IPlayer> Action)>> entries,
-        Action<IPlayer>? back, Func<IPlayer, bool> allowed, int page = 0, Action<IPlayer, int>? changePage = null)
+        Action<IPlayer>? back, Func<IPlayer, bool> allowed, int page = 0, Action<IPlayer, int>? changePage = null, bool scroll = false)
     {
         if (!allowed(p)) { p.SendChat("[LPLK] Dieser Bereich ist nicht mehr freigegeben."); return; }
-        var slice = MenuLayout.Page(entries(p), page, back is not null);
+        var available = entries(p).ToArray();
+        var slice = scroll ? new MenuPage<(string Label, Action<IPlayer> Action)>(available, 0, 1, 0) : MenuLayout.Page(available, page, back is not null);
         string title = caption + (slice.Count > 1 ? $" · {slice.Index + 1}/{slice.Count}" : "");
         var builder = Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false)
             .Design.SetMenuTitle(MenuColors.Heading(MenuLayout.Label(title))).Design.SetMaxVisibleItems(5);
@@ -50,7 +51,7 @@ public sealed partial class Plugin
     public void PlayerMenuCommand(ICommandContext context)
     {
         if (context.Sender is { } player && Connected(player)) OpenPlayerMenu(player);
-        else context.Reply("LPLK_Admin 0.3.7; Spielermenü: !menu; Administration: !admin / !adminmenu.");
+        else context.Reply("LPLK_Admin 0.5.0; Spielermenü: !menu; Administration: !admin / !adminmenu.");
     }
 
     private bool Loaded(string id) => active && Core.PluginManager.GetAllPlugins().Contains(id) && Core.PluginManager.GetPluginStatus(id)==SwiftlyS2.Shared.Plugins.PluginStatus.Loaded;
@@ -67,17 +68,19 @@ public sealed partial class Plugin
     private void OpenPlayerMenu(IPlayer p) => Menu(p, "LPLK · Spielermenü", a =>
     {
         var entries = new List<(string, Action<IPlayer>)>();
-        if (MapEntries(a).Count>0) entries.Add(("Maps & Abstimmungen", PlayerMaps));
-        if (SoundEntries(a).Count>0 || PlayerWeaponsAllowed(a) || PlayerCameraAllowed(a)) entries.Add(("Waffen, Kamera & Sounds", PlayerExtras));
-        if (EconomyEntries(a).Count>0) entries.Add(("Bank & Wirtschaft",PlayerEconomy));
-        entries.Add(("Statistik & Hilfe", PlayerInformation));
+        if (MapEntries(a).Count>0) entries.Add(("Maps", PlayerMaps));
+        if (PlayerFeatureAllowed(a,"LPLK_Sounds","sound")) entries.Add(("Sounds",b=>PlayerCommand(b,"LPLK_Sounds","sound")));
+        if (PlayerWeaponsAllowed(a)) entries.Add(("Waffen",b=>PlayerCommand(b,"LPLK_Weapons","sw_guns")));
+        if (PlayerCameraAllowed(a)) entries.Add(("Kamera",b=>PlayerCommand(b,"LPLK_ThirdPerson","sw_tp")));
+        if (EconomyEntries(a).Count>0) entries.Add(("Wirtschaft",PlayerEconomy));
+        entries.Add(("Info", PlayerInformation));
         if (CanOpenAdmin(a)) entries.Add(("Adminmenü", OpenAdministration));
         return entries;
-    }, null, Connected);
+    }, null, Connected, scroll: true);
 
     private IReadOnlyList<(string,Action<IPlayer>)> EconomyEntries(IPlayer p)=>new (string Id,string Label,string Command)[]
     {
-        ("LPLK_Economy","Bankkonto & Überweisungen","sw_bank"),("LPLK_Economy","Wetten","sw_bet"),("LPLK_Economy","Lotterie","sw_lotto"),("LPLK_Economy","Bankraub","sw_bankraub"),("LPLK_Economy","Titel","sw_titel"),("LPLK_Economy","Kopfgeld","sw_kopfgeld")
+        ("LPLK_Economy","Konto","sw_bank"),("LPLK_Economy","Wetten","sw_bet"),("LPLK_Economy","Lotterie","sw_lotto"),("LPLK_Economy","Bankraub","sw_bankraub"),("LPLK_Economy","Titel","sw_titel"),("LPLK_Economy","Kopfgeld","sw_kopfgeld")
     }.Where(x=>PlayerFeatureAllowed(p,x.Id,x.Command)).Select(x=>(x.Label,(Action<IPlayer>)(a=>PlayerCommand(a,x.Id,x.Command)))).ToArray();
     private void PlayerEconomy(IPlayer p)=>Menu(p,"LPLK · Bank & Wirtschaft",EconomyEntries,OpenPlayerMenu,Connected);
     private bool PlayerWeaponsAllowed(IPlayer p) => PlayerFeatureAllowed(p,"LPLK_Weapons","sw_guns");
@@ -87,28 +90,28 @@ public sealed partial class Plugin
         var entries=new List<(string,Action<IPlayer>)>();
         if(PlayerWeaponsAllowed(a))entries.Add(("Waffenauswahl",b=>{if(PlayerWeaponsAllowed(b))PlayerCommand(b,"LPLK_Weapons","sw_guns");else b.SendChat("[LPLK] Waffenauswahl derzeit nicht freigegeben.");}));
         if(SoundEntries(a).Count>0)entries.Add(("Sounds",PlayerSounds));
-        if(PlayerCameraAllowed(a))entries.Add(("ThirdPerson umschalten",b=>PlayerCommand(b,"LPLK_ThirdPerson","sw_tp")));
+        if(PlayerCameraAllowed(a))entries.Add(("Kamera",b=>PlayerCommand(b,"LPLK_ThirdPerson","sw_tp")));
         return entries;
     },OpenPlayerMenu,Connected);
 
     private IReadOnlyList<(string,Action<IPlayer>)> MapEntries(IPlayer p)=>new (string Label,string Command)[]
     {
-        ("Map nominieren","sw_nominate"),("RTV-Stimme abgeben","sw_rtv"),("Laufende Abstimmung öffnen","sw_mapchooser")
+        ("Nominieren","sw_nominate"),("RTV","sw_rtv"),("Abstimmung","sw_mapchooser")
     }.Where(x=>PlayerFeatureAllowed(p,"LPLK_Maps",x.Command)).Select(x=>(x.Label,(Action<IPlayer>)(a=>PlayerCommand(a,"LPLK_Maps",x.Command)))).ToArray();
     private void PlayerMaps(IPlayer p) => Menu(p, "LPLK · Maps & Abstimmungen",MapEntries,OpenPlayerMenu,Connected);
 
     private IReadOnlyList<(string,Action<IPlayer>)> SoundEntries(IPlayer p)=>new (string Label,string Command)[]
     {
-        ("Soundliste & Höreinstellungen","sound"),("Sound an Spieler senden","soundsend")
+        ("Abspielen","sound"),("Senden","soundsend")
     }.Where(x=>PlayerFeatureAllowed(p,"LPLK_Sounds",x.Command)).Select(x=>(x.Label,(Action<IPlayer>)(a=>PlayerCommand(a,"LPLK_Sounds",x.Command)))).ToArray();
     private void PlayerSounds(IPlayer p) => Menu(p, "LPLK · Sounds",SoundEntries,PlayerExtras,Connected);
 
     private void PlayerInformation(IPlayer p)=>Menu(p,"LPLK · Statistik & Hilfe",a=>
     {
         var entries=new List<(string,Action<IPlayer>)>();
-        if(PlayerFeatureAllowed(a,"LPLK_Statistics","sw_stats"))entries.Add(("Statistik & Ranglisten",b=>PlayerCommand(b,"LPLK_Statistics","sw_stats")));
-        if(PlayerFeatureAllowed(a,"LPLK_Demos","sw_demo"))entries.Add(("Aktuelle Demo aufbewahren",b=>PlayerCommand(b,"LPLK_Demos","sw_demo")));
-        entries.Add(("Hilfe & Bedienung",PlayerHelp));return entries;
+        if(PlayerFeatureAllowed(a,"LPLK_Statistics","sw_stats"))entries.Add(("Statistik",b=>PlayerCommand(b,"LPLK_Statistics","sw_stats")));
+        if(PlayerFeatureAllowed(a,"LPLK_Demos","sw_demo"))entries.Add(("Demo sichern",b=>PlayerCommand(b,"LPLK_Demos","sw_demo")));
+        entries.Add(("Hilfe",PlayerHelp));return entries;
     },OpenPlayerMenu,Connected);
     private void PlayerHelp(IPlayer p) => Menu(p, "LPLK · Hilfe & Bedienung", _ =>
     {
@@ -117,35 +120,40 @@ public sealed partial class Plugin
             ("Menübedienung", a => a.SendChat("[LPLK] Navigation und Auswahl: Tasten in der Menü-Fußzeile. !menu öffnet den Einstieg erneut."))
         };
         if (Loaded("LPLK_Parachute")) entries.Add(("Fallschirm", a => a.SendChat("[LPLK] Fallschirm: beim Fallen E halten, sofern auf diesem Server aktiviert.")));
-        if (Loaded("LPLK_BombWires")) entries.Add(("Bombendrähte", a => a.SendChat("[LPLK] Das Drahtmenü erscheint beim Legen/Entschärfen. Hier erfolgt die Auswahl mit Leertaste.")));
+        if (Loaded("LPLK_BombWires")) entries.Add(("Bombendrähte", a => a.SendChat("[LPLK] Das Drahtmenü erscheint beim Legen/Entschärfen. Hier erfolgt die Auswahl mit deiner Sprungtaste (+jump).")));
         return entries;
     }, PlayerInformation, Connected);
 
-    private bool HasPlayerActions(IPlayer p) => AdminActionPolicy.Permissions.Keys.Any(action => action is not ("unban" or "broadcast" or "round_restart" or "server_command" or "cvar_set") && Can(p, action));
-    private bool HasServerActions(IPlayer p) => Can(p, "round_restart") || Can(p, "broadcast") || Modules(p, "server").Length > 0;
-    private bool HasGameplay(IPlayer p) => Modules(p).Any(id => MenuLayout.ModuleGroup(id) is "movement" or "combat" or "sounds" or "economy" or "other");
+    private bool HasPlayerActions(IPlayer p) => Core.PlayerManager.GetAllPlayers().Any(t => t.IsValid && !t.IsFakeClient && t.IsAuthorized && TargetModuleActions(p,t).Any()) || AdminActionPolicy.Permissions.Keys.Any(action => action is not ("unban" or "broadcast" or "round_restart" or "server_command" or "cvar_set") && Can(p, action));
     private void OpenAdministration(IPlayer p) => Menu(p, "LPLK · Adminmenü", a =>
     {
         var entries = new List<(string, Action<IPlayer>)>();
-        if (HasPlayerActions(a) || Can(a, "unban")) entries.Add(("Spieler verwalten", PlayerManagement));
-        if (HasServerActions(a)) entries.Add(("Server & Maps", ServerMenu));
-        if (HasGameplay(a)) entries.Add(("Spielregeln & Sounds", GameplayMenu));
-        entries.Add(("Zugriff & Rechte", AccessMenu));
+        if (HasPlayerActions(a)) entries.Add(("Spieler", b => PlayerList(b, 0)));
+        if (ModuleAllowed(a, "LPLK_Maps")) entries.Add(("Maps", b => OpenModule(b, "LPLK_Maps", OpenAdministration)));
+        if (ModuleAllowed(a, "LPLK_Sounds")) entries.Add(("Sounds", b => OpenModule(b, "LPLK_Sounds", OpenAdministration)));
+        entries.Add(("Erweitert", b => AdvancedMenu(b, 0)));
         return entries;
     }, OpenPlayerMenu, CanOpenAdmin);
 
-    private void GameplayMenu(IPlayer p) => Menu(p, "LPLK · Spielregeln & Sounds", a =>
+    // One flat, paged list for infrequent administration; no functional-category subtrees.
+    private void AdvancedMenu(IPlayer p, int page) => Menu(p, "LPLK · Erweitert", a =>
     {
         var entries = new List<(string, Action<IPlayer>)>();
-        foreach (var (group, title) in new[] { ("movement", "Bewegung & Teams"), ("combat", "Kampf & Bomben"), ("sounds", "Sounds"), ("economy", "Bank & Wirtschaft"), ("other", "Weitere Module") })
-            if (Modules(a, group).Length > 0) entries.Add((title, b => ModuleMenu(b, group, title, GameplayMenu)));
+        Action<IPlayer> back = b => AdvancedMenu(b, page);
+        if (Can(a, "round_restart")) entries.Add(("Rundenneustart", b => Confirm(b, "Rundenneustart in 5 Sekunden", null, "round_restart", null, new() { ["countdown_seconds"] = 5 }, back)));
+        if (Can(a, "broadcast")) entries.Add(("Ansage", b => Input(b, "Servernachricht", (c, text) => Confirm(c, "Ansage: " + text, null, "broadcast", null, new() { ["message"] = text, ["type"] = "chat" }, back), back)));
+        if (Can(a, "unban")) entries.Add(("Entbannen", b => Input(b, "SteamID64 entsperren", (c, id) =>
+        {
+            if (!AdminActionPolicy.SteamId(id)) throw new ArgumentException("Ungültige SteamID64.");
+            Confirm(c, "Entbannen", null, "unban", id, [], back);
+        }, back, 17)));
+        entries.AddRange(Modules(a).Where(id => id is not ("LPLK_Maps" or "LPLK_Sounds"))
+            .Select(id => (Id: id, Title: ((Func<string>)Api(id)!["title"])()))
+            .OrderBy(x => x.Title, StringComparer.CurrentCultureIgnoreCase)
+            .Select(x => (x.Title, (Action<IPlayer>)(b => OpenModule(b, x.Id, back)))));
+        entries.Add(("Rechte", b => RightsMenu(b, back)));
         return entries;
-    }, OpenAdministration, CanOpenAdmin);
-
-    private IEnumerable<(string, Action<IPlayer>)> ModuleEntries(IPlayer p, string group, Action<IPlayer> back) => Modules(p, group)
-        .Select(id => (((Func<string>)Api(id)!["title"])(), (Action<IPlayer>)(a => OpenModule(a, id, back))));
-    private void ModuleMenu(IPlayer p, string group, string title, Action<IPlayer> back) =>
-        Menu(p, "LPLK · " + title, a => ModuleEntries(a, group, b => ModuleMenu(b, group, title, back)), back, CanOpenAdmin);
+    }, OpenAdministration, CanOpenAdmin, page, AdvancedMenu);
     private void OpenModule(IPlayer p, string id, Action<IPlayer> back)
     {
         var api = Api(id);
@@ -154,27 +162,21 @@ public sealed partial class Plugin
         ((Action<IPlayer>)api["open"])(p);
         var opened = Core.MenusAPI.GetCurrentMenu(p);
         if (opened is null || ReferenceEquals(previous, opened)) return;
-        var option = new ButtonMenuOption(MenuColors.Back("Zurück zum Adminmenü")) { CloseAfterClick = false };
+        var option = new ButtonMenuOption(MenuColors.Back("Adminmenü")) { CloseAfterClick = false };
         GameThreadMenu.Bind(Core, option, p, () => active, a => { if (CanOpenAdmin(a)) back(a); });
         opened.AddOption(option);
     }
 
-    private void AccessMenu(IPlayer p) => Menu(p, "LPLK · Zugriff & Rechte", a =>
-    {
-        var entries = ModuleEntries(a, "access", AccessMenu).ToList();
-        entries.Add(("Rollen & eigene Rechte", RightsMenu));
-        return entries;
-    }, OpenAdministration, CanOpenAdmin);
-    private void RightsMenu(IPlayer p) => Menu(p, "LPLK · Rollen & Rechte", a =>
+    private void RightsMenu(IPlayer p, Action<IPlayer> back) => Menu(p, "LPLK · Rollen & Rechte", a =>
     {
         var entries = new List<(string, Action<IPlayer>)>
         {
-            ("Meine Rechte anzeigen", b => b.SendChat("[LPLK] " + string.Join(", ", Core.Permission.GetPlayerPermissions(b.SteamID)))),
-            ("Rollen im Webpanel verwalten", b => b.SendChat("[LPLK] Rollenquelle: https://verwaltung.example.invalid – Spieler/Rollen, danach für diesen Server synchronisieren."))
+            ("Anzeigen", b => b.SendChat("[LPLK] " + string.Join(", ", Core.Permission.GetPlayerPermissions(b.SteamID)))),
+            ("Webpanel", b => b.SendChat("[LPLK] Rollenquelle: https://verwaltung.example.invalid – Spieler/Rollen, danach für diesen Server synchronisieren."))
         };
-        if (Has(a, "admin.root")) entries.Add(("Admin-Konfiguration neu laden", b => { if (Has(b, "admin.root")) { LoadSettings(); b.SendChat("[LPLK] Konfiguration geladen."); } }));
+        if (Has(a, "admin.root")) entries.Add(("Neuladen", b => { if (Has(b, "admin.root")) { LoadSettings(); b.SendChat("[LPLK] Konfiguration geladen."); } }));
         return entries;
-    }, AccessMenu, CanOpenAdmin);
+    }, back, CanOpenAdmin);
 }
 
 

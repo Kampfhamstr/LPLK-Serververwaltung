@@ -51,7 +51,7 @@ public sealed partial class Plugin
     private void RobberyMenu(IPlayer p)
     {
         RequireRobbery(p);
-        Page(p,"Bankraub & Sicherheit",_=>[("Überfall beauftragen",RobberyTargets),("Tresor, Schutz & Fähigkeiten",RobberyUpgrades),("Spionage & Berichte",SpyMenu),("Eigener Status & Aufträge",RobberyInfo)],a=>a.ExecuteCommand("sw_menu"));
+        Page(p,"Bankraub",_=>[("Überfall beauftragen",RobberyTargets),("Schutz",RobberyUpgrades),("Spionage",SpyMenu),("Status",RobberyInfo)],a=>a.ExecuteCommand("sw_menu"));
     }
     private IPlayer[] RobberyTargetsFor(IPlayer p)=>Core.PlayerManager.GetAllValidPlayers().Where(x=>Human(x)&&x.SteamID!=p.SteamID&&x.Controller.TeamNum is 2 or 3).GroupBy(x=>x.SteamID).Select(g=>g.First()).ToArray();
     private void RobberyTargets(IPlayer p)
@@ -81,7 +81,7 @@ public sealed partial class Plugin
     }
     private void RobberyUpgrades(IPlayer p)
     {
-        RequireRobbery(p);Page(p,"Bankraub · Ausbauten",_=>[("Tresore",VaultMenu),("Schutzmaßnahmen",ProtectionMenu),("Räuber- & Spionstufen",RobberySkills),("Gültigkeit & Preise",a=>{RequireRobbery(a);a.SendChat(settings.BankRobbery.UpgradesValidUntilBankReset?"[LPLK Bankraub] Ausbauten gelten bis zum Bankreset. Beim Tresor-Upgrade zahlst du nur die Preisdifferenz.":"[LPLK Bankraub] Tresor/Schutz gelten für die konfigurierte Dauer; Fähigkeiten bis Bankreset.");})],RobberyMenu);
+        RequireRobbery(p);Page(p,"Bankraub · Ausbauten",_=>[("Tresore",VaultMenu),("Schutzmaßnahmen",ProtectionMenu),("Fähigkeiten",RobberySkills),("Preise",a=>{RequireRobbery(a);a.SendChat(settings.BankRobbery.UpgradesValidUntilBankReset?"[LPLK Bankraub] Ausbauten gelten bis zum Bankreset. Beim Tresor-Upgrade zahlst du nur die Preisdifferenz.":"[LPLK Bankraub] Tresor/Schutz gelten für die konfigurierte Dauer; Fähigkeiten bis Bankreset.");})],RobberyMenu);
     }
     private void VaultMenu(IPlayer p)
     {
@@ -153,18 +153,18 @@ public sealed partial class Plugin
     }
     private void RobberyAdmin(IPlayer p)=>Page(p,"Bankraub · Regeln",_=>
         [($"Bankraub: {(settings.BankRobbery.Enabled?"AN":"AUS")}",a=>{Save(settings with{BankRobbery=settings.BankRobbery with{Enabled=!settings.BankRobbery.Enabled}});RobberyAdmin(a);}),
-        ("Preise & Ausbauten",RobberyAdminPrices),("Schutz & High Roller",RobberyAdminProtection),("Status & Spionage",RobberyAdminStatus)],EconomySettingsMenu,true);
+        ("Preise",RobberyAdminPrices),("Schutz",RobberyAdminProtection),("Status",RobberyAdminStatus)],EconomySettingsMenu,true);
     private void RobberyAdminPrices(IPlayer p)=>Page(p,"Bankraub · Preise",_=>
-        [("Auftrag & Spionage",a=>a.SendChat($"[LPLK Bankraub] Auftrag {settings.BankRobbery.RobberyCost:N0} $, Spionage {settings.BankRobbery.SpyCost:N0} $. Preise in Bank-Dollar.")),
-        ("Tresore & Fähigkeiten",a=>a.SendChat($"[LPLK Bankraub] Tresore {settings.BankRobbery.OldSteelVaultPrice:N0}/{settings.BankRobbery.ModernSteelVaultPrice:N0}/{settings.BankRobbery.TitanVaultPrice:N0} $; Räuber-Stufe {settings.BankRobbery.RobberSkillUpgradeCost:N0} $, Spion-Stufe {settings.BankRobbery.SpySkillUpgradeCost:N0} $.")),
-        ($"Ausbauten bis Bankreset: {(settings.BankRobbery.UpgradesValidUntilBankReset?"AN":"AUS")}",a=>a.SendChat("[LPLK Bankraub] Gültigkeit bestehender Käufe bleibt erhalten; weitere Regeln in BankRobbery in settings.json."))],RobberyAdmin,true);
+        [("Aufträge",a=>a.SendChat($"[LPLK Bankraub] Auftrag {settings.BankRobbery.RobberyCost:N0} $, Spionage {settings.BankRobbery.SpyCost:N0} $. Preise in Bank-Dollar.")),
+        ("Ausbauten",a=>a.SendChat($"[LPLK Bankraub] Tresore {settings.BankRobbery.OldSteelVaultPrice:N0}/{settings.BankRobbery.ModernSteelVaultPrice:N0}/{settings.BankRobbery.TitanVaultPrice:N0} $; Räuber-Stufe {settings.BankRobbery.RobberSkillUpgradeCost:N0} $, Spion-Stufe {settings.BankRobbery.SpySkillUpgradeCost:N0} $.")),
+        ($"Periodenbindung: {(settings.BankRobbery.UpgradesValidUntilBankReset?"AN":"AUS")}",a=>a.SendChat("[LPLK Bankraub] Gültigkeit bestehender Käufe bleibt erhalten; weitere Regeln in BankRobbery in settings.json."))],RobberyAdmin,true);
     private void RobberyAdminProtection(IPlayer p)=>Page(p,"Bankraub · Schutzregeln",_=>
         [("Schutzzeiten",a=>a.SendChat($"[LPLK Bankraub] Erfolg {settings.BankRobbery.ProtectionHoursAfterSuccess}h, Fehlschlag {settings.BankRobbery.ProtectionHoursAfterFail}h, gleiches Ziel {settings.BankRobbery.SameTargetCooldownHours}h; absoluter Schutz {settings.BankRobbery.HighRollerProtectionAbsoluteMinutes}min.")),
         ($"High-Roller-Bypass: {(settings.BankRobbery.HighRollerProtectionBypassEnabled?"AN":"AUS")}",a=>{Save(settings with{BankRobbery=settings.BankRobbery with{HighRollerProtectionBypassEnabled=!settings.BankRobbery.HighRollerProtectionBypassEnabled}});RobberyAdminProtection(a);}),
-        ("Bypasskosten & Superpot",a=>a.SendChat($"[LPLK Bankraub] Ab {settings.BankRobbery.HighRollerProtectionBypassTargetBankThreshold:N0} $ Zielbank; Start {settings.BankRobbery.HighRollerProtectionBypassBaseCost:N0} $, Faktor {settings.BankRobbery.HighRollerProtectionBypassCostMultiplier}, Maximum {settings.BankRobbery.HighRollerProtectionBypassMaxCost:N0} $; {settings.BankRobbery.HighRollerProtectionBypassSuperpotShareBasisPoints/100m}% Superpot."))],RobberyAdmin,true);
+        ("Bypasskosten",a=>a.SendChat($"[LPLK Bankraub] Ab {settings.BankRobbery.HighRollerProtectionBypassTargetBankThreshold:N0} $ Zielbank; Start {settings.BankRobbery.HighRollerProtectionBypassBaseCost:N0} $, Faktor {settings.BankRobbery.HighRollerProtectionBypassCostMultiplier}, Maximum {settings.BankRobbery.HighRollerProtectionBypassMaxCost:N0} $; {settings.BankRobbery.HighRollerProtectionBypassSuperpotShareBasisPoints/100m}% Superpot."))],RobberyAdmin,true);
     private void RobberyAdminStatus(IPlayer p)=>Page(p,"Bankraub · Laufzeit",_=>
         [("Offene Vorgänge",a=>a.SendChat($"[LPLK Bankraub] Offene Aufträge {bank?.RobberyOrders(true,10000).Count(o=>o.Status!="done")}, Beuteansprüche {bank?.RobberyClaims:N0} $. Bezahlte Aufträge bleiben über Neustarts erhalten.")),
         ($"Spion-Log: {(settings.BankRobbery.SpyLogEnabled?"AN":"AUS")}",a=>{Save(settings with{BankRobbery=settings.BankRobbery with{SpyLogEnabled=!settings.BankRobbery.SpyLogEnabled}});RobberyAdminStatus(a);}),
-        ("Noch offene Erweiterungen",a=>a.SendChat("[LPLK Bankraub] Titel und Lotto-Ausbaurabatte sind in Economy enthalten. Kopfgeld folgt als weiterer interner Bereich."))],RobberyAdmin,true);
+        ("Erweiterungen",a=>a.SendChat("[LPLK Bankraub] Titel und Lotto-Ausbaurabatte sind in Economy enthalten. Kopfgeld folgt als weiterer interner Bereich."))],RobberyAdmin,true);
 }
 

@@ -34,7 +34,7 @@ public sealed partial class Plugin
         });
     }
 
-    private void ShowSendSoundMenu(IPlayer player,int pageIndex=0)
+    private void ShowSendSoundMenu(IPlayer player,int pageIndex=0,SoundRecipient? recipient=null,string? recipientSession=null)
     {
         var page=SoundMenuPolicy.Page(SoundList(includeAll:CanOverrideSound(player)),pageIndex);
         var owner=new OwnedMenu(player.Slot,player.SteamID);
@@ -42,13 +42,19 @@ public sealed partial class Plugin
         foreach (var entry in page.Items)
             Button(builder,owner,MenuPolicy.Label(entry.Title),p=>
             {
-                if (RequireSoundAccess(p,entry.Id,m=>Reply(p,m)))
-                    ShowSoundRecipients(p,entry,0,q=>ShowSendSoundMenu(q,page.Index));
+                if (!RequireSoundAccess(p,entry.Id,m=>Reply(p,m)))return;
+                if(recipient is null)ShowSoundRecipients(p,entry,0,q=>ShowSendSoundMenu(q,page.Index));
+                else
+                {
+                    var target=Core.PlayerManager.GetPlayer(recipient.Slot);
+                    if(!module.CanAdmin(p)||target is not {IsValid:true}||target.SteamID!=recipient.SteamId||target.SessionId.ToString()!=recipientSession){Reply(p,"Spieler oder Berechtigung nicht mehr verfügbar.");return;}
+                    SendSound(p,entry.Id,recipient,m=>Reply(p,m));
+                }
             },soundNumber:entry.Number);
         if (page.Items.Count==0) builder.AddOption(new TextMenuOption("Noch keine Sounds vorhanden."));
-        if (page.Index>0) BackButton(builder,owner,"Zurück - Seite "+page.Index,p=>ShowSendSoundMenu(p,page.Index-1));
-        if (page.Index+1<page.Count) Button(builder,owner,"Weiter - Seite "+(page.Index+2),p=>ShowSendSoundMenu(p,page.Index+1));
-        BackButton(builder,owner,"Zur normalen Soundliste",p=>ShowSoundMenu(p));
+        if (page.Index>0) BackButton(builder,owner,"Zurück - Seite "+page.Index,p=>ShowSendSoundMenu(p,page.Index-1,recipient,recipientSession));
+        if (page.Index+1<page.Count) Button(builder,owner,"Weiter - Seite "+(page.Index+2),p=>ShowSendSoundMenu(p,page.Index+1,recipient,recipientSession));
+        BackButton(builder,owner,"Soundliste",p=>ShowSoundMenu(p));
         OpenOwnedMenu(player,owner,builder);
     }
 
@@ -72,8 +78,8 @@ public sealed partial class Plugin
         if (targets.Length==0) builder.AddOption(new TextMenuOption("Keine anderen Spieler verbunden."));
         if (page>0) BackButton(builder,owner,"Zurück - Seite "+page,p=>ShowSoundRecipients(p,entry,page-1,back));
         if (page+1<pages) Button(builder,owner,"Weiter - Seite "+(page+2),p=>ShowSoundRecipients(p,entry,page+1,back));
-        Button(builder,owner,"Spielerliste aktualisieren",p=>ShowSoundRecipients(p,entry,page,back));
-        BackButton(builder,owner,"Zurück ohne Senden",back);
+        Button(builder,owner,"Aktualisieren",p=>ShowSoundRecipients(p,entry,page,back));
+        BackButton(builder,owner,"Zurück",back);
         OpenOwnedMenu(player,owner,builder);
     }
 
@@ -167,8 +173,8 @@ public sealed partial class Plugin
         if(ids.Length==0)builder.AddOption(new TextMenuOption("Keine anderen Spieler oder gespeicherten Sperren."));
         if(page>0)BackButton(builder,owner,"Zurück - Seite "+page,p=>ShowSoundSenderBlocks(p,page-1));
         if(page+1<pages)Button(builder,owner,"Weiter - Seite "+(page+2),p=>ShowSoundSenderBlocks(p,page+1));
-        Button(builder,owner,"Liste aktualisieren",p=>ShowSoundSenderBlocks(p,page));
-        BackButton(builder,owner,"Zurück zu Einstellungen",p=>ShowSoundSettings(p,0,0));
+        Button(builder,owner,"Aktualisieren",p=>ShowSoundSenderBlocks(p,page));
+        BackButton(builder,owner,"Einstellungen",p=>ShowSoundSettings(p,0,0));
         OpenOwnedMenu(player,owner,builder);
     }
 

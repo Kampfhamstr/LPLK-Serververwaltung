@@ -16,7 +16,7 @@ public sealed partial class Plugin
     {
         if(c.Sender is {} p){OpenAdmin(p);return;}
         Refresh();WriteStatus();
-        c.Reply($"LPLK_Teams 0.1.0: enabled={settings.Enabled}; ready={ready}; bridgeReady={BridgeReady()}; CT={score?.Ct}; T={score?.T}; source={tracker.Source}; rounds={rounds}; threshold={TeamPolicy.Threshold(settings,rounds)}; selected={selected.Count}; errors={errors}; reloadError={reloadError??"none"}");
+        c.Reply($"LPLK_Teams 0.1.1: enabled={settings.Enabled}; ready={ready}; bridgeReady={BridgeReady()}; CT={score?.Ct}; T={score?.T}; source={tracker.Source}; rounds={rounds}; threshold={TeamPolicy.Threshold(settings,rounds)}; selected={selected.Count}; errors={errors}; reloadError={reloadError??"none"}");
     }
     [Command("tsbscore")]
     public void ScoreCommand(ICommandContext c)
@@ -27,19 +27,19 @@ public sealed partial class Plugin
     }
     private void OpenAdmin(IPlayer p)=>module.Menu(p,"LPLK · Teamwechsel",
         ($"Aktiv: {settings.Enabled}",a=>Set(a,nameof(TeamSettings.Enabled),!settings.Enabled)),
-        ("Spielstand und Sperren",a=>{Refresh();a.SendChat($"[LPLK] CT {score?.Ct} : {score?.T} T | {ProtectedText()} | Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds} | {roundsSource} | {tracker.Source}");OpenAdmin(a);}),
-        ("Sperrregeln …",a=>SettingsMenu(a,0)),
-        ("Halbzeit / Matchende …",a=>SettingsMenu(a,1)),
-        ("Meldungen / Auswertung …",a=>SettingsMenu(a,2)),
-        ($"Verliererteam-Auswahl ({selected.Count}) …",a=>PlayersMenu(a,0)));
+        ("Spielstand",a=>{Refresh();a.SendChat($"[LPLK] CT {score?.Ct} : {score?.T} T | {ProtectedText()} | Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds} | {roundsSource} | {tracker.Source}");OpenAdmin(a);}),
+        ("Sperrregeln",a=>SettingsMenu(a,0)),
+        ("Matchende",a=>SettingsMenu(a,1)),
+        ("Meldungen",a=>SettingsMenu(a,2)),
+        ($"Verliererteam ({selected.Count}) …",a=>PlayersMenu(a,0)));
     private static readonly (string Name,string Label)[][] Groups=
     [
-        [(nameof(TeamSettings.AutoDetectMaxRounds),"Rundenzahl automatisch"),(nameof(TeamSettings.FallbackMaxRounds),"Ersatz-Rundenzahl"),(nameof(TeamSettings.BlockAtMaxRoundsPercent),"Sperre ab Anteil"),
-         (nameof(TeamSettings.BlockOnlyIfTeamIsLeading),"Nur führendes Team sperren"),(nameof(TeamSettings.BlockBothTeamsIfBothReachedLimit),"Beide Teams ab Grenze sperren"),(nameof(TeamSettings.AllowSpectator),"Zuschauer erlauben"),(nameof(TeamSettings.ForceBackIfSwitchStillHappened),"Unerlaubten Wechsel zurücksetzen")],
-        [(nameof(TeamSettings.AllowHalftimeTeamSwitchException),"Halbzeit-Nachlauf erlauben"),(nameof(TeamSettings.HalftimeSwitchGraceSeconds),"Halbzeit-Nachlauf Sekunden"),(nameof(TeamSettings.TreatWinScoreAsMatchEnd),"Siegpunkt als Matchende"),
-         (nameof(TeamSettings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd),"Verliererteam-Auswahl anwenden"),(nameof(TeamSettings.MatchEndGuardWindowSeconds),"Matchende-Sperre Sekunden")],
-        [(nameof(TeamSettings.UseRoundEndFallback),"Runden-Fallback erlauben"),(nameof(TeamSettings.AnnounceWhenTeamBecomesProtected),"Sperrteam ankündigen"),(nameof(TeamSettings.ShowBlockedMessageInChat),"Sperrhinweis im Chat"),
-         (nameof(TeamSettings.ShowBlockedMessageInCenter),"Sperrhinweis mittig"),(nameof(TeamSettings.ShowForceToLosingTeamMessage),"Verliererteam-Hinweis"),(nameof(TeamSettings.AllowChatStatusCommand),"Spielstand-Befehl erlauben")]
+        [(nameof(TeamSettings.AutoDetectMaxRounds),"Autorunden"),(nameof(TeamSettings.FallbackMaxRounds),"Ersatz-Rundenzahl"),(nameof(TeamSettings.BlockAtMaxRoundsPercent),"Sperranteil"),
+         (nameof(TeamSettings.BlockOnlyIfTeamIsLeading),"Führungsschutz"),(nameof(TeamSettings.BlockBothTeamsIfBothReachedLimit),"Doppelsperre"),(nameof(TeamSettings.AllowSpectator),"Zuschauer erlauben"),(nameof(TeamSettings.ForceBackIfSwitchStillHappened),"Rückversetzen")],
+        [(nameof(TeamSettings.AllowHalftimeTeamSwitchException),"Halbzeitausnahme"),(nameof(TeamSettings.HalftimeSwitchGraceSeconds),"Halbzeitdauer"),(nameof(TeamSettings.TreatWinScoreAsMatchEnd),"Siegpunkt"),
+         (nameof(TeamSettings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd),"Verliererzuordnung"),(nameof(TeamSettings.MatchEndGuardWindowSeconds),"Sperrdauer")],
+        [(nameof(TeamSettings.UseRoundEndFallback),"Rundenersatz"),(nameof(TeamSettings.AnnounceWhenTeamBecomesProtected),"Sperrteam ankündigen"),(nameof(TeamSettings.ShowBlockedMessageInChat),"Chathinweis"),
+         (nameof(TeamSettings.ShowBlockedMessageInCenter),"Bildschirmhinweis"),(nameof(TeamSettings.ShowForceToLosingTeamMessage),"Verliererteam-Hinweis"),(nameof(TeamSettings.AllowChatStatusCommand),"Spielstandbefehl")]
     ];
     private void SettingsMenu(IPlayer p,int group)
     {
@@ -121,7 +121,7 @@ public sealed partial class Plugin
         Navigation("Zurück",OpenAdmin,true);Core.MenusAPI.OpenMenuForPlayer(p,builder.Build());
     }
     private void ConfirmSelection(IPlayer actor,ulong id,ConnectionKey identity,int page)=>module.Menu(actor,"Matchende-Zuordnung bestätigen",1,
-        ("Diesen Spieler am Matchende ins Verliererteam zuordnen",a=>
+        ("Bestätigen",a=>
         {
             var p=Core.PlayerManager.GetPlayer(identity.Slot);
             if(!module.CanAdmin(a)||!IsHuman(p)||Key(p!)!=identity||!CanTarget(a.SteamID,id)){a.SendChat("[LPLK] Ziel/Berechtigung nicht mehr gültig.");return;}

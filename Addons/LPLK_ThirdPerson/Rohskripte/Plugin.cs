@@ -14,7 +14,7 @@ using Vec=System.Numerics.Vector3;
 
 namespace LPLK_ThirdPerson;
 
-[PluginMetadata(Id="LPLK_ThirdPerson",Name="LPLK_ThirdPerson",Version="0.1.0",Author="LPLK; reference criskkky",Description="ThirdPerson-Kamera mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_ThirdPerson",Name="LPLK_ThirdPerson",Version="0.1.1",Author="LPLK; reference criskkky",Description="ThirdPerson-Kamera mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -30,7 +30,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private bool Enabled=>module.Active&&ready&&settings.Enabled&&Core.ConVar.Find<bool>("thirdperson_enabled")?.Value==true;
     public override void Load(bool hotReload)
     {
-        module=new(Core,"LPLK_ThirdPerson","ThirdPerson-Kamera","lplk.thirdperson.admin",OpenAdmin);
+        module=new(Core,"LPLK_ThirdPerson","Kamera","lplk.thirdperson.admin",OpenAdmin);
         settings=module.ReadSettings<CameraSettings>(CameraSettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);
         Core.ConVar.CreateOrFind<bool>("thirdperson_enabled","Enable/Disable ThirdPerson",true,SwiftlyS2.Shared.Convars.ConvarFlags.NONE);
         world=new(Core,()=>settings,()=>cameras?.Leases??Array.Empty<CameraLease>());cameras=new(world);module.Active=true;ready=hotReload;
@@ -40,7 +40,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerTeam>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventRoundPrestart>(_=>{if(ready)cameras.Clear(Error);knifeWarnings.Clear();return HookResult.Continue;});
         Core.GameEvent.HookPost<EventWeaponFire>(KnifeWarning);
-        WriteStatus();Core.Logger.LogInformation("LPLK_ThirdPerson 0.1.0 geladen: permission={Permission}; damage={Damage}",settings.UseTpPermission,settings.DamageMode);
+        WriteStatus();Core.Logger.LogInformation("LPLK_ThirdPerson 0.1.1 geladen: permission={Permission}; damage={Damage}",settings.UseTpPermission,settings.DamageMode);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
@@ -114,5 +114,5 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(ready)cameras.Tick(settings,Enabled,delta,Error);
     }
     private void Error(Exception e){if(errors++==0)Core.Logger.LogError(e,"LPLK_ThirdPerson: Kameraaktion fehlgeschlagen");}
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",settings,ready,effective=Enabled,activeCameras=cameras.Count,blocked,errors,reloadError});
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings,ready,effective=Enabled,activeCameras=cameras.Count,blocked,errors,reloadError});
 }

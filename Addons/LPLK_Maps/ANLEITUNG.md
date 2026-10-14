@@ -1,6 +1,8 @@
 # LPLK_Maps – Mapwahl, RTV und Nominierungen
 
-Quellstand **0.2.5**, SwiftlyS2-API **1.4.14**. [Alle Addons](../../docs/ADDONS.md).
+**Download:** [LPLK_Maps.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Maps.zip) · [Ausgabe, Prüfsummen und Teststatus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Diese Ausgabe ist als Teststand gekennzeichnet.
+
+Quellstand **0.2.6**, SwiftlyS2-API **1.4.14**. [Alle Addons](../../docs/ADDONS.md).
 
 ## Was macht es?
 

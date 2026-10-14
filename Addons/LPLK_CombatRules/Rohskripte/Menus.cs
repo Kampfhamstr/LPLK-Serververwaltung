@@ -14,19 +14,19 @@ public sealed partial class Plugin
     private void OpenAdmin(IPlayer p)=>Page(p,"LPLK · Kampfregeln",_=>new (string,Action<IPlayer>)[]
     {
         ($"Modul aktiv: {settings.Enabled}",a=>{Save(settings with{Enabled=!settings.Enabled});OpenAdmin(a);}),
-        ("Kopftreffer-Regeln",HeadshotMenu),("Goldene Regel",GoldenMenu),
-        ("Status / Schadensregeln",a=>a.SendChat($"[LPLK] Blockierte Treffer: Kopf {headshotsBlocked}, Goldene Regel {goldenBlocked}; {settings.Rules.Count} Schadensregeln (settings.json / Rules); Fehler {errors}."))
+        ("Kopftreffer",HeadshotMenu),("Goldene Regel",GoldenMenu),
+        ("Status",a=>a.SendChat($"[LPLK] Blockierte Treffer: Kopf {headshotsBlocked}, Goldene Regel {goldenBlocked}; {settings.Rules.Count} Schadensregeln (settings.json / Rules); Fehler {errors}."))
     });
     private void HeadshotMenu(IPlayer p)=>Page(p,"Kampf · Kopftreffer",_=>new (string,Action<IPlayer>)[]
     {
         ($"Nur Kopftreffer: {settings.HeadshotOnly}",a=>{Save(settings with{HeadshotOnly=!settings.HeadshotOnly});HeadshotMenu(a);}),
-        ($"Nur Schusswaffen prüfen: {settings.FirearmsOnly}",a=>{Save(settings with{FirearmsOnly=!settings.FirearmsOnly});HeadshotMenu(a);})
+        ($"Schusswaffen: {settings.FirearmsOnly}",a=>{Save(settings with{FirearmsOnly=!settings.FirearmsOnly});HeadshotMenu(a);})
     },OpenAdmin);
     private void GoldenMenu(IPlayer p)=>Page(p,"Kampf · Goldene Regel",_=>new (string,Action<IPlayer>)[]
     {
         ($"Goldene Regel: {settings.GoldenRule}",a=>{Save(settings with{GoldenRule=!settings.GoldenRule});GoldenMenu(a);}),
-        ("Betroffene Waffen",GoldenWeapons),
-        ("Vorsprung & Warmup",GoldenConditions),("Hinweise",GoldenMessages)
+        ("Waffen",GoldenWeapons),
+        ("Bedingungen",GoldenConditions),("Hinweise",GoldenMessages)
     },OpenAdmin);
     private void GoldenWeapons(IPlayer p)=>Page(p,"Goldene Regel · Waffen",_=>WeaponCatalog.All.Where(w=>w.Group=="Scharfschützen").Select(w=>
         ($"{w.Name}: {settings.GoldenWeapons.Contains(w.Id)}",(Action<IPlayer>)(a=>
@@ -38,7 +38,7 @@ public sealed partial class Plugin
     {
         ($"Vorsprung: {settings.MinimumLeadRounds} Runde(n)",a=>Page(a,"Goldene Regel · Vorsprung",_=>new[]{1,2,3,5}.Select(n=>($"Ab {n} Runde(n)",(Action<IPlayer>)(b=>{Save(settings with{MinimumLeadRounds=n});GoldenConditions(b);}))).ToArray(),GoldenConditions)),
         ($"Im Warmup: {settings.EnabledInWarmup}",a=>{Save(settings with{EnabledInWarmup=!settings.EnabledInWarmup});GoldenConditions(a);}),
-        ("Regel erklären",a=>a.SendChat("[LPLK] Nur das führende Team: Schaden mit Scope wird blockiert. Zoom bleibt erlaubt. Gleichstand, fehlender Spielstand und FFA lösen keine Sperre aus."))
+        ("Erklärung",a=>a.SendChat("[LPLK] Nur das führende Team: Schaden mit Scope wird blockiert. Zoom bleibt erlaubt. Gleichstand, fehlender Spielstand und FFA lösen keine Sperre aus."))
     },GoldenMenu);
     private void GoldenMessages(IPlayer p)=>Page(p,"Goldene Regel · Hinweise",_=>new (string,Action<IPlayer>)[]
     {

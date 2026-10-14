@@ -12,21 +12,21 @@ public sealed partial class Plugin
     {
         if(context.Sender is {} player){OpenAdmin(player);return;}
         WriteStatus();
-        context.Reply($"LPLK_AntiTeamFlash 0.1.0: enabled={settings.Enabled}; flashOwner={settings.FlashOwner}; permission={settings.AccessPermission}; ready={ready}; cleared={cleared}; preserved={preserved}; errors={errors}; reloadError={reloadError??"none"}");
+        context.Reply($"LPLK_AntiTeamFlash 0.1.1: enabled={settings.Enabled}; flashOwner={settings.FlashOwner}; permission={settings.AccessPermission}; ready={ready}; cleared={cleared}; preserved={preserved}; errors={errors}; reloadError={reloadError??"none"}");
     }
     private void OpenAdmin(IPlayer p)=>module.Menu(p,"LPLK · Teamflash-Schutz",
         ($"Aktiv: {settings.Enabled}",a=>Apply(a,settings with{Enabled=!settings.Enabled})),
-        ($"Eigene Flash blendet: {settings.FlashOwner}",a=>Apply(a,settings with{FlashOwner=!settings.FlashOwner})),
+        ($"Eigenblendung: {settings.FlashOwner}",a=>Apply(a,settings with{FlashOwner=!settings.FlashOwner})),
         ($"Schutzrecht: {(settings.AccessPermission.Length==0?"alle Spieler":settings.AccessPermission)} …",PermissionMenu),
-        ("Funktionsweise anzeigen",a=>{a.SendChat("[LPLK] Schutz vor Teamflash. Gegnerflash bleibt wirksam. Laufende erlaubte Blendung wird bei Überschneidung beibehalten; dabei kann auch die Teamflash wirksam bleiben. FFA behandelt Mitspieler als Gegner.");OpenAdmin(a);}));
+        ("Erklärung",a=>{a.SendChat("[LPLK] Schutz vor Teamflash. Gegnerflash bleibt wirksam. Laufende erlaubte Blendung wird bei Überschneidung beibehalten; dabei kann auch die Teamflash wirksam bleiben. FFA behandelt Mitspieler als Gegner.");OpenAdmin(a);}));
     private void PermissionMenu(IPlayer p)=>module.Menu(p,"Teamflash · Schutzberechtigung",1,
-        ("Schutz für alle Spieler",a=>Apply(a,settings with{AccessPermission=""})),
-        ("Berechtigung eingeben …",InputPermission),
+        ("Alle schützen",a=>Apply(a,settings with{AccessPermission=""})),
+        ("Berechtigung",InputPermission),
         ("Zurück",OpenAdmin));
     private void InputPermission(IPlayer p)
     {
         if(!module.CanAdmin(p))return;
-        var input=new InputMenuOption(new MenuNumbers().Next("Berechtigung im Chat eingeben"),maxLength:128,validator:v=>!string.IsNullOrEmpty(v)&&FlashSettings.ValidPermission(v),defaultValue:settings.AccessPermission,hintMessage:"Berechtigung eingeben, zum Beispiel antiteamflash.vip."){CloseAfterClick=false};
+        var input=new InputMenuOption(new MenuNumbers().Next("Berechtigung"),maxLength:128,validator:v=>!string.IsNullOrEmpty(v)&&FlashSettings.ValidPermission(v),defaultValue:settings.AccessPermission,hintMessage:"Berechtigung eingeben, zum Beispiel antiteamflash.vip."){CloseAfterClick=false};
         GameThreadMenu.BindInput(Core,input,p,()=>module.Active,(a,value)=>{if(module.CanAdmin(a))Apply(a,settings with{AccessPermission=value});});
         var back=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};
         GameThreadMenu.Bind(Core,back,p,()=>module.Active,a=>{if(module.CanAdmin(a))PermissionMenu(a);});

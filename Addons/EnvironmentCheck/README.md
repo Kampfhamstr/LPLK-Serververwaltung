@@ -1,5 +1,7 @@
 # EnvironmentCheck – Leeres Buildbeispiel
 
+**Download:** [EnvironmentCheck.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/EnvironmentCheck.zip) · [Ausgabe, Prüfsummen und Teststatus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Diese Ausgabe ist als Teststand gekennzeichnet.
+
 Quellstand **1.0.0**, SwiftlyS2-API **1.4.13**. [Alle Addons](../../docs/ADDONS.md).
 
 ## Was ist das?

@@ -14,6 +14,61 @@ internal static class Program
         if (wi >= 0 && wi + 1 < args.Length) workspace = Path.GetFullPath(args[wi + 1]);
         try
         {
+            if (args.Contains("--inner-circle-power-audit"))
+            {
+                var result = SshService.InspectInnerCirclePowerAudit(new SshCredentialStore(workspace).Read() ?? throw new InvalidOperationException("SSH-Verbindung fehlt."));
+                Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions)); return result.ExitCode ?? 1;
+            }
+            if (args.Contains("--inner-circle-host-health-probe"))
+            {
+                var result = SshService.InspectInnerCircleHostHealth(new SshCredentialStore(workspace).Read() ?? throw new InvalidOperationException("SSH-Verbindung fehlt."));
+                Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));return result.ExitCode ?? 1;
+            }
+            if (args.Contains("--inner-circle-recovery"))
+            {
+                int pi = Array.IndexOf(args, "--inner-circle-recovery");
+                string phase = pi + 1 < args.Length ? args[pi + 1] : "check";
+                if (phase != "check" && !args.Contains("--approve-inner-circle-1.4.14")) throw new InvalidOperationException("Konkrete Wartungsfreigabe für Inner Circle / 1.4.14 erforderlich.");
+                var ssh = new SshCredentialStore(workspace).Read() ?? throw new InvalidOperationException("SSH-Verbindung fehlt.");
+                int zi = Array.IndexOf(args, "--package");
+                var result = SshService.InnerCircleRecovery(ssh, phase == "stop" ? "check" : phase == "start" ? "start-check" : phase, zi >= 0 && zi + 1 < args.Length ? args[zi + 1] : null);
+                if (result.ExitCode == 0 && phase is "stop" or "start")
+                {
+                    using var report = JsonDocument.Parse(result.Output);
+                    if (phase == "stop" && (report.RootElement.GetProperty("humans").GetInt32() != 0 || report.RootElement.GetProperty("bridgeAgeSeconds").GetInt32() is < 0 or > 15))
+                        throw new InvalidOperationException("Frische Leermessung erforderlich; Wartung nicht gestartet.");
+                    using var panel = new PanelClient(new CredentialStore(workspace).Read() ?? throw new InvalidOperationException("Panelverbindung fehlt."));
+                    panel.InnerCircleRecoveryPowerAsync(phase).GetAwaiter().GetResult();
+                }
+                Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));return result.ExitCode ?? 1;
+            }
+            if (args.Contains("--inner-circle-updater-diagnostics"))
+            {
+                var result = SshService.InspectInnerCircleUpdater(new SshCredentialStore(workspace).Read() ?? throw new InvalidOperationException("SSH-Verbindung fehlt."));
+                Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+                return result.ExitCode ?? 1;
+            }
+            if (args.Contains("--inner-circle-crash-diagnostics"))
+            {
+                var result = SshService.InspectInnerCircleCrash(new SshCredentialStore(workspace).Read() ?? throw new InvalidOperationException("SSH-Verbindung fehlt."));
+                Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+                return result.ExitCode ?? 1;
+            }
+            if (args.Contains("--inner-circle-diagnostics"))
+            {
+                var result = SshService.InspectInnerCircle(new SshCredentialStore(workspace).Read() ?? throw new InvalidOperationException("SSH-Verbindung fehlt."));
+                Console.WriteLine(JsonSerializer.Serialize(result, JsonOptions));
+                return result.ExitCode ?? 1;
+            }
+            if (args.Contains("--github-release-check") || args.Contains("--github-release-publish"))
+            {
+                int hi=Array.IndexOf(args,"--plan-sha256");
+                if(hi<0||hi+1>=args.Length)throw new InvalidOperationException("Geprüfter Releaseplan-Hash fehlt.");
+                var connection=new GitHubCredentialStore(workspace).Read()??throw new InvalidOperationException("GitHub-Zugang fehlt.");
+                using var release=new GitHubRelease(workspace,connection);
+                Console.WriteLine(JsonSerializer.Serialize(release.RunAsync(args[hi+1],args.Contains("--github-release-publish")).GetAwaiter().GetResult(),JsonOptions));
+                return 0;
+            }
             if (args.Contains("--github-import"))
             {
                 int mi = Array.IndexOf(args, "--github-import"), hi = Array.IndexOf(args, "--manifest-sha256");

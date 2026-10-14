@@ -1,3 +1,4 @@
+using SwiftlyS2.Shared.Players;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,7 @@ using SwiftlyS2.Shared.Misc;
 using SwiftlyS2.Shared.Plugins;
 namespace LPLK_NadeEffects;
 
-[PluginMetadata(Id="LPLK_NadeEffects",Name="LPLK_NadeEffects",Version="0.1.0",Author="LPLK; reference Kampfhamster",Description="Gezielte Granatenhinweise und Entzug mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_NadeEffects",Name="LPLK_NadeEffects",Version="0.1.1",Author="LPLK; reference Kampfhamster",Description="Gezielte Granatenhinweise und Entzug mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -31,9 +32,13 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerTeam>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventRoundPrestart>(_=>{if(ready)effects.CancelEffects();return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_NadeEffects 0.1.0 geladen; enabled={Enabled}; selected=0",settings.Enabled);
+        WriteStatus();Core.Logger.LogInformation("LPLK_NadeEffects 0.1.1 geladen; enabled={Enabled}; selected=0",settings.Enabled);
     }
-    public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
+    public override void ConfigureSharedInterface(IInterfaceManager manager)
+    {
+        module.ConfigureSharedInterface(manager);
+        manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Target.LPLK_NadeEffects.v1",new(){["actions"]=(Func<IPlayer,IPlayer,IReadOnlyDictionary<string,Action<IPlayer>>>)TargetActions});
+    }
     public override void Unload(){module.Active=false;if(ready)effects.Clear();else effects.ForgetMap();ready=false;}
     [EventListener<EventDelegates.OnMapLoad>]
     public void MapLoad(IOnMapLoadEvent e){effects.ForgetMap();ready=true;}
@@ -70,5 +75,5 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         foreach(var p in Core.PlayerManager.GetAllValidPlayers())if(p is {IsValid:true,IsAuthorized:true,IsFakeClient:false}&&Core.Permission.PlayerHasPermission(p.SteamID,s.AdminMessagePermission))p.SendChat("[LPLK Admin] "+text);
     }
     private void Error(Exception e){if(errors++==0)Core.Logger.LogError(e,"LPLK_NadeEffects: Aktion fehlgeschlagen");}
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",settings,ready,effective=Enabled,selected=effects.Selected,pending=effects.PendingCount,fades=effects.FadeCount,triggered=effects.Triggered,removed=effects.Removed,errors,reloadError});
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings,ready,effective=Enabled,selected=effects.Selected,pending=effects.PendingCount,fades=effects.FadeCount,triggered=effects.Triggered,removed=effects.Removed,errors,reloadError});
 }

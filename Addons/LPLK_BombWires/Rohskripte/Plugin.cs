@@ -14,7 +14,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_BombWires;
 
-[PluginMetadata(Id = "LPLK_BombWires", Name = "LPLK_BombWires", Version = "0.1.3", Author = "LPLK / K4ryuu", Description = "Bombendrähte mit gültigkeitsgeprüften Menüs", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_BombWires", Name = "LPLK_BombWires", Version = "0.1.4", Author = "LPLK / K4ryuu", Description = "Bombendrähte mit gültigkeitsgeprüften Menüs", MinimumAPIVersion = "1.4.14")]
 public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ModuleSupport module = null!;

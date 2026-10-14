@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_CombatRules;
 
-[PluginMetadata(Id="LPLK_CombatRules",Name="LPLK_CombatRules",Version="0.1.0",Author="LPLK; reference Michael Zauche",Description="Headshot-Regeln, Goldene Regel und Schadensregeln",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_CombatRules",Name="LPLK_CombatRules",Version="0.1.1",Author="LPLK; reference Michael Zauche",Description="Headshot-Regeln, Goldene Regel und Schadensregeln",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -29,7 +29,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         settings=module.ReadSettings<CombatSettings>(CombatSettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);module.Active=true;
         Core.GameHooks.Entities.TakeDamage.Pre+=Damage;
         Core.GameEvent.HookPost<EventRoundStart>(_=>{Announce();return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_CombatRules 0.1.0 geladen: headshot={Headshot}; golden={Golden}",settings.HeadshotOnly,settings.GoldenRule);
+        WriteStatus();Core.Logger.LogInformation("LPLK_CombatRules 0.1.1 geladen: headshot={Headshot}; golden={Golden}",settings.HeadshotOnly,settings.GoldenRule);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
     public override void Unload(){module.Active=false;Core.GameHooks.Entities.TakeDamage.Pre-=Damage;alerts.Clear();}
@@ -105,12 +105,12 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         catch(Exception e){if(reloadError is null)Core.Logger.LogWarning(e,"LPLK_CombatRules: letzter gültiger Stand bleibt aktiv");reloadError="Ungültige Dateiänderung";}
         WriteStatus();
     }
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",settings.Enabled,settings.HeadshotOnly,settings.FirearmsOnly,settings.GoldenRule,settings.GoldenWeapons,settings.MinimumLeadRounds,settings.EnabledInWarmup,specialRules=settings.Rules.Count,headshotsBlocked,goldenBlocked,modified,errors,reloadError});
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings.Enabled,settings.HeadshotOnly,settings.FirearmsOnly,settings.GoldenRule,settings.GoldenWeapons,settings.MinimumLeadRounds,settings.EnabledInWarmup,specialRules=settings.Rules.Count,headshotsBlocked,goldenBlocked,modified,errors,reloadError});
     private void Save(CombatSettings next){CombatSettings.Validate(next);module.SaveSettings(next);settings=next;stamp=File.GetLastWriteTimeUtc(module.SettingsPath);reloadError=null;WriteStatus();}
     [Command("lplk_combatrules")]
     public void Status(ICommandContext c)
     {
         if(c.Sender is {} p){OpenAdmin(p);return;}
-        WriteStatus();c.Reply($"LPLK_CombatRules 0.1.0: enabled={settings.Enabled}; headshot={settings.HeadshotOnly}; golden={settings.GoldenRule}; lead={settings.MinimumLeadRounds}; rules={settings.Rules.Count}; errors={errors}; reloadError={reloadError??"none"}");
+        WriteStatus();c.Reply($"LPLK_CombatRules 0.1.1: enabled={settings.Enabled}; headshot={settings.HeadshotOnly}; golden={settings.GoldenRule}; lead={settings.MinimumLeadRounds}; rules={settings.Rules.Count}; errors={errors}; reloadError={reloadError??"none"}");
     }
 }

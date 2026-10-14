@@ -66,7 +66,7 @@ internal sealed class GitHubImport : IDisposable
 
     internal static Payload[] LoadPayload(string workspace, GitHubImportManifest manifest)
     {
-        if (manifest.Version != 1 || !manifest.Private || manifest.AccountId <= 0 || manifest.Root != "state/github-import-source"
+        if (manifest.Version != 1 || !manifest.Private || manifest.AccountId <= 0 || manifest.Root is not ("state/github-import-source" or "state/github-release-source")
             || manifest.Files is not { Length: > 0 and <= 2500 } || string.IsNullOrWhiteSpace(manifest.Message) || manifest.Message.Length > 300)
             throw new InvalidOperationException("Ungültiges oder nicht privates Importmanifest.");
         var repo = GitHubCredentialStore.ParseRepository("https://github.com/" + manifest.Owner + "/" + manifest.Name, false);

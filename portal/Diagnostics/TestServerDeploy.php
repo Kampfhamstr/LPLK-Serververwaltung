@@ -122,7 +122,7 @@ try {
         if(realpath($rollback)!==$rollback) throw new RuntimeException('Unsafe rollback path');
         $previous=$rollback.'/'.$id.'.previous.zip';
         if(is_link($previous)) throw new RuntimeException('Linked rollback');
-        if(is_dir($plugins.'/'.$id) && (!is_file($previous) || in_array('__LPLK_DEPLOY_COMPONENT__',['LPLK_Statistics','LPLK_BombWires','LPLK_Admin','LPLK_StatisticsSet','LPLK_ThirdPersonSet','LPLK_FluchSet','LPLK_NadeEffectsSet','LPLK_EconomySet','LPLK_WebEconomySet'],true) || ('__LPLK_DEPLOY_COMPONENT__'==='LPLK_WeaponsSet' && in_array($id,['LPLK_Admin','LPLK_Maps','LPLK_Sounds'],true)) || ('__LPLK_DEPLOY_COMPONENT__'==='LPLK_TeamsSet' && $id==='SerververwaltungBridge'))) {
+        if(is_dir($plugins.'/'.$id) && (!is_file($previous) || in_array('__LPLK_DEPLOY_COMPONENT__',['LPLK_MenuSet','LPLK_Statistics','LPLK_BombWires','LPLK_Admin','LPLK_StatisticsSet','LPLK_ThirdPersonSet','LPLK_FluchSet','LPLK_NadeEffectsSet','LPLK_EconomySet','LPLK_WebEconomySet'],true) || ('__LPLK_DEPLOY_COMPONENT__'==='LPLK_WeaponsSet' && in_array($id,['LPLK_Admin','LPLK_Maps','LPLK_Sounds'],true)) || ('__LPLK_DEPLOY_COMPONENT__'==='LPLK_TeamsSet' && $id==='SerververwaltungBridge'))) {
             // Preserve the current tested bridge/admin when replacing these components.
             // Create and verify the replacement before atomically replacing an older test backup.
             $incoming=$previous.'.incoming';

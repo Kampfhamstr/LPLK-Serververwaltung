@@ -1,5 +1,7 @@
 # AddonsManager – Workshop-Inhalte laden
 
+**Download:** [AddonsManager.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/AddonsManager.zip) · [Ausgabe, Prüfsummen und Teststatus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Diese Ausgabe ist als Teststand gekennzeichnet.
+
 Quellstand **2.0.3-lplk.3**, SwiftlyS2-API **1.4.13**. [Alle Addons](../../docs/ADDONS.md).
 
 ## Funktion

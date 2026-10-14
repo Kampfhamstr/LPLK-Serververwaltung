@@ -98,14 +98,14 @@ public sealed partial class Plugin
         if(page.Index+1<page.Count)Button(builder,owner,"Weiter - Seite "+(page.Index+2),p=>ShowSoundMenu(p,page.Index+1,adminOverride:adminOverride,adminOnly:adminOnly));
         if(adminOverride)
         {
-            Button(builder,owner,"Adminsound für alle stoppen",p=>StopAdminSound(p,m=>Reply(p,m)));
-            if(adminOnly)BackButton(builder,owner,"Zur Adminliste ohne Override",p=>ShowSoundMenu(p,page.Index,adminOnly:true));
-            else BackButton(builder,owner,"Zur normalen Soundliste",p=>ShowSoundMenu(p,page.Index));
+            Button(builder,owner,"Stoppen",p=>StopAdminSound(p,m=>Reply(p,m)));
+            if(adminOnly)BackButton(builder,owner,"Ansagen",p=>ShowSoundMenu(p,page.Index,adminOnly:true));
+            else BackButton(builder,owner,"Soundliste",p=>ShowSoundMenu(p,page.Index));
         }
         else if(adminOnly)
         {
-            Button(builder,owner,"Admin-Ansagen für alle (Override)",p=>ShowSoundMenu(p,page.Index,adminOverride:true,adminOnly:true));
-            BackButton(builder,owner,"Zur normalen Soundliste",p=>ShowSoundMenu(p));
+            Button(builder,owner,"Override",p=>ShowSoundMenu(p,page.Index,adminOverride:true,adminOnly:true));
+            BackButton(builder,owner,"Soundliste",p=>ShowSoundMenu(p));
         }
         else Button(builder,owner,"Einstellungen",p=>ShowSoundSettings(p,page.Index,owner.Menu!.GetCurrentOptionIndex(p)));
         OpenOwnedMenu(player,owner,builder);
@@ -116,18 +116,18 @@ public sealed partial class Plugin
     {
         if (!RequireSoundAccess(player,entry.Id,m=>Reply(player,m))) return;
         var owner=new OwnedMenu(player.Slot,player.SteamID);
-        var builder=MenuBuilder($"{entry.Number}. {MenuPolicy.Label(entry.Title)} – An wen?");
+        var builder=MenuBuilder("An alle?");
         void Back(IPlayer p)=>ShowSoundAudienceChoice(p,entry,returnPage,returnIndex,returnOverride,returnAdminOnly);
-        Button(builder,owner,"Einzelner Spieler",p=>ShowSoundRecipients(p,entry,0,Back),
-            "Empfänger auswählen. Private Sperren, Hörfilter und die Totenregel gelten immer.");
-        Button(builder,owner,"Alle",p=>
+        Button(builder,owner,"Ja",p=>
         {
             if (!RequireSoundAccess(p,entry.Id,m=>Reply(p,m))) return;
             if (CanOverrideSound(p)) ShowSoundStartChoice(p,entry,returnPage,returnIndex,returnOverride,returnAdminOnly);
             else if (BroadcastSound(p,entry.Id,m=>Reply(p,m)))
                 ShowSoundMenu(p,returnPage,returnIndex);
-        });
-        BackButton(builder,owner,"Zurück ohne Abspielen",p=>ShowSoundMenu(p,returnPage,returnIndex,
+        },$"{entry.Number}. {MenuPolicy.Label(entry.Title)} öffentlich abspielen.");
+        Button(builder,owner,"Nein",p=>ShowSoundRecipients(p,entry,0,Back),
+            "Empfänger auswählen. Private Sperren, Hörfilter und die Totenregel gelten immer.");
+        BackButton(builder,owner,"Zurück",p=>ShowSoundMenu(p,returnPage,returnIndex,
             adminOverride:returnOverride && CanOverrideSound(p),adminOnly:returnAdminOnly && CanOverrideSound(p)));
         OpenOwnedMenu(player,owner,builder);
     }
@@ -136,18 +136,18 @@ public sealed partial class Plugin
     {
         if (!RequireSoundOverride(player,m=>Reply(player,m))) return;
         var owner = new OwnedMenu(player.Slot,player.SteamID) { SoundTitle = $"{entry.Number}. {MenuPolicy.Label(entry.Title)}" };
-        var builder = MenuBuilder(SoundLimitTitle(owner));
+        var builder = MenuBuilder("Override?");
         void ReturnToList(IPlayer p) => ShowSoundMenu(p,returnPage,returnIndex,
             adminOverride:returnOverride && CanOverrideSound(p),adminOnly:returnAdminOnly && CanOverrideSound(p));
-        Button(builder,owner,"Normal abspielen",p=>
+        Button(builder,owner,"Nein",p=>
         {
             if (BroadcastSound(p,entry.Id,m=>Reply(p,m))) ReturnToList(p);
         },"Beachtet persönliche Hörfilter, Lautstärke und die Totenregel.");
-        Button(builder,owner,"Admin-Override: für alle",p=>
+        Button(builder,owner,"Ja",p=>
         {
             if (BroadcastSound(p,entry.Id,m=>Reply(p,m),adminOverride:true)) ReturnToList(p);
         },"Alle verbundenen Spieler hören den Sound trotz Hörfiltern bei 100% Kataloglautstärke.");
-        BackButton(builder,owner,"Zurück zur Empfängerauswahl",p=>ShowSoundAudienceChoice(p,entry,returnPage,returnIndex,returnOverride,returnAdminOnly));
+        BackButton(builder,owner,"Zurück",p=>ShowSoundAudienceChoice(p,entry,returnPage,returnIndex,returnOverride,returnAdminOnly));
         OpenOwnedMenu(player,owner,builder);
     }
 
@@ -155,41 +155,41 @@ public sealed partial class Plugin
     {
         var owner=new OwnedMenu(player.Slot,player.SteamID) { SoundTitle = "Sound-Einstellungen" };
         var builder=MenuBuilder(SoundLimitTitle(owner));
-        builder.AddOption(new TextMenuOption("Tote nur fuer Tote: "+(config.DeadPlayersOnlyToDead?"AN":"AUS")));
+        builder.AddOption(new TextMenuOption("Totenregel: "+(config.DeadPlayersOnlyToDead?"AN":"AUS")));
         var preference=Listening(player);
-        Button(builder,owner,"Sounds hoeren: "+(preference.Enabled?"AN":"AUS"),p=>
+        Button(builder,owner,"Hören: "+(preference.Enabled?"AN":"AUS"),p=>
         {
             int index=owner.Menu!.GetCurrentOptionIndex(p);
             SetListening(p,!Listening(p).Enabled,m=>Reply(p,m));ShowSoundSettings(p,returnPage,returnIndex,index);
         },"Nur für dich. AUS bleibt gespeichert. Admin-Override ist ausgenommen.",enabled:preference.Enabled);
         Button(builder,owner,$"Lautstärke: {preference.VolumePercent}%",p=>ShowSoundVolumeMenu(p,returnPage,returnIndex));
-        Button(builder,owner,"Hören wenn lebend: "+(preference.HearAlive?"AN":"AUS"),p=>
+        Button(builder,owner,"Lebend: "+(preference.HearAlive?"AN":"AUS"),p=>
         {
             int index=owner.Menu!.GetCurrentOptionIndex(p);
             SetSoundState(p,true,!Listening(p).HearAlive);ShowSoundSettings(p,returnPage,returnIndex,index);
         },"Bezieht sich auf deinen Zustand als Zuhörer, unabhängig vom Absender.",enabled:preference.HearAlive);
-        Button(builder,owner,"Hören wenn tot/Zuschauer: "+(preference.HearDead?"AN":"AUS"),p=>
+        Button(builder,owner,"Tot: "+(preference.HearDead?"AN":"AUS"),p=>
         {
             int index=owner.Menu!.GetCurrentOptionIndex(p);
             SetSoundState(p,false,!Listening(p).HearDead);ShowSoundSettings(p,returnPage,returnIndex,index);
         },enabled:preference.HearDead);
-        Button(builder,owner,$"Einzelne Sounds ({catalog.Sounds.Keys.Count(preference.MutedSounds.Contains)} stumm)",
+        Button(builder,owner,$"Einzelfilter ({catalog.Sounds.Keys.Count(preference.MutedSounds.Contains)} stumm)",
             p=>ShowSoundMuteMenu(p,returnPage,returnIndex),"Hier einzeln erlauben oder stummschalten. Die Auswahl spielt keinen Sound ab.");
-        Button(builder,owner,"Sound bei mir stoppen",p=>
+        Button(builder,owner,"Lokal stoppen",p=>
         {
             Reply(p,StopLocalSounds(p.Slot)?"[LPLK Sounds] Sound nur bei dir gestoppt.":"[LPLK Sounds] Eigene Sounds gestoppt; der Admin-Override laeuft weiter.");
         },"Andere Zuhörer hören weiter. Ein Admin-Override läuft weiter.");
         if(CanOverrideSound(player))
         {
             if(catalog.Sounds.Values.Any(s=>s.AdminOnly))
-                Button(builder,owner,"Admin-Ansagen (eigener Bereich)",p=>ShowSoundMenu(p,adminOnly:true),"Nur für Admins abrufbar. Für alle trotz Hörfilter: dort den Override wählen.");
-            Button(builder,owner,"Admin: Sound für alle",p=>ShowSoundMenu(p,returnPage,adminOverride:true),
+                Button(builder,owner,"Ansagen",p=>ShowSoundMenu(p,adminOnly:true),"Nur für Admins abrufbar. Für alle trotz Hörfilter: dort den Override wählen.");
+            Button(builder,owner,"Override",p=>ShowSoundMenu(p,returnPage,adminOverride:true),
                 "Nach der Soundauswahl normal oder als Admin-Override für alle abspielen.");
         }
-        Button(builder,owner,"Sound an Spieler senden",p=>ShowSendSoundMenu(p),"Sound und Empfänger wählen; ohne Admin-Override.");
-        Button(builder,owner,"Spieler für private Sounds blockieren",p=>ShowSoundSenderBlocks(p),"Die Sperre gilt für private Sounds dieses Absenders und bleibt gespeichert.");
-        Button(builder,owner,"Status und Hilfe",p=>ShowSoundStatus(p,returnPage,returnIndex));
-        BackButton(builder,owner,"Zurueck zur Soundliste",p=>ShowSoundMenu(p,returnPage,returnIndex));
+        Button(builder,owner,"Senden",p=>ShowSendSoundMenu(p),"Sound und Empfänger wählen; ohne Admin-Override.");
+        Button(builder,owner,"Absender sperren",p=>ShowSoundSenderBlocks(p),"Die Sperre gilt für private Sounds dieses Absenders und bleibt gespeichert.");
+        Button(builder,owner,"Hilfe",p=>ShowSoundStatus(p,returnPage,returnIndex));
+        BackButton(builder,owner,"Soundliste",p=>ShowSoundMenu(p,returnPage,returnIndex));
         OpenOwnedMenu(player,owner,builder);
         if(selectedIndex>0)owner.Menu!.MoveToOptionIndex(player,Math.Min(selectedIndex,owner.Menu.Options.Count-1));
     }
@@ -223,7 +223,7 @@ public sealed partial class Plugin
         if(page.Items.Count==0)builder.AddOption(new TextMenuOption("Noch keine Sounds vorhanden."));
         if(page.Index>0)BackButton(builder,owner,"Zurück - Seite "+page.Index,p=>ShowSoundMuteMenu(p,returnPage,returnIndex,page.Index-1));
         if(page.Index+1<page.Count)Button(builder,owner,"Weiter - Seite "+(page.Index+2),p=>ShowSoundMuteMenu(p,returnPage,returnIndex,page.Index+1));
-        BackButton(builder,owner,"Zurück zu Einstellungen",p=>ShowSoundSettings(p,returnPage,returnIndex,5));
+        BackButton(builder,owner,"Einstellungen",p=>ShowSoundSettings(p,returnPage,returnIndex,5));
         OpenOwnedMenu(player,owner,builder);
         if(selectedIndex>0)owner.Menu!.MoveToOptionIndex(player,Math.Min(selectedIndex,owner.Menu.Options.Count-1));
     }
@@ -233,9 +233,9 @@ public sealed partial class Plugin
         var owner=new OwnedMenu(player.Slot,player.SteamID) { SoundTitle = "Sounds "+PluginVersion };
         var builder=MenuBuilder(SoundLimitTitle(owner));
         builder.AddOption(new TextMenuOption($"Vorgeladen: {precachedSounds.Count}/{catalog.Sounds.Count} Sounds"));
-        Button(builder,owner,"Katalogquelle und Updates",p=>ShowCatalogMenu(p,q=>ShowSoundStatus(q,returnPage,returnIndex)));
+        Button(builder,owner,"Katalog",p=>ShowCatalogMenu(p,q=>ShowSoundStatus(q,returnPage,returnIndex)));
         builder.AddOption(new TextMenuOption($"Lautstärke: {Listening(player).VolumePercent}% | Sounds: "+(Listening(player).Enabled?"AN":"AUS")));
-        Button(builder,owner,"Status im Chat",p=>
+        Button(builder,owner,"Status",p=>
         {
             Reply(p,"[LPLK Sounds] "+(CommonUnavailable()??$"Sounds vorgeladen: {precachedSounds.Count}/{catalog.Sounds.Count}."));
             Reply(p,$"[LPLK Sounds] Gemeinsame Pause zwischen Sounds: {config.BroadcastCooldownSeconds:0.#} Sekunden.");
@@ -243,7 +243,7 @@ public sealed partial class Plugin
             Reply(p,"[LPLK Sounds] Tote spielen nur fuer Tote: "+(config.DeadPlayersOnlyToDead?"AN":"AUS")+".");
             Reply(p,"[LPLK Sounds] "+ListeningSummary(p));
         });
-        Button(builder,owner,"Bedienung erklaeren",p=>
+        Button(builder,owner,"Bedienung",p=>
         {
             Reply(p,"[LPLK Sounds] !sounds: 10 Sounds pro Seite. !sound s6 oeffnet Seite 6; !sound 6 spielt Sound 6, !sound 16 spielt Sound 16. !sound ohne Argument oeffnet ebenfalls das Menue.");
             Reply(p,"[LPLK Sounds] Die Tasten folgen SwiftlyS2 core.jsonc. Soundnummern sind fortlaufend; entfernte Sounds schliessen Luecken. Zurueck/Weiter wechselt die Seite.");
@@ -255,7 +255,7 @@ public sealed partial class Plugin
             Reply(p,"[LPLK Sounds] Spieler ohne Adminberechtigung koennen hoechstens drei Sounds pro Runde oeffentlich starten. Admins haben kein Rundenlimit. Fehlversuche kosten keinen Sound. Neue Runde: wieder drei.");
             Reply(p,"[LPLK Sounds] Ist 'Tote nur fuer Tote' AN, hoeren lebende Spieler keine neu von Toten oder Zuschauern gestarteten Sounds. Lebende spielen fuer alle eingeschalteten Zuhoerer.");
         });
-        Button(builder,owner,"Status aktualisieren",p=>ShowSoundStatus(p,returnPage,returnIndex));
+        Button(builder,owner,"Aktualisieren",p=>ShowSoundStatus(p,returnPage,returnIndex));
         BackButton(builder,owner,"Zurueck",p=>ShowSoundSettings(p,returnPage,returnIndex));
         OpenOwnedMenu(player,owner,builder);
     }

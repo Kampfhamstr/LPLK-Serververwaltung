@@ -14,7 +14,7 @@ using SwiftlyS2.Shared.ProtobufDefinitions;
 
 namespace LPLK_Whitelist;
 
-[PluginMetadata(Id="LPLK_Whitelist",Name="LPLK_Whitelist",Version="0.2.2",Author="LPLK",Description="Zugangsliste, Webpanel-Befehle und !admin",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Whitelist",Name="LPLK_Whitelist",Version="0.2.3",Author="LPLK",Description="Zugangsliste, Webpanel-Befehle und !admin",MinimumAPIVersion="1.4.14")]
 public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -28,14 +28,14 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
     private string ConfigPath=>Path.Combine(Core.GameFilesDirectory,"addons","swiftlys2","configs","plugins","LPLK_Whitelist","config.jsonc");
     public override void Load(bool hotReload)
     {
-        module=new(Core,"LPLK_Whitelist","Whitelist / Zugang","lplk.whitelist.admin",OpenAdmin,
+        module=new(Core,"LPLK_Whitelist","Zugang","lplk.whitelist.admin",OpenAdmin,
             p=>Core.Permission.PlayerHasPermission(p.SteamID,settings.PermissionForCommands));
         if(!File.Exists(ConfigPath))WriteSettings(new());
         if(!File.Exists(ListPath))SaveIds([]);
         Reload();module.Active=true;
         Core.GameEvent.HookPost<EventPlayerConnectFull>(e=>{if(e.UserIdPlayer is {} p)Enforce(p);return HookResult.Continue;});
         Core.Scheduler.NextWorldUpdate(()=>{if(module.Active)EnforceAll();});
-        Core.Logger.LogInformation("LPLK_Whitelist 0.2.2 geladen: Modus {Mode}, {Count} Einträge, AdminBypass={Bypass}",settings.Mode,ids.Count,settings.AdminBypass);
+        Core.Logger.LogInformation("LPLK_Whitelist 0.2.3 geladen: Modus {Mode}, {Count} Einträge, AdminBypass={Bypass}",settings.Mode,ids.Count,settings.AdminBypass);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
     public override void Unload(){generation++;if(module is not null)module.Active=false;}
@@ -120,8 +120,8 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
         ($"Modus: {(settings.Mode==1?"Whitelist":"Blacklist")}",a=>Apply(settings with{Mode=settings.Mode==1?2:1},a)),
         ($"Admin-Ausnahme: {(settings.AdminBypass?"Ja":"Nein")}",a=>Apply(settings with{AdminBypass=!settings.AdminBypass},a)),
         ("SteamID hinzufügen",a=>Input(a,true)),("SteamID entfernen",a=>Input(a,false)),
-        ($"Einträge ansehen ({ids.Count})",a=>ShowEntries(a,0)),
-        ("Dateien neu laden",a=>{Reload();EnforceAll();OpenAdmin(a);}));
+        ($"Einträge ({ids.Count})",a=>ShowEntries(a,0)),
+        ("Neuladen",a=>{Reload();EnforceAll();OpenAdmin(a);}));
     private void ShowEntries(IPlayer p,int page)
     {
         var ordered=ids.Order().ToArray();page=Math.Clamp(page,0,Math.Max(0,(ordered.Length-1)/10));

@@ -1,3 +1,4 @@
+using SwiftlyS2.Shared.Players;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -8,7 +9,7 @@ using SwiftlyS2.Shared.Misc;
 using SwiftlyS2.Shared.Plugins;
 namespace LPLK_Fluch;
 
-[PluginMetadata(Id="LPLK_Fluch",Name="LPLK_Fluch",Version="0.1.0",Author="LPLK; reference Kampfhamster",Description="Hühnerfluch mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Fluch",Name="LPLK_Fluch",Version="0.1.1",Author="LPLK; reference Kampfhamster",Description="Hühnerfluch mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -30,9 +31,13 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerTeam>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventRoundPrestart>(_=>{if(ready)curses.Clear();return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_Fluch 0.1.0 geladen; Hühner={Count}; Dauer={Duration}; Schaden={Damage}",settings.ChickenCount,settings.OrbitDurationSeconds,settings.TotalDamage);
+        WriteStatus();Core.Logger.LogInformation("LPLK_Fluch 0.1.1 geladen; Hühner={Count}; Dauer={Duration}; Schaden={Damage}",settings.ChickenCount,settings.OrbitDurationSeconds,settings.TotalDamage);
     }
-    public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
+    public override void ConfigureSharedInterface(IInterfaceManager manager)
+    {
+        module.ConfigureSharedInterface(manager);
+        manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Target.LPLK_Fluch.v1",new(){["actions"]=(Func<IPlayer,IPlayer,IReadOnlyDictionary<string,Action<IPlayer>>>)TargetActions});
+    }
     public override void Unload(){module.Active=false;if(ready)curses.Clear();else curses.Forget();ready=false;}
     [EventListener<EventDelegates.OnMapLoad>]
     public void MapLoad(IOnMapLoadEvent e){curses.Forget();ready=true;}
@@ -59,5 +64,5 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(ready)curses.Tick(Enabled,now/1000d);
     }
     private void Error(Exception e){if(errors++==0)Core.Logger.LogError(e,"LPLK_Fluch: Aktion fehlgeschlagen");}
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",settings,ready,effective=Enabled,activeCurses=curses.Count,chickens=curses.ChickenCount,explosions=curses.Explosions,errors,reloadError});
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings,ready,effective=Enabled,activeCurses=curses.Count,chickens=curses.ChickenCount,explosions=curses.Explosions,errors,reloadError});
 }

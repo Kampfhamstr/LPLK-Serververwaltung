@@ -1,5 +1,7 @@
 # LPLK-Serververwaltung
 
+**Fertige ZIPs:** [Paketdownloads und Prüfsummen](docs/DOWNLOADS.md) · [GitHub-Release](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Aktuelle Menüausgabe: **Teststand**.
+
 CS2-/SwiftlyS2-Addons, Windows-Verwaltungsprogramm und Webverwaltung in einem gemeinsamen Quellprojekt. Die Komponenten lassen sich gezielt einsetzen; nicht jeder Server benötigt jedes Addon.
 
 Stand des ersten Imports: **14.10.2026**. Die Websitequelle unter `Website/` basiert auf dem freigegebenen Stand **1.15.2.8**. Die vorbereitete Erweiterung 1.15.2.9 ist nicht Bestandteil dieses ersten Imports.

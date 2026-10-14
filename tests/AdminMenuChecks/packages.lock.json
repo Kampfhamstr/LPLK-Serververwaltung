@@ -386,6 +386,9 @@
           "Microsoft.Extensions.Configuration.FileExtensions": "5.0.0",
           "Tomlyn": "0.14.3"
         }
+      },
+      "lplk_sounds": {
+        "type": "Project"
       }
     }
   }

@@ -10,7 +10,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_AntiTeamFlash;
 
-[PluginMetadata(Id="LPLK_AntiTeamFlash",Name="LPLK_AntiTeamFlash",Version="0.1.0",Author="LPLK; reference St1nixx",Description="Teamflash-Schutz mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_AntiTeamFlash",Name="LPLK_AntiTeamFlash",Version="0.1.1",Author="LPLK; reference St1nixx",Description="Teamflash-Schutz mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ModuleSupport module = null!;
@@ -34,7 +34,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)history.Remove(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p)history.Remove(p.PlayerID);return HookResult.Continue;});
         WriteStatus();
-        Core.Logger.LogInformation("LPLK_AntiTeamFlash 0.1.0 geladen: enabled={Enabled}; flashOwner={Owner}; Schutzrecht={Permission}; hotloadWait={Wait}",settings.Enabled,settings.FlashOwner,settings.AccessPermission,!ready);
+        Core.Logger.LogInformation("LPLK_AntiTeamFlash 0.1.1 geladen: enabled={Enabled}; flashOwner={Owner}; Schutzrecht={Permission}; hotloadWait={Wait}",settings.Enabled,settings.FlashOwner,settings.AccessPermission,!ready);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
     public override void Unload(){if(module is not null)module.Active=false;ready=false;history.Clear();}
@@ -103,5 +103,5 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         }
         WriteStatus();
     }
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",settings,ready,cleared,preservedOverlaps=preserved,errors,tracked=history.Count,reloadError});
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings,ready,cleared,preservedOverlaps=preserved,errors,tracked=history.Count,reloadError});
 }

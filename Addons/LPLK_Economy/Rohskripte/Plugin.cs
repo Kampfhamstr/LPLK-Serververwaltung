@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_Economy;
 
-[PluginMetadata(Id="LPLK_Economy",Name="LPLK_Economy",Version="0.9.0",Author="LPLK; BetBank reference Michael Zauche",Description="Gemeinsame Kontoführung, Bank und nachvollziehbare Buchungen",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Economy",Name="LPLK_Economy",Version="0.9.1",Author="LPLK; BetBank reference Michael Zauche",Description="Gemeinsame Kontoführung, Bank und nachvollziehbare Buchungen",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -34,7 +34,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private DateTime ResetNow=>settings.UseUtcForResetKey?DateTime.UtcNow:DateTime.Now;
     public override void Load(bool hotReload)
     {
-        module=new(Core,"LPLK_Economy","Bank, Wetten, Lotto, Raub & Titel","lplk.economy.admin",OpenAdmin,p=>Core.Permission.PlayerHasPermission(p.SteamID,settings.AdminPermission));
+        module=new(Core,"LPLK_Economy","Wirtschaft","lplk.economy.admin",OpenAdmin,p=>Core.Permission.PlayerHasPermission(p.SteamID,settings.AdminPermission));
         settings=module.ReadSettings<EconomySettings>(EconomySettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);module.Active=true;
         var savedSettings=JsonNode.Parse(File.ReadAllText(module.SettingsPath))!.AsObject();
         if(!savedSettings.ContainsKey("Lotto")){savedSettings["Lotto"]=JsonSerializer.SerializeToNode(settings.Lotto);AtomicJson.Write(module.SettingsPath,savedSettings);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);}
@@ -52,11 +52,12 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p&&Human(p))dead.Add(p.SteamID);BettingWork(()=>BonusDeath(e.UserIdPlayer,e.AttackerPlayer));BettingWork(()=>KillRewardDeath(e.UserIdPlayer,e.AttackerPlayer));BettingWork(()=>BountyDeath(e.UserIdPlayer,e.AttackerPlayer));return HookResult.Continue;});
         Core.GameEvent.HookPre<EventPlayerDisconnect>(e=>{BettingWork(()=>BountyDisconnected(e.UserIdPlayer));return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p&&Human(p))bountyLives[p.SteamID]=bountyLives.GetValueOrDefault(p.SteamID)+1;return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_Economy 0.9.0 geladen; profil={Profile}; bereit={Healthy}",settings.Profile,failure is null);
+        WriteStatus();Core.Logger.LogInformation("LPLK_Economy 0.9.1 geladen; profil={Profile}; bereit={Healthy}",settings.Profile,failure is null);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
         module.ConfigureSharedInterface(manager);
+        manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Target.LPLK_Economy.v1",new(){["actions"]=(Func<IPlayer,IPlayer,IReadOnlyDictionary<string,Action<IPlayer>>>)TargetActions});
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Player.Economy.v1",new(){["allowed"]=(Func<IPlayer,string,bool>)((p,c)=>CanUse(p)&&(c=="sw_bank"&&settings.BankEnabled||c=="sw_bet"&&settings.Betting.Enabled||c=="sw_lotto"&&settings.Lotto.Enabled||c=="sw_bankraub"&&settings.BankEnabled&&settings.BankRobbery.Enabled||c=="sw_titel"&&settings.BankEnabled&&settings.TitleSystem.Enabled||c=="sw_kopfgeld"&&settings.BankEnabled&&settings.Bounty.Enabled))});
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Economy.v1",new()
         {
@@ -161,7 +162,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         long value=BankPolicy.Amount(amount,max,settings.MinTransfer,max);var receipt=bank.Transfer(id,period,Id(p),target,value);
         p.SendChat($"[LPLK Bank] {(receipt.Duplicate?"Bereits überwiesen":"Überwiesen")}: {value:N0} $ an {Ledger.SafeName(online?.Name??target)}.");
     }
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.9.0",settings,ready,effective=Active,healthy=failure is null,period=bank?.Period,accounts=bank?.AccountCount,transactions=bank?.TransactionCount,pending=bank?.PendingCount,profile=settings.Profile,mapBlocked,blockedPlayers=blocked.Count,errors,failure,reloadError,resetDelay,web=new{settings.WebBank.ExportEnabled,settings.WebBank.AdminChangesEnabled,error=webError},betting=new{activeRound=betActive,openRounds=bank?.OpenBetRounds,claims=bank?.BetClaims},lottery=new{activeRound=lotRound is not null,openRounds=bank?.OpenLotteryRounds,superpot=bank?.Superpot,refunds=bank?.LotteryRefunds,abilities=settings.LottoAbilityBonus.Enabled,upgradeDiscounts=settings.Lotto.PermanentTicketUpgradeDiscountEnabled,cashCollection=settings.Lotto.CashToSuperpot.Enabled},titles=new{enabled=settings.TitleSystem.Enabled,catalog=TitleCatalog.All.Length,interest=settings.InterestSystem.Enabled,tax=settings.LuxuryTax.Enabled,rulerSlots=true,progressPeriod=bank?.Period},robbery=new{openOrders=bank?.RobberyOrders(true,10000).Count(o=>o.Status!="done"),claims=bank?.RobberyClaims},bounty=new{active=bank?.Bounties().Count(o=>o.Status=="active"),pending=bank?.Bounties().Count(o=>o.Status=="pending"),claims=bank?.BountyClaims().Sum(c=>c.Remaining),marker=settings.BountyMarker.Enabled},killReward=new{enabled=settings.KillReward.Enabled,claims=bank?.KillRewardClaims().Sum(c=>(long)c.Remaining)},features=new{killReward=Active&&settings.KillReward.Enabled,bounty=Active&&settings.BankEnabled&&settings.Bounty.Enabled,bank=Active&&settings.BankEnabled,betting=Active&&settings.Betting.Enabled,lottery=Active&&settings.Lotto.Enabled,robbery=Active&&settings.BankEnabled&&settings.BankRobbery.Enabled,titles=Active&&settings.BankEnabled&&settings.TitleSystem.Enabled}});
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.9.1",settings,ready,effective=Active,healthy=failure is null,period=bank?.Period,accounts=bank?.AccountCount,transactions=bank?.TransactionCount,pending=bank?.PendingCount,profile=settings.Profile,mapBlocked,blockedPlayers=blocked.Count,errors,failure,reloadError,resetDelay,web=new{settings.WebBank.ExportEnabled,settings.WebBank.AdminChangesEnabled,error=webError},betting=new{activeRound=betActive,openRounds=bank?.OpenBetRounds,claims=bank?.BetClaims},lottery=new{activeRound=lotRound is not null,openRounds=bank?.OpenLotteryRounds,superpot=bank?.Superpot,refunds=bank?.LotteryRefunds,abilities=settings.LottoAbilityBonus.Enabled,upgradeDiscounts=settings.Lotto.PermanentTicketUpgradeDiscountEnabled,cashCollection=settings.Lotto.CashToSuperpot.Enabled},titles=new{enabled=settings.TitleSystem.Enabled,catalog=TitleCatalog.All.Length,interest=settings.InterestSystem.Enabled,tax=settings.LuxuryTax.Enabled,rulerSlots=true,progressPeriod=bank?.Period},robbery=new{openOrders=bank?.RobberyOrders(true,10000).Count(o=>o.Status!="done"),claims=bank?.RobberyClaims},bounty=new{active=bank?.Bounties().Count(o=>o.Status=="active"),pending=bank?.Bounties().Count(o=>o.Status=="pending"),claims=bank?.BountyClaims().Sum(c=>c.Remaining),marker=settings.BountyMarker.Enabled},killReward=new{enabled=settings.KillReward.Enabled,claims=bank?.KillRewardClaims().Sum(c=>(long)c.Remaining)},features=new{killReward=Active&&settings.KillReward.Enabled,bounty=Active&&settings.BankEnabled&&settings.Bounty.Enabled,bank=Active&&settings.BankEnabled,betting=Active&&settings.Betting.Enabled,lottery=Active&&settings.Lotto.Enabled,robbery=Active&&settings.BankEnabled&&settings.BankRobbery.Enabled,titles=Active&&settings.BankEnabled&&settings.TitleSystem.Enabled}});
 }
 
 

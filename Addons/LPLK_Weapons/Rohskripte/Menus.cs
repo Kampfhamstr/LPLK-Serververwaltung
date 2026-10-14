@@ -19,16 +19,16 @@ public sealed partial class Plugin
     private void OpenAdmin(IPlayer p)=>AdminPage(p,"LPLK · Waffen & Auswahl",_=>new (string,Action<IPlayer>)[]
     {
         ($"Modul aktiv: {settings.Enabled}",a=>{Save(settings with{Enabled=!settings.Enabled});OpenAdmin(a);}),
-        ("Waffenfreigaben",Restrictions),("Spieler-Waffenauswahl",SelectionSettings),
-        ("Status / Sonderregeln",a=>a.SendChat($"[LPLK] Preset {settings.ActivePreset}; {settings.AllowedWeapons.Length} Freigaben; {settings.Rules.Count} Sonderregeln; Fehler {errors}. Sonderregeln: settings.json / Rules."))
+        ("Waffenfreigaben",Restrictions),("Spielerauswahl",SelectionSettings),
+        ("Status",a=>a.SendChat($"[LPLK] Preset {settings.ActivePreset}; {settings.AllowedWeapons.Length} Freigaben; {settings.Rules.Count} Sonderregeln; Fehler {errors}. Sonderregeln: settings.json / Rules."))
     });
     private void Restrictions(IPlayer p)=>AdminPage(p,"Waffen · Freigaben",_=>new (string,Action<IPlayer>)[]
     {
         ($"Beschränkung: {settings.RestrictionEnabled}",a=>{Save(settings with{RestrictionEnabled=!settings.RestrictionEnabled});Restrictions(a);}),
-        ("Preset auswählen",Presets),("Einzelne Waffen",a=>AdminGroups(a,false)),
+        ("Preset",Presets),("Einzelne Waffen",a=>AdminGroups(a,false)),
         ("Weitere Regeln",a=>AdminPage(a,"Waffen · Weitere Regeln",_=>new (string,Action<IPlayer>)[]
         {
-            ($"Unbekannte Waffen sperren: {settings.RestrictUnknownWeapons}",b=>{Save(settings with{RestrictUnknownWeapons=!settings.RestrictUnknownWeapons});Restrictions(b);}),
+            ($"Unbekannte sperren: {settings.RestrictUnknownWeapons}",b=>{Save(settings with{RestrictUnknownWeapons=!settings.RestrictUnknownWeapons});Restrictions(b);}),
             ($"Sperrhinweise: {settings.ShowRestrictionAlert}",b=>{Save(settings with{ShowRestrictionAlert=!settings.ShowRestrictionAlert});Restrictions(b);})
         },Restrictions))
     },OpenAdmin);
@@ -38,8 +38,8 @@ public sealed partial class Plugin
     {
         ($"Kostenlose Auswahl: {settings.MenuEnabled}",a=>{Save(settings with{MenuEnabled=!settings.MenuEnabled});SelectionSettings(a);}),
         ("Angebotene Waffen",a=>AdminGroups(a,true)),
-        ("Zugriff anzeigen",a=>a.SendChat("[LPLK] Menürecht: "+(settings.MenuPermission.Length==0?"alle Spieler":settings.MenuPermission)+". Lebender Spieler in T/CT erforderlich.")),
-        ("Spieleransicht öffnen",a=>Guns(a,null))
+        ("Berechtigung",a=>a.SendChat("[LPLK] Menürecht: "+(settings.MenuPermission.Length==0?"alle Spieler":settings.MenuPermission)+". Lebender Spieler in T/CT erforderlich.")),
+        ("Ausprobieren",a=>Guns(a,null))
     },OpenAdmin);
     private void AdminGroups(IPlayer p,bool blacklist)=>AdminPage(p,blacklist?"Auswahl · Kategorien":"Freigaben · Kategorien",_=>WeaponCatalog.Groups.Select(group=>(group,(Action<IPlayer>)(a=>AdminWeapons(a,group,blacklist)))).ToArray(),blacklist?SelectionSettings:Restrictions);
     private void AdminWeapons(IPlayer p,string group,bool blacklist)=>AdminPage(p,group,_=>WeaponCatalog.All.Where(w=>w.Group==group).Select(w=>

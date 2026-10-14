@@ -1,6 +1,8 @@
 # LPLK_Whitelist – Zutrittsliste
 
-Quellstand **0.2.2**, SwiftlyS2-API **1.4.14**. [Alle Addons](../../docs/ADDONS.md).
+**Download:** [LPLK_Whitelist.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Whitelist.zip) · [Ausgabe, Prüfsummen und Teststatus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Diese Ausgabe ist als Teststand gekennzeichnet.
+
+Quellstand **0.2.3**, SwiftlyS2-API **1.4.14**. [Alle Addons](../../docs/ADDONS.md).
 
 ## Was macht es?
 

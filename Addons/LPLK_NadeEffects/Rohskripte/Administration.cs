@@ -28,7 +28,7 @@ public sealed partial class Plugin
             finally{if(fade!=uint.MaxValue)world.Destroy(fade);WriteStatus();}
             return;
         }
-        WriteStatus();ctx.Reply($"LPLK_NadeEffects 0.1.0: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; selected={effects.Selected}; pending={effects.PendingCount}; fades={effects.FadeCount}; cooldown={settings.TriggerCooldownSeconds}; remove={settings.RemoveNades}; errors={errors}; reloadError={reloadError??"none"}");
+        WriteStatus();ctx.Reply($"LPLK_NadeEffects 0.1.1: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; selected={effects.Selected}; pending={effects.PendingCount}; fades={effects.FadeCount}; cooldown={settings.TriggerCooldownSeconds}; remove={settings.RemoveNades}; errors={errors}; reloadError={reloadError??"none"}");
     }
     private IMenuBuilderAPI Builder(string title)=>Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).SetAutoCloseDelay(0)
         .SetSelectButton(Enum.Parse<KeyBind>(settings.SelectButton)).SetMoveForwardButton(Enum.Parse<KeyBind>(settings.MoveUpButton)).SetMoveBackwardButton(Enum.Parse<KeyBind>(settings.MoveDownButton)).SetExitButton(Enum.Parse<KeyBind>(settings.ExitButton))
@@ -44,9 +44,8 @@ public sealed partial class Plugin
         Core.MenusAPI.OpenMenuForPlayer(player,builder.Build());
     }
     private void OpenAdmin(IPlayer p)=>Menu(p,"LPLK · Granateneffekte",0,
-        ($"Spielerauswahl ({effects.Selected})",a=>Targets(a,0)),
-        ("Alle Markierungen aufheben",a=>{if(ready)effects.Clear();WriteStatus();OpenAdmin(a);}),
-        ($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,settings with{Enabled=!settings.Enabled});OpenAdmin(a);}),
+        ($"Spieler ({effects.Selected})",a=>Targets(a,0)),
+        ("Zurücksetzen",a=>{if(ready)effects.Clear();WriteStatus();OpenAdmin(a);}),
         ("Einstellungen",SettingsMenu));
     private void Targets(IPlayer p,int requested)
     {
@@ -72,7 +71,8 @@ public sealed partial class Plugin
         if(page.Index>0)Navigation("Vorherige Seite",a=>Targets(a,page.Index-1));if(page.Index+1<page.Pages)Navigation("Nächste Seite",a=>Targets(a,page.Index+1));Navigation("Zurück",OpenAdmin,true);
         Core.MenusAPI.OpenMenuForPlayer(p,builder.Build());
     }
-    private void SettingsMenu(IPlayer p)=>Menu(p,"Granateneffekte · Einstellungen",1,("Auslöser & Entzug",TriggerMenu),("Bildschirm-Fade",FadeMenu),("Warnung & Adminhinweise",MessageMenu),("Zurück",OpenAdmin));
+    private void SettingsMenu(IPlayer p)=>Menu(p,"Granateneffekte · Einstellungen",1,
+        ($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,settings with{Enabled=!settings.Enabled});SettingsMenu(a);}),("Auslöser",TriggerMenu),("Bildschirm-Fade",FadeMenu),("Hinweise",MessageMenu),("Zurück",OpenAdmin));
     private void TriggerMenu(IPlayer p)=>Menu(p,"Granateneffekte · Auslöser",1,
         ("Granatentypen",a=>Grenades(a,0)),
         ($"Auslösesperre: {settings.TriggerCooldownSeconds:0.##} s",a=>{Apply(a,settings with{TriggerCooldownSeconds=Next(settings.TriggerCooldownSeconds,[.5,1.25,2.5,5,10])});TriggerMenu(a);}),
@@ -91,11 +91,11 @@ public sealed partial class Plugin
         ($"Fade: {(settings.UseEnvFade?"AN":"AUS")}",a=>{Apply(a,settings with{UseEnvFade=!settings.UseEnvFade});FadeMenu(a);}),
         ($"Dauer: {settings.FadeDuration:0.##} s",a=>{Apply(a,settings with{FadeDuration=Next(settings.FadeDuration,[.15,.3,.5,1,2])});FadeMenu(a);}),
         ($"Haltezeit: {settings.FadeHoldTime:0.##} s",a=>{Apply(a,settings with{FadeHoldTime=Next(settings.FadeHoldTime,[0,1,2.4,3,5])});FadeMenu(a);}),
-        ("Farbe, Deckkraft & Lebensdauer",AppearanceMenu),("Zurück",SettingsMenu));
+        ("Darstellung",AppearanceMenu),("Zurück",SettingsMenu));
     private void AppearanceMenu(IPlayer p)=>Menu(p,"Granateneffekte · Darstellung",1,
         ($"Farbe: {settings.FadeColor}",a=>{string[] colors=["255 255 255","255 100 100","100 100 255","0 0 0"];Apply(a,settings with{FadeColor=colors[(Array.IndexOf(colors,settings.FadeColor)+1)%colors.Length]});AppearanceMenu(a);}),
         ($"Deckkraft: {settings.FadeAlpha}",a=>{Apply(a,settings with{FadeAlpha=(int)Next(settings.FadeAlpha,[64,128,192,255])});AppearanceMenu(a);}),
-        ($"Objekt entfernen nach: {settings.FadeEntityRemoveDelaySeconds:0.#} s",a=>{Apply(a,settings with{FadeEntityRemoveDelaySeconds=(float)Next(settings.FadeEntityRemoveDelaySeconds,[1,3,5,10])});AppearanceMenu(a);}),
+        ($"Lebensdauer: {settings.FadeEntityRemoveDelaySeconds:0.#} s",a=>{Apply(a,settings with{FadeEntityRemoveDelaySeconds=(float)Next(settings.FadeEntityRemoveDelaySeconds,[1,3,5,10])});AppearanceMenu(a);}),
         ("Zurück",FadeMenu));
     private void MessageMenu(IPlayer p)=>Menu(p,"Granateneffekte · Hinweise",1,
         ("Warntext ändern",WarnInput),

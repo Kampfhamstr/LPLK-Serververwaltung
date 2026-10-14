@@ -15,7 +15,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Maps;
 
-[PluginMetadata(Id="LPLK_Maps",Name="LPLK_Maps",Version="0.2.5",Author="LPLK",Description="MapChooser, RTV, Nominate und Workshop-Verwaltung",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Maps",Name="LPLK_Maps",Version="0.2.6",Author="LPLK",Description="MapChooser, RTV, Nominate und Workshop-Verwaltung",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -45,7 +45,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 
     public override void Load(bool hotReload)
     {
-        module=new(Core,"LPLK_Maps","Maps / RTV / Nominate","lplk.maps.admin",OpenAdmin);
+        module=new(Core,"LPLK_Maps","Maps","lplk.maps.admin",OpenAdmin);
         settings=ReadConfiguration();
         var options=new JsonSerializerOptions{PropertyNameCaseInsensitive=true};
         maps=JsonSerializer.Deserialize<List<MapEntry>>(File.ReadAllText(File.Exists(MapsPath)?MapsPath:Path.Combine(Core.PluginPath,"resources","maps.seed.json")),options)??[];
@@ -73,7 +73,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventGamePhaseChanged>(e=>{if(e.NewPhase==(short)GamePhase.GAMEPHASE_MATCH_ENDED)MatchEnded();return HookResult.Continue;});
         Core.GameEvent.HookPost<EventCsWinPanelMatch>(_=>{if(Core.Game.MatchData.Phase!=GamePhase.GAMEPHASE_HALFTIME)MatchEnded();return HookResult.Continue;});
         Core.Scheduler.DelayBySeconds(3,()=>{if(!module.Active)return;ReadWarmup();RecordMap();MeasureCurrent(null);});
-        Core.Logger.LogInformation("LPLK_Maps 0.2.5: {Count} Katalogeinträge, {Available} verfügbar; {Candidates} Kandidaten / {Seconds}s",maps.Count,maps.Count(Available),settings.MapsToShow,settings.VoteSeconds);
+        Core.Logger.LogInformation("LPLK_Maps 0.2.6: {Count} Katalogeinträge, {Available} verfügbar; {Candidates} Kandidaten / {Seconds}s",maps.Count,maps.Count(Available),settings.MapsToShow,settings.VoteSeconds);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {

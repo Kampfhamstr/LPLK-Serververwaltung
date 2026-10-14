@@ -11,7 +11,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_Teams;
 
-[PluginMetadata(Id="LPLK_Teams",Name="LPLK_Teams",Version="0.1.0",Author="LPLK; reference Kampfhamster",Description="Teamwechselregeln und Gewinnerteam-Schutz",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Teams",Name="LPLK_Teams",Version="0.1.1",Author="LPLK; reference Kampfhamster",Description="Teamwechselregeln und Gewinnerteam-Schutz",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -39,7 +39,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private bool IsHuman(IPlayer? p)=>p is {IsValid:true,IsFakeClient:false,IsAuthorized:true}&&p.Controller.IsValid;
     public override void Load(bool hotReload)
     {
-        module=new(Core,"LPLK_Teams","Teamwechsel / Gewinnerteam","lplk.teams.admin",OpenAdmin,p=>Core.Permission.PlayerHasPermission(p.SteamID,"wl.admin"));
+        module=new(Core,"LPLK_Teams","Teams","lplk.teams.admin",OpenAdmin,p=>Core.Permission.PlayerHasPermission(p.SteamID,"wl.admin"));
         settings=module.ReadSettings<TeamSettings>(TeamSettings.Validate);
         stamp=File.GetLastWriteTimeUtc(module.SettingsPath);
         if(File.Exists(SelectionPath))
@@ -56,12 +56,13 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventGamePhaseChanged>(e=>{PhaseChanged(e.NewPhase);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventCsWinPanelMatch>(_=>{Refresh();if(phase==(int)GamePhase.GAMEPHASE_MATCH_ENDED)EndMatch();return HookResult.Continue;});
         WriteStatus();
-        Core.Logger.LogInformation("LPLK_Teams 0.1.0 geladen; enabled={Enabled}; Auswahl={Count}",settings.Enabled,selected.Count);
+        Core.Logger.LogInformation("LPLK_Teams 0.1.1 geladen; enabled={Enabled}; Auswahl={Count}",settings.Enabled,selected.Count);
     }
     public override void UseSharedInterface(IInterfaceManager manager)=>interfaces=manager;
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
         module.ConfigureSharedInterface(manager);
+        manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Target.LPLK_Teams.v1",new(){["actions"]=(Func<IPlayer,IPlayer,IReadOnlyDictionary<string,Action<IPlayer>>>)TargetActions});
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Teams.Control.v1",new()
         {
             ["ready"]=(Func<bool>)(()=>loaded&&module.Active),
@@ -226,5 +227,5 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     }
     private bool BridgeReady()=>interfaces?.TryGetSharedInterface<IReadOnlyDictionary<string,Delegate>>("LPLK.Bridge.Admin.v1",out var api)==true&&api.TryGetValue("teamsReady",out var call)&&call is Func<bool> probe&&probe();
     private string ProtectedText()=>mask==((1<<2)|(1<<3))?"T und CT":TeamPolicy.IsProtected(mask,3)?"CT":TeamPolicy.IsProtected(mask,2)?"T":"kein Team";
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",settings,ready,effective=Effective,score,scoreSource=tracker.Source,maxRounds=rounds,roundsSource,threshold=TeamPolicy.Threshold(settings,rounds),protectedTeams=ProtectedText(),halftime=Halftime,matchEndWinner=GuardWinner,selectedCount=selected.Count,bridgeReady=BridgeReady(),blocked,corrected,errors,reloadError});
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings,ready,effective=Effective,score,scoreSource=tracker.Source,maxRounds=rounds,roundsSource,threshold=TeamPolicy.Threshold(settings,rounds),protectedTeams=ProtectedText(),halftime=Halftime,matchEndWinner=GuardWinner,selectedCount=selected.Count,bridgeReady=BridgeReady(),blocked,corrected,errors,reloadError});
 }

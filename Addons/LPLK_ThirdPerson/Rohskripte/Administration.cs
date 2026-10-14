@@ -29,12 +29,12 @@ public sealed partial class Plugin
             finally{if(camera!=uint.MaxValue)world.Destroy(camera);WriteStatus();}
             return;
         }
-        WriteStatus();ctx.Reply($"LPLK_ThirdPerson 0.1.0: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; permission={settings.UseTpPermission}; distance={settings.ThirdPersonDistance}; height={settings.ThirdPersonHeight}; smooth={settings.UseSmoothCam}; damage={settings.DamageMode}; cameras={cameras.Count}; errors={errors}; reloadError={reloadError??"none"}");
+        WriteStatus();ctx.Reply($"LPLK_ThirdPerson 0.1.1: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; permission={settings.UseTpPermission}; distance={settings.ThirdPersonDistance}; height={settings.ThirdPersonHeight}; smooth={settings.UseSmoothCam}; damage={settings.DamageMode}; cameras={cameras.Count}; errors={errors}; reloadError={reloadError??"none"}");
     }
     private void OpenAdmin(IPlayer p)=>module.Menu(p,"LPLK · ThirdPerson-Kamera",
         ($"Aktiv: {(Enabled?"AN":"AUS")}",a=>{Apply(a,settings with{Enabled=!Enabled});Core.ConVar.Find<bool>("thirdperson_enabled")!.Value=settings.Enabled;OpenAdmin(a);}),
-        ("Abstand, Höhe & Bewegung",CameraMenu),
-        ("Schaden & Messerhinweise",DamageMenu),
+        ("Kamera",CameraMenu),
+        ("Schaden",DamageMenu),
         ("Zugriffsberechtigung",PermissionMenu));
     private void CameraMenu(IPlayer p)=>module.Menu(p,"ThirdPerson · Kamera",1,
         ($"Abstand: {settings.ThirdPersonDistance:0}",a=>{Apply(a,settings with{ThirdPersonDistance=Next(settings.ThirdPersonDistance,[60,80,100,120,150,200])});CameraMenu(a);}),
@@ -50,7 +50,7 @@ public sealed partial class Plugin
         ("Zurück",OpenAdmin));
     private void PermissionMenu(IPlayer p)=>module.Menu(p,"ThirdPerson · Zugriff",1,
         ($"Recht: {(settings.UseTpPermission.Length==0?"alle Spieler":settings.UseTpPermission)}",InputPermission),
-        ("Für alle Spieler freigeben",a=>{Apply(a,settings with{UseTpPermission=""});PermissionMenu(a);}),
+        ("Alle erlauben",a=>{Apply(a,settings with{UseTpPermission=""});PermissionMenu(a);}),
         ("Zurück",OpenAdmin));
     private void InputPermission(IPlayer p)
     {

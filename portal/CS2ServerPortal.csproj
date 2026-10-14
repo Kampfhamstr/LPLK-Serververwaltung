@@ -14,6 +14,12 @@
     <AppHostRelativeDotNet>../../tools/dotnet/$(NETCoreSdkVersion)</AppHostRelativeDotNet>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Diagnostics\InnerCirclePowerAudit.php" LogicalName="CS2ServerPortal.Diagnostics.InnerCirclePowerAudit.php" />
+    <EmbeddedResource Include="Diagnostics\InnerCircleReadOnly.php" LogicalName="CS2ServerPortal.Diagnostics.InnerCircleReadOnly.php" />
+    <EmbeddedResource Include="Diagnostics\InnerCircleUpdaterReadOnly.php" LogicalName="CS2ServerPortal.Diagnostics.InnerCircleUpdaterReadOnly.php" />
+    <EmbeddedResource Include="Diagnostics\InnerCircleRecovery.php" LogicalName="CS2ServerPortal.Diagnostics.InnerCircleRecovery.php" />
+    <EmbeddedResource Include="..\scripts\host-health\lplk_health.py" LogicalName="CS2ServerPortal.Diagnostics.HostHealth.py" />
+    <EmbeddedResource Include="Diagnostics\InnerCircleCrashReadOnly.php" LogicalName="CS2ServerPortal.Diagnostics.InnerCircleCrashReadOnly.php" />
     <EmbeddedResource Include="Diagnostics\ProductionSoundsInspect.php" LogicalName="CS2ServerPortal.Diagnostics.ProductionSoundsInspect.php" />
     <EmbeddedResource Include="Diagnostics\ZombieReadOnly.php" LogicalName="CS2ServerPortal.Diagnostics.ZombieReadOnly.php" />
     <EmbeddedResource Include="Diagnostics\ProductionSoundsDeploy.php" LogicalName="CS2ServerPortal.Diagnostics.ProductionSoundsDeploy.php" />
