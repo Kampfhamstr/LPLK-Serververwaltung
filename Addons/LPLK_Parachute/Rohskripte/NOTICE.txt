@@ -1,0 +1,7 @@
+LPLK_Parachute; modified by LPLK, 11 October 2026.
+Original Parachute v5 by schwarper: https://github.com/cs2-swiftlys2-plugins/cs2-parachute
+Original E/decrease/linear/gravity mechanics retained. Added safe gravity restoration and lifecycle cleanup.
+GPL-3.0; full license included in LICENSE.txt.
+LPLK adds modular administration and validated persistent settings.
+Complete C# source and pinned project are included under source/.
+Build with .NET 10: dotnet build source/LPLK_Parachute/LPLK_Parachute.csproj -c Release

@@ -1,0 +1,74 @@
+using System.Text.Json;
+using LPLK.Common;
+using Microsoft.Extensions.Logging;
+using SwiftlyS2.Shared;
+using SwiftlyS2.Shared.Events;
+using SwiftlyS2.Shared.GameEventDefinitions;
+using SwiftlyS2.Shared.Misc;
+using SwiftlyS2.Shared.Plugins;
+namespace LPLK_NadeEffects;
+
+[PluginMetadata(Id="LPLK_NadeEffects",Name="LPLK_NadeEffects",Version="0.1.0",Author="LPLK; reference Kampfhamster",Description="Gezielte Granatenhinweise und Entzug mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
+public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
+{
+    private ModuleSupport module=null!;
+    private NadeSettings settings=new();
+    private NativeNadeWorld world=null!;
+    private NadeController effects=null!;
+    private bool ready;
+    private long nextStatus;
+    private DateTime stamp;
+    private int errors;
+    private string? reloadError;
+    private bool Enabled=>module.Active&&ready&&settings.Enabled;
+    public override void Load(bool hotReload)
+    {
+        module=new(Core,"LPLK_NadeEffects","Granateneffekte","lplk.nadeeffects.admin",OpenAdmin,p=>Core.Permission.PlayerHasPermission(p.SteamID,settings.AdminPermission));
+        settings=module.ReadSettings<NadeSettings>(NadeSettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);
+        world=new(Core,module.CanAdmin,Notify);effects=new(world,Error);module.Active=true;ready=hotReload;
+        Core.GameEvent.HookPost<EventItemEquip>(Equip);
+        Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
+        Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
+        Core.GameEvent.HookPost<EventPlayerTeam>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
+        Core.GameEvent.HookPost<EventRoundPrestart>(_=>{if(ready)effects.CancelEffects();return HookResult.Continue;});
+        WriteStatus();Core.Logger.LogInformation("LPLK_NadeEffects 0.1.0 geladen; enabled={Enabled}; selected=0",settings.Enabled);
+    }
+    public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
+    public override void Unload(){module.Active=false;if(ready)effects.Clear();else effects.ForgetMap();ready=false;}
+    [EventListener<EventDelegates.OnMapLoad>]
+    public void MapLoad(IOnMapLoadEvent e){effects.ForgetMap();ready=true;}
+    [EventListener<EventDelegates.OnMapUnload>]
+    public void MapUnload(IOnMapUnloadEvent e){ready=false;effects.ForgetMap();}
+    [EventListener<EventDelegates.OnClientDisconnected>]
+    public void Disconnected(IOnClientDisconnectedEvent e){if(ready)effects.Disconnect(e.PlayerId);}
+    private void Release(int slot){if(ready)effects.ReleaseEffects(slot);}
+    private HookResult Equip(EventItemEquip e)
+    {
+        if(!Enabled||e.UserIdPlayer is not {} p)return HookResult.Continue;
+        try{effects.Equip(p.PlayerID,e.Item,settings,Environment.TickCount64/1000d);}catch(Exception ex){Error(ex);}
+        return HookResult.Continue;
+    }
+    [EventListener<EventDelegates.OnTick>]
+    public void Tick()
+    {
+        if(!module.Active)return;long now=Environment.TickCount64;
+        if(now>=nextStatus)
+        {
+            nextStatus=now+2000;
+            try
+            {
+                var changed=File.GetLastWriteTimeUtc(module.SettingsPath);
+                if(changed!=stamp){var next=JsonSerializer.Deserialize<NadeSettings>(File.ReadAllText(module.SettingsPath))??throw new InvalidDataException();NadeSettings.Validate(next);if(ready)effects.CancelEffects();settings=next;stamp=changed;reloadError=null;}
+            }
+            catch(Exception e){if(reloadError is null)Core.Logger.LogWarning(e,"LPLK_NadeEffects: letzter gültiger Stand bleibt aktiv");reloadError="Ungültige Änderung; letzter gültiger Stand aktiv.";}
+            WriteStatus();
+        }
+        if(ready)try{effects.Tick(Enabled,now/1000d);}catch(Exception e){effects.CancelEffects();Error(e);}
+    }
+    private void Notify(string text,NadeSettings s)
+    {
+        foreach(var p in Core.PlayerManager.GetAllValidPlayers())if(p is {IsValid:true,IsAuthorized:true,IsFakeClient:false}&&Core.Permission.PlayerHasPermission(p.SteamID,s.AdminMessagePermission))p.SendChat("[LPLK Admin] "+text);
+    }
+    private void Error(Exception e){if(errors++==0)Core.Logger.LogError(e,"LPLK_NadeEffects: Aktion fehlgeschlagen");}
+    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",settings,ready,effective=Enabled,selected=effects.Selected,pending=effects.PendingCount,fades=effects.FadeCount,triggered=effects.Triggered,removed=effects.Removed,errors,reloadError});
+}

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Addons/LPLK_Parachute/Rohskripte/FallPolicy.cs" Link="FallPolicy.cs" />
+    <Compile Include="../../Addons/LPLK_BombWires/Rohskripte/WireRound.cs" Link="WireRound.cs" />
+    <Compile Include="../../Addons/LPLK_Maps/Rohskripte/MapPolicy.cs" Link="MapPolicy.cs" />
+    <Compile Include="../../Addons/LPLK_Maps/Rohskripte/WorkshopCollections.cs" Link="WorkshopCollections.cs" />
+    <Compile Include="../../Addons/LPLK_Maps/Rohskripte/WorkshopDetails.cs" Link="WorkshopDetails.cs" />
+    <Compile Include="../../Addons/LPLK_Maps/Rohskripte/VpkMaps.cs" Link="VpkMaps.cs" />
+    <Compile Include="../../Addons/LPLK_Whitelist/Rohskripte/AccessPolicy.cs" Link="AccessPolicy.cs" />
+    <Compile Include="../../Addons/_Gemeinsam/AdminActionPolicy.cs" Link="AdminActionPolicy.cs" />
+  </ItemGroup>
+</Project>

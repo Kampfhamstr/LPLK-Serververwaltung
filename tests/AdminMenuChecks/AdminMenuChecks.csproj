@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Addons/LPLK_Admin/Rohskripte/*.cs" Link="Plugin/%(Filename)%(Extension)" />
+    <Compile Include="../../Addons/_Gemeinsam/ModuleSupport.cs" Link="ModuleSupport.cs" />
+    <Compile Include="../../Addons/_Gemeinsam/AdminActionPolicy.cs" Link="AdminActionPolicy.cs" />
+    <PackageReference Include="SwiftlyS2.CS2" Version="1.4.14" />
+  </ItemGroup>
+</Project>

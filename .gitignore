@@ -1,0 +1,27 @@
+# Generated output and local/private runtime state
+private/
+state/
+.cache/
+tools/
+artifacts/
+**/obj/
+**/bin/Debug/
+**/bin/Release/
+**/Build/
+**/native/*.so
+**/native/manifest.json
+Website/config/app.php
+Website/storage/
+**/logs/
+**/backups/
+*.sqlite
+*.sqlite3
+*.sqlite3-*
+*.db
+*.log
+*.zip
+*.pfx
+*.pem
+.env
+.env.*
+!.env.example

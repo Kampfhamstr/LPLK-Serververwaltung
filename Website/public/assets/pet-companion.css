@@ -1,0 +1,109 @@
+/* Serververwaltung v1.15.1: animierter Pet-Begleiter und eigene Leerlaufszenen. */
+.sidebar>nav{flex:1;min-height:0;overflow-y:auto;scrollbar-width:thin}
+.sidebar-pet-home{position:relative;flex:0 0 auto;margin-top:10px;padding:8px;border:1px solid #594b2c;border-radius:9px;background:linear-gradient(145deg,rgba(217,169,76,.14),rgba(20,23,28,.96));box-shadow:inset 0 0 18px rgba(217,169,76,.05)}
+.sidebar-pet-habitat{position:relative;display:block;height:58px;overflow:hidden;contain:layout paint;border:1px solid rgba(217,169,76,.27);border-radius:7px;background:linear-gradient(180deg,rgba(91,125,157,.18) 0 64%,rgba(85,66,36,.38) 65% 100%)}
+.sidebar-pet-habitat:after{content:"";position:absolute;left:0;right:0;bottom:8px;height:1px;background:rgba(217,169,76,.2)}
+.sidebar-pet-sparkle{position:absolute;right:12px;top:5px;color:#e7c878;font-size:12px;animation:petSparkle 2.8s ease-in-out infinite}
+.sidebar-pet-character{position:absolute;z-index:1;left:7px;bottom:7px;display:grid;min-width:42px;max-width:70px;height:39px;place-items:center;white-space:nowrap;transform-origin:center bottom;animation:petSidebarRoam 9s linear infinite;transition:opacity .18s ease}
+.sidebar-pet-character .pet-emoji-actor{display:inline-block;font-size:29px;line-height:1;filter:drop-shadow(0 3px 3px rgba(0,0,0,.35));animation:petBreathe 1.8s ease-in-out infinite}
+.pet-emoji-actor{position:relative;z-index:1}
+.pet-mischief-mark{position:absolute;right:-3px;bottom:-4px;z-index:0;font-size:15px;opacity:0;transform:scale(.25)}
+.sidebar-pet-home.is-away .sidebar-pet-character{opacity:0}
+.sidebar-pet-info{display:grid;min-width:0;margin:6px 2px 4px;line-height:1.2}
+.sidebar-pet-info strong{overflow:hidden;color:var(--text);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.sidebar-pet-info span{overflow:hidden;margin-top:2px;color:var(--muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.sidebar-pet-motion{width:100%;min-height:25px;padding:3px 7px;border:1px solid #51482f;border-radius:5px;background:#1e1d18;color:#d9c994;font:600 10px/1.2 inherit;cursor:pointer}
+.sidebar-pet-motion:hover{background:#29261b;color:#f1dd9e}
+.sidebar-pet-motion:focus-visible,.sidebar-pet-habitat:focus-visible{outline:2px solid #e4bb61;outline-offset:2px}
+.sidebar-pet-motion:disabled{cursor:not-allowed;opacity:.68}
+.sidebar-pet-tier-cool{border-color:#315c66;background:linear-gradient(145deg,rgba(54,159,178,.13),rgba(20,23,28,.96))}
+.sidebar-pet-tier-epic{border-color:#694b86;background:linear-gradient(145deg,rgba(139,92,246,.15),rgba(20,23,28,.96))}
+.sidebar-bottom{flex:0 0 auto;margin-top:8px}
+
+.pet-avatar{position:relative;overflow:visible}
+.pet-avatar>.pet-emoji-actor{display:inline-block;grid-area:1/1;filter:drop-shadow(0 5px 5px rgba(0,0,0,.28));animation:petBreathe 2.2s ease-in-out infinite}
+.pet-avatar>.pet-mischief-mark{right:10px;bottom:8px}
+.pet-behavior-sniff .pet-emoji-actor,.pet-behavior-sniff .pet-escape-emoji{animation:petSniff 1.5s ease-in-out both!important}
+.pet-behavior-hop .pet-emoji-actor,.pet-behavior-hop .pet-escape-emoji{animation:petHop .75s ease-in-out 2!important}
+.pet-behavior-sleep .pet-emoji-actor,.pet-behavior-sleep .pet-escape-emoji{animation:petSleep 2.6s ease-in-out both!important}
+.pet-behavior-shake .pet-emoji-actor,.pet-behavior-shake .pet-escape-emoji{animation:petShake .28s linear 5!important}
+.pet-behavior-groom .pet-emoji-actor,.pet-behavior-groom .pet-escape-emoji{animation:petGroom 2.1s ease-in-out both!important}
+.pet-behavior-heal .pet-emoji-actor,.pet-behavior-heal .pet-escape-emoji{animation:petHealthyGlow 2.3s ease-in-out both!important}
+.pet-behavior-train .pet-emoji-actor,.pet-behavior-train .pet-escape-emoji{animation:petMiniTrain .48s ease-in-out 4!important}
+.pet-behavior-piddle .pet-emoji-actor,.pet-behavior-piddle .pet-escape-emoji{animation:petGuilty 1.5s ease-in-out both!important}
+.pet-behavior-piddle .pet-mischief-mark,.pet-behavior-piddle .pet-escape-mark{animation:petPiddle 1.5s ease-out both!important}
+.pet-behavior-sleep .pet-emoji-actor:after,.pet-behavior-sleep .pet-escape-emoji:after,.pet-behavior-groom .pet-emoji-actor:after,.pet-behavior-groom .pet-escape-emoji:after,.pet-behavior-heal .pet-emoji-actor:after,.pet-behavior-heal .pet-escape-emoji:after,.pet-behavior-train .pet-emoji-actor:after,.pet-behavior-train .pet-escape-emoji:after{position:absolute;z-index:3;right:-13px;top:-14px;opacity:0;font-size:.52em;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));pointer-events:none}
+.pet-behavior-sleep .pet-emoji-actor:after,.pet-behavior-sleep .pet-escape-emoji:after{content:"💤";animation:petMiniEffect 2.5s ease-out both}.pet-behavior-groom .pet-emoji-actor:after,.pet-behavior-groom .pet-escape-emoji:after{content:"🪮";animation:petGroomTool 2.1s ease-in-out both}.pet-behavior-heal .pet-emoji-actor:after,.pet-behavior-heal .pet-escape-emoji:after{content:"✨";animation:petMiniEffect 2.2s ease-out both}.pet-behavior-train .pet-emoji-actor:after,.pet-behavior-train .pet-escape-emoji:after{content:"🏋️";animation:petTrainingTool 1.9s ease-in-out both}
+
+.pet-escape-overlay{position:fixed;z-index:1100;inset:0;overflow:hidden;contain:strict;pointer-events:none}
+.pet-escape-overlay[hidden]{display:none!important}
+.pet-escape-overlay,.pet-escape-overlay *{pointer-events:none!important;user-select:none}
+.pet-escape-character{position:absolute;left:0;top:0;display:block;width:58px;height:58px;will-change:transform}
+.pet-escape-facing{position:absolute;inset:0;display:grid;place-items:center;transform-origin:center;transition:transform .12s ease}
+.pet-escape-facing.is-facing-left{transform:scaleX(-1)}
+.pet-escape-emoji{position:relative;z-index:1;display:inline-block;white-space:nowrap;font-size:39px;line-height:1;filter:drop-shadow(0 5px 5px rgba(0,0,0,.42));animation:petEscapeRun .5s ease-in-out infinite}
+.pet-escape-mark{position:absolute;right:0;bottom:2px;z-index:0;font-size:18px;opacity:0}
+.pet-escape-bubble{position:absolute;left:50%;bottom:54px;min-width:max-content;max-width:190px;padding:5px 8px;border:1px solid #5d6570;border-radius:9px;background:#f7f3e7;color:#1b1d22;font-size:11px;font-weight:700;line-height:1.25;text-align:center;box-shadow:0 5px 14px rgba(0,0,0,.25);transform:translateX(-50%);animation:petBubblePop .35s ease both}
+.pet-escape-bubble:after{content:"";position:absolute;left:50%;top:100%;width:7px;height:7px;border-right:1px solid #5d6570;border-bottom:1px solid #5d6570;background:#f7f3e7;transform:translate(-50%,-4px) rotate(45deg)}
+.pet-butterfly{position:absolute;left:0;top:0;font-size:24px;opacity:0;filter:drop-shadow(0 3px 3px rgba(0,0,0,.25));will-change:transform}
+.pet-escape-overlay.is-butterfly-chase .pet-butterfly{opacity:1;animation:petButterflyWings .35s ease-in-out infinite alternate}
+
+html[data-theme-resolved="light"] .sidebar-pet-home{border-color:#d8bd7d;background:linear-gradient(145deg,#fff7df,#f7f9fb);box-shadow:0 2px 8px rgba(35,45,58,.08)}
+html[data-theme-resolved="light"] .sidebar-pet-habitat{border-color:#d9c997;background:linear-gradient(180deg,#eaf5ff 0 64%,#eadbb5 65% 100%)}
+html[data-theme-resolved="light"] .sidebar-pet-info strong{color:#293342}
+html[data-theme-resolved="light"] .sidebar-pet-info span{color:#667085}
+html[data-theme-resolved="light"] .sidebar-pet-motion{border-color:#cbb77f;background:#fffaf0;color:#624e15}
+html[data-theme-resolved="light"] .sidebar-pet-tier-cool{border-color:#8bc5cf;background:linear-gradient(145deg,#edfafe,#f7f9fb)}
+html[data-theme-resolved="light"] .sidebar-pet-tier-epic{border-color:#c3a6df;background:linear-gradient(145deg,#f7f0ff,#f7f9fb)}
+
+@keyframes petSidebarRoam{0%,5%{transform:translate3d(0,0,0) scaleX(1)}43%,48%{transform:translate3d(82px,0,0) scaleX(1)}52%,57%{transform:translate3d(82px,0,0) scaleX(-1)}95%,100%{transform:translate3d(0,0,0) scaleX(-1)}}
+@keyframes petBreathe{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-3px) rotate(1deg)}}
+@keyframes petSparkle{0%,100%{opacity:.35;transform:scale(.7) rotate(0)}50%{opacity:1;transform:scale(1.15) rotate(90deg)}}
+@keyframes petSniff{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(7px,3px) rotate(8deg)}50%{transform:translate(10px,5px) rotate(11deg)}75%{transform:translate(5px,2px) rotate(5deg)}}
+@keyframes petHop{0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-17px) scale(1.05)}65%{transform:translateY(1px) scale(.96,1.04)}}
+@keyframes petSleep{0%{transform:translateY(0) rotate(0);opacity:1}35%,85%{transform:translateY(6px) rotate(-8deg);opacity:.78}100%{transform:translateY(0) rotate(0);opacity:1}}
+@keyframes petShake{0%,100%{transform:translateX(0) rotate(0)}25%{transform:translateX(-4px) rotate(-7deg)}75%{transform:translateX(4px) rotate(7deg)}}
+@keyframes petGroom{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-2px) rotate(-6deg)}50%{transform:translateY(1px) rotate(5deg)}75%{transform:translateY(-2px) rotate(-4deg)}}
+@keyframes petHealthyGlow{0%,100%{transform:translateY(0) scale(1);filter:drop-shadow(0 3px 3px rgba(0,0,0,.3))}50%{transform:translateY(-4px) scale(1.08);filter:drop-shadow(0 0 9px rgba(112,232,147,.95))}}
+@keyframes petMiniTrain{0%,100%{transform:translateY(0) scale(1)}35%{transform:translateY(4px) scale(1.08,.9)}65%{transform:translateY(-5px) scale(.96,1.08)}}
+@keyframes petMiniEffect{0%{opacity:0;transform:translate(0,7px) scale(.45)}28%,72%{opacity:1}100%{opacity:0;transform:translate(10px,-17px) scale(1.12)}}
+@keyframes petGroomTool{0%{opacity:0;transform:translate(2px,-4px) rotate(-22deg)}18%,82%{opacity:1}35%{transform:translate(-18px,14px) rotate(18deg)}60%{transform:translate(1px,-2px) rotate(-20deg)}100%{opacity:0;transform:translate(-17px,13px) rotate(20deg)}}
+@keyframes petTrainingTool{0%{opacity:0;transform:translateY(10px) scale(.5)}18%,82%{opacity:1}38%{transform:translateY(-9px) scale(1)}62%{transform:translateY(6px) scale(1)}100%{opacity:0;transform:translateY(-7px) scale(.65)}}
+@keyframes petGuilty{0%,100%{transform:translateX(0) rotate(0)}35%{transform:translateX(-4px) rotate(-5deg)}70%{transform:translateX(4px) rotate(5deg)}}
+@keyframes petPiddle{0%{opacity:0;transform:translateY(-5px) scale(.2)}35%,72%{opacity:1;transform:translateY(1px) scale(1)}100%{opacity:0;transform:translateY(5px) scale(1.25)}}
+@keyframes petEscapeRun{0%,100%{transform:translateY(1px) rotate(-3deg)}50%{transform:translateY(-5px) rotate(3deg)}}
+@keyframes petBubblePop{from{opacity:0;transform:translate(-50%,5px) scale(.8)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+@keyframes petButterflyWings{from{scale:.82;opacity:.72}to{scale:1.12;opacity:1}}
+
+html.pet-motion-off .sidebar-pet-character,
+html.pet-motion-off .sidebar-pet-character .pet-emoji-actor,
+html.pet-motion-off .pet-avatar>.pet-emoji-actor,
+html.pet-motion-off .sidebar-pet-sparkle{animation:none!important;transform:none!important}
+html.pet-motion-off .pet-emoji-actor:after,html.pet-motion-off .pet-escape-emoji:after{animation:none!important;opacity:0!important;transform:none!important}
+html.pet-motion-off .pet-escape-overlay,
+html.pet-motion-paused .pet-escape-overlay{display:none!important}
+html.pet-motion-paused .sidebar-pet-character,
+html.pet-motion-paused .sidebar-pet-character .pet-emoji-actor,
+html.pet-motion-paused .pet-avatar>.pet-emoji-actor,
+html.pet-motion-paused .sidebar-pet-sparkle{animation-play-state:paused!important}
+html.pet-motion-paused .pet-emoji-actor:after,html.pet-motion-paused .pet-escape-emoji:after{animation-play-state:paused!important}
+
+@media(max-width:700px){
+  .sidebar>nav{flex:none;min-height:auto;overflow:visible}
+  .sidebar-pet-home{margin-top:12px}
+  .sidebar-pet-habitat{height:54px}
+  .sidebar-pet-character{animation-duration:10s}
+  .sidebar-bottom{margin-top:10px}
+}
+@media(max-height:720px) and (min-width:701px){
+  .sidebar-pet-home{margin-top:6px;padding:6px}
+  .sidebar-pet-habitat{height:45px}
+  .sidebar-pet-character{bottom:4px;height:34px}
+  .sidebar-pet-character .pet-emoji-actor{font-size:25px}
+  .sidebar-pet-info{margin:4px 2px 3px}
+}
+@media(prefers-reduced-motion:reduce){
+  .sidebar-pet-character,.sidebar-pet-character .pet-emoji-actor,.pet-avatar>.pet-emoji-actor,.sidebar-pet-sparkle,.pet-mischief-mark,.pet-escape-overlay,.pet-escape-overlay *,.pet-emoji-actor:after,.pet-escape-emoji:after{animation:none!important;transition:none!important;transform:none!important}
+  .pet-emoji-actor:after,.pet-escape-emoji:after{opacity:0!important}
+  .pet-escape-overlay{display:none!important}
+}

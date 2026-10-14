@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "domains": [
+    "cs2commends.com",
+    "jaegerservice.xyz",
+    "sinlyxe.cc",
+    "clash.gg"
+  ],
+  "allowed_domains": [
+    "community.example.invalid"
+  ],
+  "blocked_phrases": [],
+  "marketing_keywords": [
+    "free commends",
+    "free commend",
+    "free cs2",
+    "cs2 commends",
+    "commends",
+    "commend boost",
+    "cheap skins",
+    "free skins",
+    "free cases",
+    "deposit bonus",
+    "bonus code",
+    "promo code",
+    "discord.gg"
+  ]
+}

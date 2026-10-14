@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup Condition="'$(LPLK_BUILD_ROOT)' != ''">
+    <PublishDir>$(LPLK_BUILD_ROOT)\$(MSBuildProjectName)\publish\$(AssemblyName)\</PublishDir>
+  </PropertyGroup>
+</Project>

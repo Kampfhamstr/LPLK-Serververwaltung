@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "steamId": "76561198000000000",
+  "profile": "standard",
+  "generatedAt": "2026-10-12T11:26:47.3525459+00:00",
+  "lastSeen": "2026-10-12T11:26:47.3515691+00:00",
+  "name": "Beispielspieler",
+  "pvp": {
+    "Shots": 1000,
+    "Kills": 100,
+    "Headshots": 45,
+    "Deaths": 80,
+    "kd": 1.25,
+    "headshotPercent": 45,
+    "rating": 45.06258638955901
+  },
+  "bots": {
+    "Shots": 300,
+    "Hits": 123,
+    "HeadHits": 60,
+    "Kills": 40,
+    "Headshots": 20,
+    "Deaths": 0
+  },
+  "extra": {
+    "Since": "2026-10-12T11:26:47.3517729+00:00",
+    "Assists": 20,
+    "FlashAssists": 3,
+    "Damage": 7500,
+    "DamageTaken": 6500,
+    "Rounds": 50,
+    "Wins": 28,
+    "PlaySeconds": 7200,
+    "BombsPlanted": 5,
+    "BombsDefused": 2,
+    "NoScope": 7,
+    "Wallbang": 4,
+    "ThroughSmoke": 2,
+    "Blind": 1,
+    "InAir": 3,
+    "EnemyWeapon": 9,
+    "TeamWeapon": 4,
+    "UnknownWeaponOrigin": 70,
+    "BestPickupStreak": 3
+  },
+  "weapons": {
+    "ak47": 50,
+    "awp": 35,
+    "hegrenade": 15
+  },
+  "collection": {
+    "Enabled": true,
+    "PvpEnabled": true,
+    "BotTrainingEnabled": true,
+    "WeaponTracking": true,
+    "MinShots": 250,
+    "MinKills": 25,
+    "MinBotShots": 250,
+    "MinBotKills": 25
+  },
+  "definitions": {
+    "specialKills": "Feindliche menschliche Spieler au\u00DFerhalb des Warmups; Merkmale k\u00F6nnen sich \u00FCberschneiden",
+    "pickup": "Beobachteter Besitzerwechsel derselben Waffeninstanz; unbekannte Herkunft bleibt unbekannt",
+    "rounds": "Vom Rundenstart bis Rundenende verbunden und im selben Team",
+    "playTime": "T/CT au\u00DFerhalb des Warmups; einschlie\u00DFlich Bottraining",
+    "damage": "Gemeldeter Gesundheitsschaden gegen menschliche Gegner; kein R\u00FCstungsschaden"
+  }
+}

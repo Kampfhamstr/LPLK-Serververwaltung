@@ -1,0 +1,1 @@
+<span data-server-join="<?=(int)$joinServerId?>"><a class="btn btn-success btn-small" href="/servers/<?=(int)$joinServerId?>/join" title="CS2 über Steam öffnen">Beitreten</a> <span class="small-muted mono" data-join-address></span></span>

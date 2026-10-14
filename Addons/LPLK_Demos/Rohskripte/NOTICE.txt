@@ -1,0 +1,12 @@
+LPLK_Statistics / LPLK_Demos 0.1.0 -- GPL-3.0.
+New implementation: LPLK. Functional references:
+HeadshotOnly 1.0.18, Michael Zauche (NAS source; live 1.0.17 separately inspected).
+Weapon & Nade StatTrak 1.1.3, Michael Zauche (NAS source; InspectOnly preserved).
+K4ryuu/K4-DamageInfo-SwiftlyS2: 2f418d65db2ba06a4ea9838a852ba6c9a95358ad.
+K4ryuu/K4-GOTV-SwiftlyS2: 2ba7815b97b3ef840b238126729c7fb8b939b1a5.
+chycken/K4-GOTV-SwiftlyS2: 80550dd018a1b49734fc2bc64e65ba6f6dfaabe7.
+K4 references are GPL-3.0; copyright K4ryuu/KitsuneLab and Chicken.
+https://github.com/K4ryuu/K4-DamageInfo-SwiftlyS2
+https://github.com/chycken/K4-GOTV-SwiftlyS2
+Map-unload native access avoided; recordings confirmed on disk, no invented duration.
+No production statistics, player identities, integrations or credentials included.

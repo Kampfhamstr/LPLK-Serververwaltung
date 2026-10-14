@@ -1,0 +1,76 @@
+using System.Reflection;
+using System.Text.Json;
+using LPLK.Common;
+using LPLK_Statistics;
+using LPLK_Demos;
+using SwiftlyS2.Shared.SchemaDefinitions;
+using SwiftlyS2.Shared.GameEventDefinitions;
+if(args.Contains("--api"))
+{
+ foreach(var t in new[]{typeof(CBasePlayerWeapon),typeof(CCSPlayer_WeaponServices),typeof(EventPlayerDeath)})Console.WriteLine(t.Name+": "+string.Join(", ",t.GetProperties().Select(p=>p.Name+"="+p.PropertyType.Name)));
+ foreach(var t in typeof(CCSPlayer_WeaponServices).GetInterfaces().Append(typeof(CCSPlayer_WeaponServices)))foreach(var p in t.GetProperties().Where(p=>p.Name=="MyWeapons")){var type=p.PropertyType.GetGenericArguments().First();Console.WriteLine(type+": "+string.Join(", ",type.GetProperties().Select(p=>p.Name+"="+p.PropertyType.Name)));}
+ return;
+}
+int checks=0;
+void Check(bool condition,string message){checks++;if(!condition)throw new Exception(message);}
+void Reject(Action action,string message){try{action();}catch{checks++;return;}throw new Exception(message);}
+var s=new StatisticsSettings();StatisticsSettings.Validate(s);
+Check(!s.CountWeaponWarmup&&s.CountPvpWarmup,"Legacy warmup separation");
+foreach(var w in WeaponCatalog.All)Check(StatPolicy.Weapon(w.Id)==w.Id[7..],"Firearm normalization "+w.Id);
+Check(StatPolicy.Weapon("knife_karambit")=="knife","Knife merge");Check(StatPolicy.Weapon("weapon_incgrenade_projectile")=="incgrenade","Projectile normalization");
+foreach(string unknown in new[]{"world","trigger_hurt","<b>","weapon_foo","","__"})Check(StatPolicy.Weapon(unknown)is null,"Unknown weapon");
+var shots=new ShotLedger();shots.Fire("one","ak47",100,true);
+Check(shots.Hurt("one","hegrenade",101,true,true)==(false,false),"Grenade is not bullet accuracy");
+Check(shots.Hurt("one","ak47",101,false,true)==(true,false),"First hit");
+Check(shots.Hurt("one","ak47",102,true,true)==(false,true),"Shotgun/multi-penetration counts head once");
+Check(shots.Hurt("one","ak47",103,true,true)==(false,false),"Duplicate hit");
+Check(shots.Hurt("other","ak47",103,true,true)==(false,false),"Session separation");shots.Remove("one");Check(shots.Hurt("one","ak47",105,true,true)==(false,false),"No previous life shot");
+shots.Fire("one","ak47",100,true);Check(shots.Hurt("one","ak47",1101,true,true)==(false,false),"Expired shot");
+var fire=new FireLedger();fire.Throw("a","incgrenade",100);fire.Detonate("a",200,30,"molotov");Check(fire.Resolve("a",300,30,"molotov")=="incgrenade","Inferno attribution");fire.Throw("a","molotov",400);fire.Detonate("a",500,30,"molotov");Check(fire.Resolve("a",600,30,"inferno")=="molotov","New throw supersedes active old fire");Check(fire.Resolve("a",31000,30,"inferno")=="inferno","Expired fire fallback");
+Check(StatPolicy.Rating(new(){Shots=249,Kills=999,Headshots=999},s)==0,"Ranking minimum");
+for(int hs=0;hs<=1000;hs+=10){double score=StatPolicy.Rating(new(){Shots=5000,Kills=1000,Headshots=hs},s);Check(double.IsFinite(score)&&score>=0&&score<=100,"Finite bounded rating");}
+Reject(()=>StatisticsSettings.Validate(s with{HeadshotWeight=double.NaN}),"NaN config");Reject(()=>StatisticsSettings.Validate(s with{TopCount=0}),"Invalid top");
+var imported=LegacyImport.Convert("{\"Players\":{\"12\":{\"Name\":\"Test\",\"Shots\":300,\"Kills\":30,\"HeadshotKills\":15,\"BotTrainingShots\":400,\"BotTrainingHits\":123}}}","{\"Players\":{\"12\":{\"LastName\":\"Other\",\"HeKills\":2,\"HudEnabled\":false,\"WeaponKills\":{\"hegrenade\":2,\"ak47\":4}}}}");
+Check(imported.Players[12].Pvp.Shots==300&&imported.Players[12].Bots.Hits==123,"Legacy split counters");Check(imported.Players[12].Weapons["hegrenade"]==2,"Do not double count mirrored grenade values");Check(imported.Players[12].Hud==false,"Preserve preference");
+Reject(()=>LegacyImport.Convert("{\"Players\":{}}","{\"Players\":{\"1\":{\"LastName\":\"x\",\"HeKills\":2,\"WeaponKills\":{\"hegrenade\":3}}}}"),"Ambiguous legacy data must not silently lose kills");
+string root=Path.Combine(Environment.GetEnvironmentVariable("LPLK_BUILD_ROOT")!,"StatisticsDemosChecks","test-data");Directory.CreateDirectory(root);
+string stats=Path.Combine(root,"statistics.json");AtomicJson.Write(stats,imported);Check(StatsData.Read(stats).Players[12].Pvp.Kills==30,"Stats durable reload");File.WriteAllText(stats,"broken");Reject(()=>StatsData.Read(stats),"Corruption fails closed");Check(File.ReadAllText(stats)=="broken","Corrupt file preserved");
+File.WriteAllText(stats,"{}");Reject(()=>StatsData.Read(stats),"Missing schema/players cannot silently reset rankings");
+string demos=Path.Combine(root,"demos"),index=Path.Combine(root,"index.json");Directory.CreateDirectory(demos);if(File.Exists(index))File.Delete(index);
+var archive=new DemoArchive(demos,index);archive.Load();foreach(string bad in new[]{"../outside.dem","other.dem","lplk_x.dem","/tmp/a.dem"})Reject(()=>archive.PathFor(bad),"Demo traversal/ownership");
+string name="lplk_20261012_123456_0123456789abcdef0123456789abcdef.dem";var rec=new DemoRecord{File=name,Seconds=10,MinimumSeconds=5,Stopped=DateTimeOffset.UtcNow};archive.Records.Add(rec);
+File.WriteAllBytes(archive.PathFor(name),"PBDEMS2\0abcdefghijk"u8.ToArray());Check(archive.ValidHeader(rec),"CS2 header");
+using(var exclusive=new FileStream(archive.PathFor(name),FileMode.Open,FileAccess.ReadWrite,FileShare.None))Check(!archive.ValidHeader(rec),"Engine file lock is pending, not fatal");
+archive.Finish(rec,19);Check(rec.State=="complete"&&File.Exists(archive.PathFor(name)),"Verified file retained after lock release");
+archive.Cleanup(DateTimeOffset.UtcNow.AddHours(100),new(){CleanupEnabled=false});Check(File.Exists(archive.PathFor(name)),"No cleanup by default");
+archive.Cleanup(DateTimeOffset.UtcNow.AddHours(100),new(){CleanupEnabled=true,RetentionHours=48});Check(!File.Exists(archive.PathFor(name))&&rec.State=="expired","Scoped retention");
+File.WriteAllText(Path.Combine(demos,"foreign.dem"),"preserve");archive.Cleanup(DateTimeOffset.UtcNow.AddHours(200),new(){CleanupEnabled=true});Check(File.Exists(Path.Combine(demos,"foreign.dem")),"Foreign file preserved");
+var owners=new WeaponOwnership();owners.Observe(100,"alice",2,false);Check(owners.Kill(100,"alice").Origin==WeaponOrigin.Unknown,"First sight is not proof of pickup");
+owners.Observe(100,"bob",3,false);Check(owners.Kill(100,"bob")== (WeaponOrigin.Enemy,1),"Observed enemy transfer");Check(owners.Kill(100,"bob").Streak==2,"Pickup streak");
+owners.Observe(100,"carol",3,false);Check(owners.Kill(100,"carol").Origin==WeaponOrigin.Teammate,"Observed teammate transfer");
+owners.EndLife("carol");Check(owners.Kill(100,"carol").Origin==WeaponOrigin.Unknown,"Death ends held weapon streak");
+owners.Observe(100,"carol",3,false);Check(owners.Kill(100,"carol").Origin==WeaponOrigin.Own,"Reacquiring own drop is not enemy pickup");
+owners.Observe(101,"dan",3,true);owners.Observe(101,"eve",3,true);Check(owners.Kill(101,"eve").Origin==WeaponOrigin.Enemy,"FFA transfer");
+owners.FinishScan(new HashSet<uint>(),new HashSet<uint>());owners.Observe(100,"new",3,false);Check(owners.Kill(100,"new").Origin==WeaponOrigin.Unknown,"Removed entity has no old owner");
+var world=new MenuWorld{DataDirectory=Path.Combine(root,"menus")};Directory.CreateDirectory(world.DataDirectory);
+var plugin=new LPLK_Statistics.Plugin(world.Core);var pluginType=plugin.GetType();var open=pluginType.GetMethod("OpenAdmin",BindingFlags.Instance|BindingFlags.NonPublic)!;
+var support=new ModuleSupport(world.Core,"LPLK_Statistics","Statistik","lplk.admin",p=>open.Invoke(plugin,[p])){Active=true};pluginType.GetField("module",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(plugin,support);
+plugin.Stats(world.Context);Check(world.Labels.Count<=5&&world.Labels.Any(x=>x.Contains("PvP")),"Grouped stats home");
+await world.Click("Waffen & Granaten");Check(world.Labels.Count<=5,"Weapon submenu bounded");
+await world.Click("Waffen nach Gruppen");foreach(var menu in world.AllMenus)Check(menu.Options.Count<=5,"Every page bounded");
+world.Permissions.Add("lplk.admin");plugin.Status(world.Context);await world.Click("Modul aktiv");plugin.Stats(world.Context);Check(!world.Labels.Any(x=>x.Contains("PvP & Headshots")),"Disabled module rejects public command");support.Active=false;
+string json=JsonSerializer.Serialize(WebExport.Player(12,imported.Players[12],s,DateTimeOffset.UtcNow));Check(json.Contains("\"steamId\":\"12\"")&&!json.Contains("SteamID"),"Export stable string identity");Check(json.Contains("\"Since\":null"),"Unknown historic special counts have no invented start");
+var fixture=new PlayerStats{Name="Beispielspieler",LastSeen=DateTimeOffset.UtcNow,Pvp=new(){Shots=1000,Kills=100,Headshots=45,Deaths=80},Bots=new(){Shots=300,Hits=123,HeadHits=60,Kills=40,Headshots=20},Weapons=new(){["ak47"]=50,["awp"]=35,["hegrenade"]=15},Extra=new(){Since=DateTimeOffset.UtcNow,Assists=20,FlashAssists=3,Damage=7500,DamageTaken=6500,Rounds=50,Wins=28,PlaySeconds=7200,NoScope=7,Wallbang=4,ThroughSmoke=2,Blind=1,InAir=3,EnemyWeapon=9,TeamWeapon=4,UnknownWeaponOrigin=70,BestPickupStreak=3,BombsPlanted=5,BombsDefused=2}};
+AtomicJson.Write(Path.Combine(root,"web-fixture.json"),WebExport.Player(76561198000000000,fixture,s,DateTimeOffset.UtcNow));
+var demoWorld=new MenuWorld{DataDirectory=Path.Combine(root,"demo-load"),RejectEntityAccess=true};Directory.CreateDirectory(demoWorld.DataDirectory);
+var demoPlugin=new LPLK_Demos.Plugin(demoWorld.Core);demoPlugin.Load(false);Check(demoWorld.EntityAccesses==0,"Cold plugin load must not access the native entity system");
+var demoType=demoPlugin.GetType();var owned=new DemoRecord{File="lplk_20261012_000000_abcdefabcdefabcdefabcdefabcdefab.dem"};
+demoType.GetField("recording",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(demoPlugin,owned);
+demoType.GetField("startAt",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(demoPlugin,Environment.TickCount64-12000);
+demoPlugin.MapUnload(null!);Check(demoWorld.Commands.Count==0&&demoWorld.EntityAccesses==0,"Map unload makes no native engine/entity calls");Check(owned.State=="finalizing"&&owned.Seconds>=12,"Cached monotonic recording duration survives map unload");demoPlugin.Unload();
+var rankingData=new StatsData();rankingData.Players[76561198000000001]=fixture;rankingData.Players[76561198000000002]=new PlayerStats{Name="Gleichstand",Pvp=fixture.Pvp,Bots=fixture.Bots};rankingData.Players[76561198000000003]=new PlayerStats{Name="Nicht qualifiziert",Pvp=new(){Shots=1,Kills=1}};
+var boards=RankingExport.Boards(rankingData,s);Check(boards["rating"].Length==2,"Rank qualification excludes tiny samples");Check(boards["rating"][0].rank==1&&boards["rating"][1].rank==1,"Tied value tied rank");Check(boards["rating"][0].steamId=="76561198000000001","Tie order deterministic");Check(boards["botAccuracy"][0].value==41,"Bots separate exact accuracy");
+var off=RankingExport.Boards(rankingData,s with{PvpEnabled=false,BotTrainingEnabled=false});Check(off.Values.All(v=>v.Length==0),"Disabled collections not ranked");
+string rankFixture=Path.Combine(Directory.GetCurrentDirectory(),"..","sERVERVERWALTUNG","work","webpanel","Serververwaltung_v1.15.2.7","tests","fixtures","lplk-ranking.json");File.WriteAllText(rankFixture,JsonSerializer.Serialize(RankingExport.Create(rankingData,s,DateTimeOffset.UtcNow)));
+WeaponRankingChecks.Run(Check,Path.Combine(Path.GetDirectoryName(rankFixture)!,"lplk-weapons.json"));
+Console.WriteLine($"Statistics/Demos: {checks} checks passed.");

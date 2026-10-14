@@ -1,0 +1,6 @@
+LPLK_Teams 0.1.0
+Functional reference: the owner's Kampfhamster TeamSwitch Blocker 1.6.2.
+Reviewed source: Surfserver Swiftly2/KampfhamsterTeamSwitchBlocker/src/KampfhamsterTeamSwitchBlocker.cs.
+Original author attribution: Kampfhamster. New implementation and shared administration: LPLK.
+No production player identities are embedded or imported.
+The source file and the matching deployed NAS binary are documented separately in state/teams-source-review.json.

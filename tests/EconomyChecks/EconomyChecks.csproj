@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AllowUnsafeBlocks>true</AllowUnsafeBlocks><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
+ <ItemGroup><Compile Include="../../Addons/LPLK_Economy/Rohskripte/*.cs" Link="Plugin/%(Filename)%(Extension)"/><Compile Include="../../Addons/_Gemeinsam/ModuleSupport.cs" Link="ModuleSupport.cs"/><Compile Include="../../Addons/_Gemeinsam/CompactMenu.cs" Link="CompactMenu.cs"/><Compile Include="../../Addons/_Gemeinsam/AdminActionPolicy.cs" Link="AdminActionPolicy.cs"/><PackageReference Include="SwiftlyS2.CS2" Version="1.4.14"/><PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0"/><PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5"/></ItemGroup>
+</Project>
+
+

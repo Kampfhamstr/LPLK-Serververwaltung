@@ -1,0 +1,7 @@
+LPLK_ThirdPerson 0.1.0
+Camera mechanics adapted from ThirdPerson by criskkky (Apache-2.0).
+https://github.com/criskkky/sws2-thirdperson
+Reference commit e6520baed964ac8251e1712fcb0366da786a203d, metadata version 1.0.1.
+2026-10-12 LPLK: rewritten lifecycle, session/pawn ownership, validated atomic settings,
+pre-damage hook, collision checked smoothing, grouped player/admin menus and tests.
+Original license included. No claim of byte identity with installed upstream DLL.

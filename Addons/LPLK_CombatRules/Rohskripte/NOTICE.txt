@@ -1,0 +1,10 @@
+LPLK weapon/combat modules 0.1.0 -- GPL-3.0.
+New implementation and shared administration: LPLK.
+Functional references reviewed 12 October 2026:
+HeadshotOnly 1.0.18 (owner source, Michael Zauche), live 1.0.17 settings/runtime read separately.
+AdvancedWeaponSystem v1 by schwarper (GPL-3.0), commit a274e85469d21ca9ebacf217863119601ee20d0e.
+GunsMenuSW2 1.0.0 by nicedayzhu, credit asapverneri (GPL-3.0), commit 3e89c9947121e67b51eba7c9d5a0e4b2576f911e.
+https://github.com/cs2-swiftlys2-plugins/cs2-advanced-weapon-system
+https://github.com/nicedayzhu/GunsMenuSW2
+Sources and migration limits: Addons/LPLK_Weapons, Addons/LPLK_CombatRules and docs/ADDON-REGRESSIONEN.md.
+No production player identities, databases or server credentials included.

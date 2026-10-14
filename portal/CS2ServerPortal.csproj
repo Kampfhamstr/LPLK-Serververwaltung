@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CS2ServerPortal</AssemblyName>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>Assets\cs2-server.ico</ApplicationIcon>
+    <!-- The installed portal lives in artifacts/portal beside the workspace-local SDK. -->
+    <AppHostDotNetSearch>AppRelative;EnvironmentVariable;Global</AppHostDotNetSearch>
+    <AppHostRelativeDotNet>../../tools/dotnet/$(NETCoreSdkVersion)</AppHostRelativeDotNet>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Diagnostics\ProductionSoundsInspect.php" LogicalName="CS2ServerPortal.Diagnostics.ProductionSoundsInspect.php" />
+    <EmbeddedResource Include="Diagnostics\ZombieReadOnly.php" LogicalName="CS2ServerPortal.Diagnostics.ZombieReadOnly.php" />
+    <EmbeddedResource Include="Diagnostics\ProductionSoundsDeploy.php" LogicalName="CS2ServerPortal.Diagnostics.ProductionSoundsDeploy.php" />
+    <EmbeddedResource Include="Diagnostics\TestSoundsEnabled.php" LogicalName="CS2ServerPortal.Diagnostics.TestSoundsEnabled.php" />
+    <EmbeddedResource Include="Diagnostics\TestSoundDiagnostics.php" LogicalName="CS2ServerPortal.Diagnostics.TestSoundDiagnostics.php" />
+    <EmbeddedResource Include="Diagnostics\TestMenuKeys.php" LogicalName="CS2ServerPortal.Diagnostics.TestMenuKeys.php" />
+    <EmbeddedResource Include="Diagnostics\TestConnectionIsolation.php" LogicalName="CS2ServerPortal.Diagnostics.TestConnectionIsolation.php" />
+    <EmbeddedResource Include="Diagnostics\WebJoinCheck.php" LogicalName="CS2ServerPortal.Diagnostics.WebJoinCheck.php" />
+    <EmbeddedResource Include="Diagnostics\TestPasswordRemove.php" LogicalName="CS2ServerPortal.Diagnostics.TestPasswordRemove.php" />
+    <EmbeddedResource Include="Diagnostics\TestMapApproval.php" LogicalName="CS2ServerPortal.Diagnostics.TestMapApproval.php" />
+    <EmbeddedResource Include="Diagnostics\TestWhitelistSeed.php" LogicalName="CS2ServerPortal.Diagnostics.TestWhitelistSeed.php" />
+    <EmbeddedResource Include="Diagnostics\TestWhitelistCheck.php" LogicalName="CS2ServerPortal.Diagnostics.TestWhitelistCheck.php" />
+    <EmbeddedResource Include="Diagnostics\TestAdminCheck.php" LogicalName="CS2ServerPortal.Diagnostics.TestAdminCheck.php" />
+    <InternalsVisibleTo Include="CS2ServerPortal.SshChecks" />
+    <InternalsVisibleTo Include="CS2ServerPortal.PanelChecks" />
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+    <EmbeddedResource Include="Assets\cs2-server.ico" LogicalName="CS2ServerPortal.Assets.cs2-server.ico" />
+    <EmbeddedResource Include="Assets\cs2-server-logo.png" LogicalName="CS2ServerPortal.Assets.cs2-server-logo.png" />
+    <EmbeddedResource Include="Diagnostics\PanelAccess.php" LogicalName="CS2ServerPortal.Diagnostics.PanelAccess.php" />
+    <EmbeddedResource Include="Diagnostics\TestServerInspection.php" LogicalName="CS2ServerPortal.Diagnostics.TestServerInspection.php" />
+    <EmbeddedResource Include="Diagnostics\TestServerCreate.php" LogicalName="CS2ServerPortal.Diagnostics.TestServerCreate.php" />
+    <EmbeddedResource Include="Diagnostics\TestServerStatus.php" LogicalName="CS2ServerPortal.Diagnostics.TestServerStatus.php" />
+    <EmbeddedResource Include="Diagnostics\WebEconomyCheck.php" LogicalName="CS2ServerPortal.Diagnostics.WebEconomyCheck.php" />
+    <EmbeddedResource Include="Diagnostics\WebShowcaseCheck.php" LogicalName="CS2ServerPortal.Diagnostics.WebShowcaseCheck.php" />
+    <EmbeddedResource Include="Diagnostics\WebUsabilityCheck.php" LogicalName="CS2ServerPortal.Diagnostics.WebUsabilityCheck.php" />
+    <EmbeddedResource Include="Diagnostics\WebLiveOverviewCheck.php" LogicalName="CS2ServerPortal.Diagnostics.WebLiveOverviewCheck.php" />
+    <EmbeddedResource Include="Diagnostics\TeamsReference.php" LogicalName="CS2ServerPortal.Diagnostics.TeamsReference.php" />
+    <EmbeddedResource Include="Diagnostics\WeaponsReference.php" LogicalName="CS2ServerPortal.Diagnostics.WeaponsReference.php" />
+    <EmbeddedResource Include="Diagnostics\StatisticsReference.php" LogicalName="CS2ServerPortal.Diagnostics.StatisticsReference.php" />
+    <EmbeddedResource Include="Diagnostics\FluchReference.php" LogicalName="CS2ServerPortal.Diagnostics.FluchReference.php" />
+    <EmbeddedResource Include="Diagnostics\NadeEffectsReference.php" LogicalName="CS2ServerPortal.Diagnostics.NadeEffectsReference.php" />
+    <EmbeddedResource Include="Diagnostics\EconomyReference.php" LogicalName="CS2ServerPortal.Diagnostics.EconomyReference.php" />
+    <EmbeddedResource Include="Diagnostics\TestTitlesProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestTitlesProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestKillRewardProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestKillRewardProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestBountyProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestBountyProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestBonusProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestBonusProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestRobberyProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestRobberyProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestLotteryProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestLotteryProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestBettingProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestBettingProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestEconomyProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestEconomyProbe.php" />
+    <EmbeddedResource Include="Diagnostics\ThirdPersonReference.php" LogicalName="CS2ServerPortal.Diagnostics.ThirdPersonReference.php" />
+    <EmbeddedResource Include="Diagnostics\TestNadeEffectsProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestNadeEffectsProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestFluchProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestFluchProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestThirdPersonProbe.php" LogicalName="CS2ServerPortal.Diagnostics.TestThirdPersonProbe.php" />
+    <EmbeddedResource Include="Diagnostics\TestDemoCheck.php" LogicalName="CS2ServerPortal.Diagnostics.TestDemoCheck.php" />
+    <EmbeddedResource Include="Diagnostics\AntiTeamFlashReference.php" LogicalName="CS2ServerPortal.Diagnostics.AntiTeamFlashReference.php" />
+    <EmbeddedResource Include="Diagnostics\TestMapStorage.php" LogicalName="CS2ServerPortal.Diagnostics.TestMapStorage.php" />
+    <EmbeddedResource Include="Diagnostics\TestServerCleanup.php" LogicalName="CS2ServerPortal.Diagnostics.TestServerCleanup.php" />
+    <EmbeddedResource Include="Diagnostics\TestServerConfigure.php" LogicalName="CS2ServerPortal.Diagnostics.TestServerConfigure.php" />
+    <EmbeddedResource Include="Diagnostics\WebPanelInspection.php" LogicalName="CS2ServerPortal.Diagnostics.WebPanelInspection.php" />
+    <EmbeddedResource Include="Diagnostics\WebStatisticsCheck.php" LogicalName="CS2ServerPortal.Diagnostics.WebStatisticsCheck.php" />
+    <EmbeddedResource Include="Diagnostics\WebWhitelistCheck.php" LogicalName="CS2ServerPortal.Diagnostics.WebWhitelistCheck.php" />
+    <EmbeddedResource Include="Diagnostics\TestServerDeploy.php" LogicalName="CS2ServerPortal.Diagnostics.TestServerDeploy.php" />
+    <EmbeddedResource Include="Diagnostics\WebPanelConnectTest.php" LogicalName="CS2ServerPortal.Diagnostics.WebPanelConnectTest.php" />
+    <EmbeddedResource Include="Diagnostics\WebPanelCheckTest.php" LogicalName="CS2ServerPortal.Diagnostics.WebPanelCheckTest.php" />
+  </ItemGroup>
+</Project>
+
+
+
+

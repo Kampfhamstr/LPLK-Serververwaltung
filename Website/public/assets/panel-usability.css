@@ -1,0 +1,66 @@
+/* Shared navigation and task-oriented page structure. */
+[hidden]{display:none!important}
+.ux-skip-link{position:fixed;left:12px;top:-100px;z-index:10000;padding:12px;background:var(--surface);border:2px solid var(--accent)}
+.ux-skip-link:focus{top:12px}
+:where(a,button,input,select,textarea,summary):focus-visible{outline:3px solid #64a8ee;outline-offset:3px}
+.main{min-width:0}
+.sidebar{overflow-y:auto}
+.ux-main-nav{gap:10px!important}
+.ux-nav-group{border:0!important;background:transparent!important;padding:0!important}
+.ux-nav-group>summary{padding:12px 10px;font-weight:700;cursor:pointer;border-radius:7px;min-height:44px}
+.ux-nav-group[open]>summary{background:var(--surface2)}
+.ux-nav-group>div{display:grid;padding:5px 0 7px 12px;border-left:1px solid var(--line);margin:0 0 0 10px}
+.ux-nav-group .nav-item{font-size:13px;min-height:42px}
+.ux-topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+.ux-global-search{display:flex;align-items:center;gap:8px;flex:1;max-width:720px}
+.ux-global-search label{font-size:12px;color:var(--muted);max-width:115px;flex-shrink:0}
+.ux-global-search input{flex:1;min-width:80px;margin:0}
+.ux-topbar button{min-height:42px}
+.ux-menu-toggle{display:none}
+.ux-motion-button{margin-left:auto}
+.ux-context{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 22px;padding:16px 18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+.ux-breadcrumb{display:flex;align-items:center;gap:10px;flex:1;min-width:0;overflow-wrap:anywhere}
+.ux-breadcrumb>a{color:var(--muted)}
+.ux-context-links,.ux-section-nav{display:flex;gap:6px;flex-wrap:wrap;width:100%;padding-top:10px;border-top:1px solid var(--line)}
+.ux-context-links>a,.ux-section-nav>a{padding:10px 13px;border-radius:6px;font-weight:600;min-height:42px;display:inline-flex;align-items:center}
+.ux-context-links>a[aria-current],.ux-section-nav>a[aria-current]{background:var(--accent);color:var(--accentText)}
+.ux-context-links>a[aria-disabled=true]{color:var(--muted);text-decoration:none;cursor:help}
+.ux-section-nav{margin-bottom:20px;border-top:0;padding:0}
+.ux-section-group{min-width:0}
+.ux-section-group>.panel{margin-bottom:18px}
+.ux-search-page{max-width:1000px}
+.ux-search-form{display:grid;grid-template-columns:1fr auto;gap:8px}
+.ux-search-form label{grid-column:1/-1}
+.ux-search-results{list-style:none;padding:0;display:grid;gap:10px}
+.ux-search-results a{display:grid;grid-template-columns:75px 1fr;gap:6px 16px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);overflow-wrap:anywhere}
+.ux-search-results a>span:last-child{grid-column:2;color:var(--muted);font-size:13px}
+.ux-result-type{color:var(--muted);font-size:12px}
+.ux-shortcuts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.ux-shortcuts>a{display:flex;flex-direction:column;gap:8px;padding:18px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface2)}
+.ux-shortcuts span{font-size:13px;color:var(--muted);line-height:1.5}
+.ux-home-notes{display:flex;gap:16px;flex-wrap:wrap;padding:18px 0 4px}
+.ux-home-notes a{text-decoration:underline}
+.ux-personal-servers{margin-top:20px;padding-top:14px;border-top:1px solid var(--line)}
+.ux-personal-servers summary{font-weight:650;cursor:pointer;min-height:36px}
+.ux-server-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px}
+.ux-server-list>div{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--line);border-radius:6px;min-width:0}
+.ux-server-list a{flex:1;overflow-wrap:anywhere}
+.ux-server-list [data-ux-recent]{font-size:10px;color:var(--muted)}
+[data-ux-favorite][aria-pressed=true]{border-color:var(--warning);color:var(--text)}
+.ux-feedback{padding:10px 12px;border-left:3px solid var(--warning);margin:10px 0;font-size:13px}
+.ux-field-error{color:var(--danger);display:block;margin:6px 0;font-size:13px}
+[aria-invalid=true]{border-color:var(--danger)!important}
+.ux-back-link{display:inline-flex;padding:8px 0;margin-bottom:12px;text-decoration:underline}
+html[data-ux-motion=quiet] *,html[data-ux-motion=quiet] *::before,html[data-ux-motion=quiet] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+html[data-ux-motion=quiet] .pet-companion,html[data-ux-motion=quiet] .pet-escape-overlay,html[data-ux-motion=quiet] .pet-butterfly{display:none!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(max-width:850px){
+ .app-shell{display:block!important}.sidebar{position:static!important;width:auto!important;height:auto!important;max-height:none!important}html[data-ux-ready] .sidebar{display:none!important}html[data-ux-ready] .sidebar.ux-open{display:flex!important}
+ .main{padding:16px!important}.ux-menu-toggle{display:inline-flex}.ux-topbar{gap:8px}.ux-global-search{order:3;flex-basis:100%;max-width:none}.ux-global-search label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .ux-context{padding:12px}.ux-context-links{gap:2px}.ux-context-links>a{padding:10px}.ux-server-list{grid-template-columns:1fr}.ux-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .ux-shortcuts>a{padding:13px}.ux-context>.btn{max-width:100%}.ux-search-form{grid-template-columns:minmax(0,1fr) auto}.ux-search-results a{grid-template-columns:1fr}.ux-search-results a>span:last-child{grid-column:1}
+ .page-header{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:14px!important}.main .page-header .header-actions{width:100%;flex-direction:row!important;align-items:center!important;flex-wrap:wrap!important;justify-content:flex-start!important;gap:8px!important}.two-column,.server-config-grid{min-width:0}
+ .panel-users-toggle{top:auto!important;bottom:0;left:-80px;width:80px;min-height:44px;flex-direction:row;padding:8px}.panel-users-toggle-label{writing-mode:horizontal-tb!important;transform:none!important}
+ .panel-users-toggle.ux-users-inline{position:static!important;border:1px solid var(--line);border-radius:7px;box-shadow:none;flex-shrink:0}
+}
+@media print{.ux-topbar,.ux-context,.ux-section-nav,.ux-back-link{display:none!important}.ux-section-group[hidden]{display:block!important}}

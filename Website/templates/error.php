@@ -1,0 +1,2 @@
+<?php use App\Core\Security; ?><section class="panel narrow"><h2><?=Security::e($title??'Fehler')?></h2><p><?=Security::e($message??'Ein Fehler ist aufgetreten.')?></p></section>
+<?php $draft=$_SESSION['_panel_form_draft']??null; if($draft && ($draft['user']??0)===(int)(\App\Core\Auth::user()['id']??0) && ($draft['expires']??0)>time()):?><p><a class="btn btn-secondary" href="<?=\App\Core\Security::e($draft['return'])?>">Zurück zum Formular – Eingaben wiederherstellen</a></p><?php endif;?>

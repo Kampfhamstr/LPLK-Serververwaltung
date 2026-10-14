@@ -1,0 +1,7 @@
+LPLK_BombWires; modified by LPLK, 11 October 2026.
+Original K4-BombWires 1.0.1 by K4ryuu / KitsuneLab: https://github.com/K4ryuu/K4-BombWires-SwiftlyS2
+Original four-color choice and defuse/explosion outcomes retained. Added round/session and active-defuser checks.
+GPL-3.0; full license included in LICENSE.txt.
+LPLK adds modular administration and validated persistent settings.
+Complete C# source and pinned project are included under source/.
+Build with .NET 10: dotnet build source/LPLK_BombWires/LPLK_BombWires.csproj -c Release

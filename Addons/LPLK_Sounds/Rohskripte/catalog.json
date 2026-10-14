@@ -1,0 +1,892 @@
+{
+  "Schema": 1,
+  "DefaultCard": null,
+  "DefaultSound": null,
+  "Cards": {},
+  "Sounds": {
+    "fi_01_aerger": {
+      "Title": "Jetzt bekommt ihr Ärger",
+      "Event": "deatheffects.fi_01_aerger_bf5826d88",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_01_aerger/bf5826d88.vsnd"
+      ],
+      "DurationSeconds": 3.89,
+      "Volume": 0.7
+    },
+    "fi_02_pinkeln": {
+      "Title": "Ich gehe jetzt mal pinkeln",
+      "Event": "deatheffects.fi_02_pinkeln_bd7f71822",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_02_pinkeln/bd7f71822.vsnd"
+      ],
+      "DurationSeconds": 1.3,
+      "Volume": 0.7
+    },
+    "fi_03_alkoholiker": {
+      "Title": "Vollalkoholiker",
+      "Event": "deatheffects.fi_03_alkoholiker_ba9796525",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_03_alkoholiker/ba9796525.vsnd"
+      ],
+      "DurationSeconds": 2.02,
+      "Volume": 0.7
+    },
+    "fi_04_ins_gesicht": {
+      "Title": "Ich lach dir ins Gesicht",
+      "Event": "deatheffects.fi_04_ins_gesicht_badc5f175",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_04_ins_gesicht/badc5f175.vsnd"
+      ],
+      "DurationSeconds": 4.18,
+      "Volume": 0.7
+    },
+    "fi_05_schutzanzug": {
+      "Title": "Schutzanzug",
+      "Event": "deatheffects.fi_05_schutzanzug_b8a9b878a",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_05_schutzanzug/b8a9b878a.vsnd"
+      ],
+      "DurationSeconds": 3.24,
+      "Volume": 0.7
+    },
+    "fi_06_unverwundbar": {
+      "Title": "Ich bin unverwundbar",
+      "Event": "deatheffects.fi_06_unverwundbar_b2d192d85",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_06_unverwundbar/b2d192d85.vsnd"
+      ],
+      "DurationSeconds": 2.77,
+      "Volume": 0.7
+    },
+    "fi_07_arschgesicht": {
+      "Title": "Das alte Arschgesicht",
+      "Event": "deatheffects.fi_07_arschgesicht_b0abe8e8c",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_07_arschgesicht/b0abe8e8c.vsnd"
+      ],
+      "DurationSeconds": 4.86,
+      "Volume": 0.7
+    },
+    "fi_08_kacke": {
+      "Title": "Ah, Kacke!",
+      "Event": "deatheffects.fi_08_kacke_ba052e5de",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_08_kacke/ba052e5de.vsnd"
+      ],
+      "DurationSeconds": 3.36,
+      "Volume": 0.7
+    },
+    "fi_09_bekloppt": {
+      "Title": "Alter, nee – bekloppt",
+      "Event": "deatheffects.fi_09_bekloppt_b9dcbdecf",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_09_bekloppt/b9dcbdecf.vsnd"
+      ],
+      "DurationSeconds": 13.56,
+      "Volume": 0.7
+    },
+    "fi_10_trottel": {
+      "Title": "Der Trottel",
+      "Event": "deatheffects.fi_10_trottel_bbcf4bda6",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_10_trottel/bbcf4bda6.vsnd"
+      ],
+      "DurationSeconds": 5.08,
+      "Volume": 0.7
+    },
+    "fi_11_bier": {
+      "Title": "Bier trinken",
+      "Event": "deatheffects.fi_11_bier_b1c7f635f",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_11_bier/b1c7f635f.vsnd"
+      ],
+      "DurationSeconds": 2.33,
+      "Volume": 0.7
+    },
+    "fi_12_bildschirm": {
+      "Title": "Schwarzer Bildschirm",
+      "Event": "deatheffects.fi_12_bildschirm_baf6cc703",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_12_bildschirm/baf6cc703.vsnd"
+      ],
+      "DurationSeconds": 5.7,
+      "Volume": 0.7
+    },
+    "fi_13_blind": {
+      "Title": "Ich bin blind",
+      "Event": "deatheffects.fi_13_blind_b2740f677",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_13_blind/b2740f677.vsnd"
+      ],
+      "DurationSeconds": 1.48,
+      "Volume": 0.7
+    },
+    "fi_14_blitz": {
+      "Title": "Blitz beim Scheißen",
+      "Event": "deatheffects.fi_14_blitz_b29613731",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_14_blitz/b29613731.vsnd"
+      ],
+      "DurationSeconds": 2.71,
+      "Volume": 0.7
+    },
+    "fi_15_nerven": {
+      "Title": "Du gehst mir auf die Nerven",
+      "Event": "deatheffects.fi_15_nerven_bac829b64",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_15_nerven/bac829b64.vsnd"
+      ],
+      "DurationSeconds": 4.44,
+      "Volume": 0.7
+    },
+    "fi_16_blut": {
+      "Title": "Blut ist biologisch abbaubar",
+      "Event": "deatheffects.fi_16_blut_bfcff5756",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_16_blut/bfcff5756.vsnd"
+      ],
+      "DurationSeconds": 3.25,
+      "Volume": 0.7
+    },
+    "fi_17_lachen": {
+      "Title": "Dämonisches Lachen",
+      "Event": "deatheffects.fi_17_lachen_b498042b2",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_17_lachen/b498042b2.vsnd"
+      ],
+      "DurationSeconds": 5.58,
+      "Volume": 0.7
+    },
+    "fi_18_bohnen": {
+      "Title": "Wer übrig bleibt, kriegt die Bohnen",
+      "Event": "deatheffects.fi_18_bohnen_b3f88e249",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_18_bohnen/b3f88e249.vsnd"
+      ],
+      "DurationSeconds": 3.7,
+      "Volume": 0.7
+    },
+    "fi_19_fresse": {
+      "Title": "Mitten in die Fresse",
+      "Event": "deatheffects.fi_19_fresse_be94beb81",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_19_fresse/be94beb81.vsnd"
+      ],
+      "DurationSeconds": 2.14,
+      "Volume": 0.7
+    },
+    "fi_20_bombe": {
+      "Title": "Leg die Bombe endlich",
+      "Event": "deatheffects.fi_20_bombe_ba997c09d",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_20_bombe/ba997c09d.vsnd"
+      ],
+      "DurationSeconds": 5.82,
+      "Volume": 0.7
+    },
+    "fi_21_headshot": {
+      "Title": "Boom Headshot",
+      "Event": "deatheffects.fi_21_headshot_b9f656ded",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_21_headshot/b9f656ded.vsnd"
+      ],
+      "DurationSeconds": 6.62,
+      "Volume": 0.7
+    },
+    "fi_22_welcome": {
+      "Title": "Ladies and gentlemen – Here we go",
+      "Event": "deatheffects.fi_22_welcome_b97c038bb",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_22_welcome/b97c038bb.vsnd"
+      ],
+      "DurationSeconds": 6.08,
+      "Volume": 0.7
+    },
+    "fi_23_guten_tag": {
+      "Title": "Guten Tag heißt es hier",
+      "Event": "deatheffects.fi_23_guten_tag_be35f81dd",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_23_guten_tag/be35f81dd.vsnd"
+      ],
+      "DurationSeconds": 2.23,
+      "Volume": 0.7
+    },
+    "fi_24_ach_so": {
+      "Title": "Ach so",
+      "Event": "deatheffects.fi_24_ach_so_bb55b8b05",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_24_ach_so/bb55b8b05.vsnd"
+      ],
+      "DurationSeconds": 0.62,
+      "Volume": 0.7
+    },
+    "fi_25_bekloppt": {
+      "Title": "Seid ihr alle total bekloppt?",
+      "Event": "deatheffects.fi_25_bekloppt_b5c6d5ebe",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_25_bekloppt/b5c6d5ebe.vsnd"
+      ],
+      "DurationSeconds": 3.6,
+      "Volume": 0.7
+    },
+    "fi_26_bleib_cool": {
+      "Title": "Bleib cool, du Pfeife",
+      "Event": "deatheffects.fi_26_bleib_cool_bc2a91875",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_26_bleib_cool/bc2a91875.vsnd"
+      ],
+      "DurationSeconds": 2.52,
+      "Volume": 0.7
+    },
+    "fi_27_langweilig": {
+      "Title": "Langweilig",
+      "Event": "deatheffects.fi_27_langweilig_bc1ec8166",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_27_langweilig/bc1ec8166.vsnd"
+      ],
+      "DurationSeconds": 1.8,
+      "Volume": 0.7
+    },
+    "fi_28_bird": {
+      "Title": "Bird Is the Word – Musikclip",
+      "Event": "deatheffects.fi_28_bird_ba52429fa",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_28_bird/ba52429fa.vsnd"
+      ],
+      "DurationSeconds": 18.59,
+      "Volume": 0.7
+    },
+    "fi_29_blamage": {
+      "Title": "Das hab ich nicht von dir gedacht",
+      "Event": "deatheffects.fi_29_blamage_b28f05d88",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_29_blamage/b28f05d88.vsnd"
+      ],
+      "DurationSeconds": 3.15,
+      "Volume": 0.7
+    },
+    "fi_30_zaehne": {
+      "Title": "Zähne einzeln aus der Fresse treten",
+      "Event": "deatheffects.fi_30_zaehne_bff538af7",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_30_zaehne/bff538af7.vsnd"
+      ],
+      "DurationSeconds": 2.71,
+      "Volume": 0.7
+    },
+    "fi_31_bitte_musik": {
+      "Title": "Meine Damen – bitte mal Musik",
+      "Event": "deatheffects.fi_31_bitte_musik_be1600f1f",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_31_bitte_musik/be1600f1f.vsnd"
+      ],
+      "DurationSeconds": 8.53,
+      "Volume": 0.7
+    },
+    "fi_32_beleidigen": {
+      "Title": "Beleidigen macht Spaß – kompletter Beleidigungsreim",
+      "Event": "deatheffects.fi_32_beleidigen_bd4d6671f",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_32_beleidigen/bd4d6671f.vsnd"
+      ],
+      "DurationSeconds": 21.38,
+      "Volume": 0.7
+    },
+    "fi_34_ausruf": {
+      "Title": "Wow – I Feel Good",
+      "Event": "deatheffects.fi_34_ausruf_bf8b283f2",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_34_ausruf/bf8b283f2.vsnd"
+      ],
+      "DurationSeconds": 4.05,
+      "Volume": 0.7
+    },
+    "fi_35_schoenen_dank": {
+      "Title": "Schönen Dank, du Arsch",
+      "Event": "deatheffects.fi_35_schoenen_dank_b496ef467",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_35_schoenen_dank/b496ef467.vsnd"
+      ],
+      "DurationSeconds": 1.95501,
+      "Volume": 0.7
+    },
+    "fi_36_dummer_sack": {
+      "Title": "Dummer Sack – verzieh dich",
+      "Event": "deatheffects.fi_36_dummer_sack_bb997a13f",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_36_dummer_sack/bb997a13f.vsnd"
+      ],
+      "DurationSeconds": 12.61499,
+      "Volume": 0.7
+    },
+    "fi_37_yippie": {
+      "Title": "Yippie-Ya-Yeah, Schweinebacke",
+      "Event": "deatheffects.fi_37_yippie_baa6334ed",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_37_yippie/baa6334ed.vsnd"
+      ],
+      "DurationSeconds": 2.12499,
+      "Volume": 0.7
+    },
+    "fi_38_knaller": {
+      "Title": "Zünd den Knaller",
+      "Event": "deatheffects.fi_38_knaller_b23d4d89e",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_38_knaller/b23d4d89e.vsnd"
+      ],
+      "DurationSeconds": 4,
+      "Volume": 0.7
+    },
+    "fi_39_bam": {
+      "Title": "Das hat so richtig BAM gemacht",
+      "Event": "deatheffects.fi_39_bam_b273771cb",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_39_bam/b273771cb.vsnd"
+      ],
+      "DurationSeconds": 6.4,
+      "Volume": 0.7
+    },
+    "fi_40_burn": {
+      "Title": "Burn – Musikclip",
+      "Event": "deatheffects.fi_40_burn_b59fdd260",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_40_burn/b59fdd260.vsnd"
+      ],
+      "DurationSeconds": 13.28,
+      "Volume": 0.7
+    },
+    "fi_41_richtig": {
+      "Title": "Richtig!",
+      "Event": "deatheffects.fi_41_richtig_b10ee4275",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_41_richtig/b10ee4275.vsnd"
+      ],
+      "DurationSeconds": 1.48,
+      "Volume": 0.7
+    },
+    "fi_42_lutscher": {
+      "Title": "Komm her, ich hab einen Lutscher",
+      "Event": "deatheffects.fi_42_lutscher_bc144d21a",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_42_lutscher/bc144d21a.vsnd"
+      ],
+      "DurationSeconds": 3.5,
+      "Volume": 0.7
+    },
+    "fi_43_nassbirne": {
+      "Title": "Was bist du für eine Nassbirne?",
+      "Event": "deatheffects.fi_43_nassbirne_b9788e082",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_43_nassbirne/b9788e082.vsnd"
+      ],
+      "DurationSeconds": 2.07499,
+      "Volume": 0.7
+    },
+    "fi_44_butterbirne": {
+      "Title": "Du alte … – Beschimpfung",
+      "Event": "deatheffects.fi_44_butterbirne_bcfce3053",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_44_butterbirne/bcfce3053.vsnd"
+      ],
+      "DurationSeconds": 2.14,
+      "Volume": 0.7
+    },
+    "fi_45_mami": {
+      "Title": "Mami, Mami – Hilfe!",
+      "Event": "deatheffects.fi_45_mami_b1730139b",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_45_mami/b1730139b.vsnd"
+      ],
+      "DurationSeconds": 2.56501,
+      "Volume": 0.7
+    },
+    "fi_46_frage_zwei": {
+      "Title": "Frage zwei – Ihre Frau oder B?",
+      "Event": "deatheffects.fi_46_frage_zwei_b0b2299b6",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_46_frage_zwei/b0b2299b6.vsnd"
+      ],
+      "DurationSeconds": 5.24,
+      "Volume": 0.7
+    },
+    "fi_47_titten": {
+      "Title": "Titten! – mit Ausruf",
+      "Event": "deatheffects.fi_47_titten_b8bd6305d",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_47_titten/b8bd6305d.vsnd"
+      ],
+      "DurationSeconds": 2.9,
+      "Volume": 0.7
+    },
+    "fi_48_weibsvolk": {
+      "Title": "Ist Weibsvolk anwesend?",
+      "Event": "deatheffects.fi_48_weibsvolk_bbfc97a60",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_48_weibsvolk/bbfc97a60.vsnd"
+      ],
+      "DurationSeconds": 1.89,
+      "Volume": 0.7
+    },
+    "fi_49_lose_kaufen": {
+      "Title": "Wolle Lose kaufen?",
+      "Event": "deatheffects.fi_49_lose_kaufen_b9224cef5",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_49_lose_kaufen/b9224cef5.vsnd"
+      ],
+      "DurationSeconds": 1.35,
+      "Volume": 0.7
+    },
+    "fi_50_keine_ahnung": {
+      "Title": "Wenn man keine Ahnung hat",
+      "Event": "deatheffects.fi_50_keine_ahnung_b27412cb1",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_50_keine_ahnung/b27412cb1.vsnd"
+      ],
+      "DurationSeconds": 3.66,
+      "Volume": 0.7
+    },
+    "fi_51_so_ein_hals": {
+      "Title": "So einen Hals!",
+      "Event": "deatheffects.fi_51_so_ein_hals_b53fd610a",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_51_so_ein_hals/b53fd610a.vsnd"
+      ],
+      "DurationSeconds": 1.98,
+      "Volume": 0.7
+    },
+    "fi_52_faxen": {
+      "Title": "Jetzt lassen Sie Ihre Faxen",
+      "Event": "deatheffects.fi_52_faxen_b72f68038",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_52_faxen/b72f68038.vsnd"
+      ],
+      "DurationSeconds": 5.11,
+      "Volume": 0.7
+    },
+    "fi_53_ausruf_zwei": {
+      "Title": "Lauter Ausruf",
+      "Event": "deatheffects.fi_53_ausruf_zwei_b4f0e50a7",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_53_ausruf_zwei/b4f0e50a7.vsnd"
+      ],
+      "DurationSeconds": 5.07,
+      "Volume": 0.7
+    },
+    "fi_54_schon_wieder": {
+      "Title": "Nicht du schon wieder",
+      "Event": "deatheffects.fi_54_schon_wieder_b756698b1",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_54_schon_wieder/b756698b1.vsnd"
+      ],
+      "DurationSeconds": 2.12501,
+      "Volume": 0.7
+    },
+    "fi_55_deppenmagnet": {
+      "Title": "Ich bin ein Deppenmagnet",
+      "Event": "deatheffects.fi_55_deppenmagnet_ba41fbb17",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_55_deppenmagnet/ba41fbb17.vsnd"
+      ],
+      "DurationSeconds": 2.74499,
+      "Volume": 0.7
+    },
+    "fi_56_wieso": {
+      "Title": "Wieso wusste ich, dass das kommt?",
+      "Event": "deatheffects.fi_56_wieso_beb47fde3",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_56_wieso/beb47fde3.vsnd"
+      ],
+      "DurationSeconds": 2.82,
+      "Volume": 0.7
+    },
+    "fi_57_kinder": {
+      "Title": "Kinder find ich nicht so toll – Refrain",
+      "Event": "deatheffects.fi_57_kinder_b5660f014",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_57_kinder/b5660f014.vsnd"
+      ],
+      "DurationSeconds": 7.21501,
+      "Volume": 0.7
+    },
+    "fi_58_schnuffeltuch": {
+      "Title": "Warum schreist du? – Schnuffeltuch",
+      "Event": "deatheffects.fi_58_schnuffeltuch_b8bb1444d",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_58_schnuffeltuch/b8bb1444d.vsnd"
+      ],
+      "DurationSeconds": 3.89998,
+      "Volume": 0.7
+    },
+    "fi_59_wo_ist_er": {
+      "Title": "Ja, wo ist er denn?",
+      "Event": "deatheffects.fi_59_wo_ist_er_bd08f0d56",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_59_wo_ist_er/bd08f0d56.vsnd"
+      ],
+      "DurationSeconds": 6.64501,
+      "Volume": 0.7
+    },
+    "fi_60_oh_mein_gott": {
+      "Title": "Oh mein Gott!",
+      "Event": "deatheffects.fi_60_oh_mein_gott_b9515209d",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_60_oh_mein_gott/b9515209d.vsnd"
+      ],
+      "DurationSeconds": 3.48,
+      "Volume": 0.7
+    },
+    "fi_61_loser": {
+      "Title": "Einer ist immer der Loser",
+      "Event": "deatheffects.fi_61_loser_b215ff7a1",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_61_loser/b215ff7a1.vsnd"
+      ],
+      "DurationSeconds": 5.86,
+      "Volume": 0.7
+    },
+    "fi_62_augen": {
+      "Title": "Augen aus – derber Spruch",
+      "Event": "deatheffects.fi_62_augen_b3b442d53",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_62_augen/b3b442d53.vsnd"
+      ],
+      "DurationSeconds": 3.68499,
+      "Volume": 0.7
+    },
+    "fi_63_maxi_fixi": {
+      "Title": "Fixi – Reim-Musikclip",
+      "Event": "deatheffects.fi_63_maxi_fixi_b6eb12e93",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_63_maxi_fixi/b6eb12e93.vsnd"
+      ],
+      "DurationSeconds": 20.81823,
+      "Volume": 0.7
+    },
+    "fi_64_ding_dong": {
+      "Title": "Sam, spiel unser Lied – Ding dong",
+      "Event": "deatheffects.fi_64_ding_dong_b0c7d281d",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/fi_64_ding_dong/b0c7d281d.vsnd"
+      ],
+      "DurationSeconds": 12.49,
+      "Volume": 0.7
+    },
+    "nc_01_motorsaege": {
+      "Title": "Admin-Motorsäge – Renn, Cheater",
+      "Event": "deatheffects.nc_01_motorsaege_bb19738bb",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_01_motorsaege/bb19738bb.vsnd"
+      ],
+      "DurationSeconds": 5.71,
+      "Volume": 0.7,
+      "AdminOnly": true
+    },
+    "nc_02_angeber": {
+      "Title": "Asozialer Angeber",
+      "Event": "deatheffects.nc_02_angeber_bef9769e1",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_02_angeber/bef9769e1.vsnd"
+      ],
+      "DurationSeconds": 2.5,
+      "Volume": 0.7
+    },
+    "nc_03_langgehen": {
+      "Title": "Du weißt nicht, wo wir langgehen",
+      "Event": "deatheffects.nc_03_langgehen_b84cdd871",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_03_langgehen/b84cdd871.vsnd"
+      ],
+      "DurationSeconds": 2.93,
+      "Volume": 0.7
+    },
+    "nc_04_beschissen": {
+      "Title": "Die beschissensten Bescheißer",
+      "Event": "deatheffects.nc_04_beschissen_b119d61b7",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_04_beschissen/b119d61b7.vsnd"
+      ],
+      "DurationSeconds": 7.46,
+      "Volume": 0.7
+    },
+    "nc_05_lachen": {
+      "Title": "Spöttisches Lachen",
+      "Event": "deatheffects.nc_05_lachen_b4b7c6dfc",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_05_lachen/b4b7c6dfc.vsnd"
+      ],
+      "DurationSeconds": 2.87,
+      "Volume": 0.7
+    },
+    "nc_06_hoer_auf": {
+      "Title": "Junge, hör auf!",
+      "Event": "deatheffects.nc_06_hoer_auf_b5eaa41ad",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_06_hoer_auf/b5eaa41ad.vsnd"
+      ],
+      "DurationSeconds": 3.84,
+      "Volume": 0.7
+    },
+    "nc_07_ausruf": {
+      "Title": "Aufgeregter Ausruf – mehrfach",
+      "Event": "deatheffects.nc_07_ausruf_b2cde5447",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_07_ausruf/b2cde5447.vsnd"
+      ],
+      "DurationSeconds": 9.35,
+      "Volume": 0.7
+    },
+    "nc_08_campen": {
+      "Title": "Hört auf mit dem Campen",
+      "Event": "deatheffects.nc_08_campen_bdbf688da",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_08_campen/bdbf688da.vsnd"
+      ],
+      "DurationSeconds": 5.93,
+      "Volume": 0.7,
+      "AdminOnly": true
+    },
+    "nc_09_feierabend": {
+      "Title": "Letzte Runde – Feierabend",
+      "Event": "deatheffects.nc_09_feierabend_bb694424a",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_09_feierabend/bb694424a.vsnd"
+      ],
+      "DurationSeconds": 3.4,
+      "Volume": 0.7,
+      "AdminOnly": true
+    },
+    "nc_10_nicht_schlecht": {
+      "Title": "War nicht schlecht – war schon gut",
+      "Event": "deatheffects.nc_10_nicht_schlecht_b0648e808",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_10_nicht_schlecht/b0648e808.vsnd"
+      ],
+      "DurationSeconds": 4.6,
+      "Volume": 0.7
+    },
+    "nc_11_gut_gemacht": {
+      "Title": "Hast du gut gemacht",
+      "Event": "deatheffects.nc_11_gut_gemacht_bbf01da67",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_11_gut_gemacht/bbf01da67.vsnd"
+      ],
+      "DurationSeconds": 2.8,
+      "Volume": 0.7
+    },
+    "nc_12_piranha": {
+      "Title": "Hilf mir – du ekelhafter Piranha",
+      "Event": "deatheffects.nc_12_piranha_ba987c604",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_12_piranha/ba987c604.vsnd"
+      ],
+      "DurationSeconds": 2.48,
+      "Volume": 0.7
+    },
+    "nc_13_qualle": {
+      "Title": "Blutsauger und fette Qualle",
+      "Event": "deatheffects.nc_13_qualle_b19734ca9",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_13_qualle/b19734ca9.vsnd"
+      ],
+      "DurationSeconds": 2.33,
+      "Volume": 0.7
+    },
+    "nc_14_schnauze": {
+      "Title": "Kurzer Wortwechsel – Schnauze",
+      "Event": "deatheffects.nc_14_schnauze_b4a24b860",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_14_schnauze/b4a24b860.vsnd"
+      ],
+      "DurationSeconds": 1.97,
+      "Volume": 0.7
+    },
+    "nc_15_vorderfluegel": {
+      "Title": "Krampf im Vorderflügel",
+      "Event": "deatheffects.nc_15_vorderfluegel_b6f32baf1",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_15_vorderfluegel/b6f32baf1.vsnd"
+      ],
+      "DurationSeconds": 3.24,
+      "Volume": 0.7
+    },
+    "nc_16_zwischenspiel": {
+      "Title": "Kurzes Zwischenspiel",
+      "Event": "deatheffects.nc_16_zwischenspiel_bf1ceafb6",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_16_zwischenspiel/bf1ceafb6.vsnd"
+      ],
+      "DurationSeconds": 4.62,
+      "Volume": 0.7
+    },
+    "nc_17_hanswurst": {
+      "Title": "Du trauriger Hanswurst",
+      "Event": "deatheffects.nc_17_hanswurst_b714d178e",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_17_hanswurst/b714d178e.vsnd"
+      ],
+      "DurationSeconds": 2.23,
+      "Volume": 0.7
+    },
+    "nc_18_apostel": {
+      "Title": "Zwölf Apostel – derbe Drohung",
+      "Event": "deatheffects.nc_18_apostel_b53e5eaea",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_18_apostel/b53e5eaea.vsnd"
+      ],
+      "DurationSeconds": 9.65,
+      "Volume": 0.7
+    },
+    "nc_19_messer": {
+      "Title": "Nur mit Messer laufen – derbe Ansage",
+      "Event": "deatheffects.nc_19_messer_b1af3e639",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_19_messer/b1af3e639.vsnd"
+      ],
+      "DurationSeconds": 3.01,
+      "Volume": 0.7,
+      "AdminOnly": true
+    },
+    "nc_20_satire": {
+      "Title": "Misslungene Kinder – satirischer Monolog",
+      "Event": "deatheffects.nc_20_satire_bc07e8a8a",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_20_satire/bc07e8a8a.vsnd"
+      ],
+      "DurationSeconds": 21.04,
+      "Volume": 0.7
+    },
+    "nc_21_wertlos": {
+      "Title": "Schieß auf etwas Wertloses",
+      "Event": "deatheffects.nc_21_wertlos_b2eef44a5",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_21_wertlos/b2eef44a5.vsnd"
+      ],
+      "DurationSeconds": 3.56,
+      "Volume": 0.7
+    },
+    "nc_22_nichtkoenner": {
+      "Title": "Eine Gruppe von Nichtskönnern",
+      "Event": "deatheffects.nc_22_nichtkoenner_ba3bcf108",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_22_nichtkoenner/ba3bcf108.vsnd"
+      ],
+      "DurationSeconds": 1.95,
+      "Volume": 0.7
+    },
+    "nc_23_idioten": {
+      "Title": "Penner, Deppen, Idioten",
+      "Event": "deatheffects.nc_23_idioten_b994b6285",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_23_idioten/b994b6285.vsnd"
+      ],
+      "DurationSeconds": 2.6,
+      "Volume": 0.7
+    },
+    "nc_24_outro": {
+      "Title": "Outro-Melodie",
+      "Event": "deatheffects.nc_24_outro_beac89299",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_24_outro/beac89299.vsnd"
+      ],
+      "DurationSeconds": 6.49048,
+      "Volume": 0.7
+    },
+    "nc_25_na_klasse_noobs": {
+      "Title": "Na klasse, Noobs",
+      "Event": "deatheffects.nc_25_na_klasse_noobs_b0421780f",
+      "Resources": [
+        "soundevents/deatheffects/deatheffects.vsndevts",
+        "sounds/deatheffects/nc_25_na_klasse_noobs/b0421780f.vsnd"
+      ],
+      "DurationSeconds": 1.9,
+      "Volume": 0.7
+    }
+  }
+}

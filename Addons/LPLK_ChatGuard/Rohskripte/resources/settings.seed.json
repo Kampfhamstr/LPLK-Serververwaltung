@@ -1,0 +1,34 @@
+{
+  "enabled": true,
+  "check_player_names": true,
+  "mask_advertising_player_names": true,
+  "censored_player_name": "Werbe-Bot",
+  "broadcast_success": true,
+  "broadcast_offender_name": false,
+  "log_blocked_text": true,
+  "repeat_window_minutes": 10,
+  "gag_at_violation": 2,
+  "gag_minutes": 30,
+  "kick_at_violation": 3,
+  "kick_reason": "Werbung / Spam ist auf diesem Server nicht erlaubt.",
+  "blocked_domains": [
+    "cs2commends.com",
+    "jaegerservice.xyz",
+    "sinlyxe.cc"
+  ],
+  "allowed_domains": [
+    "community.example.invalid"
+  ],
+  "marketing_keywords": [
+    "free commends",
+    "free commend",
+    "free cs2",
+    "cs2 commends",
+    "commends",
+    "commend boost",
+    "cheap skins",
+    "free skins",
+    "discord.gg"
+  ],
+  "export_bridge_events": false
+}

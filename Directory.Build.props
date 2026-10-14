@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup Condition="'$(LPLK_BUILD_ROOT)' != ''">
+    <BaseIntermediateOutputPath>$(LPLK_BUILD_ROOT)\$(MSBuildProjectName)\obj\</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(LPLK_BUILD_ROOT)\$(MSBuildProjectName)\bin\</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);bin\**;obj\**;build\**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>
