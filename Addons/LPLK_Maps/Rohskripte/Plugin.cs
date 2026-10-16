@@ -15,7 +15,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Maps;
 
-[PluginMetadata(Id="LPLK_Maps",Name="LPLK_Maps",Version="0.2.6",Author="LPLK",Description="MapChooser, RTV, Nominate und Workshop-Verwaltung",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Maps",Name="LPLK_Maps",Version="0.2.7",Author="LPLK",Description="MapChooser, RTV, Nominate und Workshop-Verwaltung",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -73,7 +73,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventGamePhaseChanged>(e=>{if(e.NewPhase==(short)GamePhase.GAMEPHASE_MATCH_ENDED)MatchEnded();return HookResult.Continue;});
         Core.GameEvent.HookPost<EventCsWinPanelMatch>(_=>{if(Core.Game.MatchData.Phase!=GamePhase.GAMEPHASE_HALFTIME)MatchEnded();return HookResult.Continue;});
         Core.Scheduler.DelayBySeconds(3,()=>{if(!module.Active)return;ReadWarmup();RecordMap();MeasureCurrent(null);});
-        Core.Logger.LogInformation("LPLK_Maps 0.2.6: {Count} Katalogeinträge, {Available} verfügbar; {Candidates} Kandidaten / {Seconds}s",maps.Count,maps.Count(Available),settings.MapsToShow,settings.VoteSeconds);
+        Core.Logger.LogInformation("LPLK_Maps 0.2.7: {Count} Katalogeinträge, {Available} verfügbar; {Candidates} Kandidaten / {Seconds}s",maps.Count,maps.Count(Available),settings.MapsToShow,settings.VoteSeconds);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
@@ -215,10 +215,10 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void IssuePending()
     {
         if(pending is not {} map)return;attempts++;transitionIssued=true;transitionDue=Environment.TickCount64+(installed.Contains(map.Id)?settings.VerifySeconds:240)*1000L;
-        #pragma warning disable CS0618
-        if(map.Workshop&&settings.SetNextLevel&&map.SourceFolder.Length>0&&MapPolicy.SafeMapToken(map.SourceFolder))Core.Engine.ExecuteCommandWithBuffer("nextlevel "+map.SourceFolder,_=>{});
-        Core.Engine.ExecuteCommandWithBuffer(map.Workshop?"host_workshop_map "+map.Id:"changelevel "+map.Id,_=>{});
-        #pragma warning restore CS0618
+        // Tick runs on the game thread. Both supported APIs expose ExecuteCommand;
+        // VerifyPending confirms success from the loaded map, not console output.
+        if(map.Workshop&&settings.SetNextLevel&&map.SourceFolder.Length>0&&MapPolicy.SafeMapToken(map.SourceFolder))Core.Engine.ExecuteCommand("nextlevel "+map.SourceFolder);
+        Core.Engine.ExecuteCommand(map.Workshop?"host_workshop_map "+map.Id:"changelevel "+map.Id);
         lastTransition=$"Angefordert: {map.Id}, Versuch {attempts}/{settings.MaxAttempts}";WriteStatus();
     }
     private void VerifyPending()

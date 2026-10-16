@@ -2,6 +2,8 @@
 
 [Release öffnen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus)
 
+[Bridge-/Maps-Kompatibilitätsupdate vom 16.10.2026](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/compat-2026.10.16-bridge-maps) · [Prüfstand und Grenzen](COMPATIBILITY-20261016.md). Die Tabelle verlinkt pro Komponente den passenden Stand.
+
 Vollständige Pluginpakete für Linux/SwiftlyS2, jeweils mit Ordnerstruktur und benötigten Bibliotheken. Testausgabe, keine allgemeine Produktionsfreigabe.
 
 Die überarbeiteten 18 LPLK-Addons laufen auf dem getrennten Testserver; zusammen mit dessen Bridge und Workshopmanager sind 20 Komponenten Loaded. 6.842 lokale Prüfungen bestanden. Sichtprüfung der Menüs im CS2-Client bleibt offen. Die zusätzlich enthaltenen Infrastrukturpakete behalten ihren dokumentierten Prüfstand; EnvironmentCheck ist nur ein leeres Buildbeispiel.
@@ -23,7 +25,7 @@ Installation: Das benötigte ZIP unter Assets herunterladen, vollständig nach g
 | [LPLK_Demos](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Demos.zip) | 0.1.1 | 48,230 | `1df9f1a3d2cd8ca8ae3a95c76f856ed439cfd5388bb07302db83da71f8ddbbc7` |
 | [LPLK_Economy](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Economy.zip) | 0.9.1 | 3,060,040 | `bd7e0bb868068c0db42feaedbcd1a591cc2263201338fbec7b64b9148832e82a` |
 | [LPLK_Fluch](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Fluch.zip) | 0.1.1 | 40,747 | `7d553cee52ff17aee06efc43cc0955967930277f2ce5f1edcaf06a6930552eb0` |
-| [LPLK_Maps](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Maps.zip) | 0.2.6 | 78,477 | `4679603bdf29bfc993b12fc7e7d3ed217100368f5acacd7f71b56ea7e273c707` |
+| [LPLK_Maps](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/compat-2026.10.16-bridge-maps/LPLK_Maps.zip) | 0.2.7 | 78,349 | `83f021b4cca5fb1836144f8d0b5c9c3b30761294ac7b309b7b1267250b5145a7` |
 | [LPLK_NadeEffects](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_NadeEffects.zip) | 0.1.1 | 50,928 | `3061d9debb99cc4afad9d2413a2c1812d0740688133240594701129f38bac76a` |
 | [LPLK_Parachute](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Parachute.zip) | 0.1.4 | 60,558 | `892a8382df026d1160ff7dd7aa494191eabb2e383406cc2004e6b895bda4567e` |
 | [LPLK_Sounds](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Sounds.zip) | 0.1.7 | 86,035 | `3bd019758c657dc7489ea4af718b372f0a4981f805d8658022ef4d465c646744` |
@@ -32,4 +34,4 @@ Installation: Das benötigte ZIP unter Assets herunterladen, vollständig nach g
 | [LPLK_ThirdPerson](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_ThirdPerson.zip) | 0.1.1 | 43,144 | `1055f5f42fa535b1f9e6944161b34b7f7d8177d6739be54d3613cbf0d5bfc2d7` |
 | [LPLK_Weapons](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Weapons.zip) | 0.1.1 | 54,135 | `545d7b6c4c324027d5c56a4adc2e05c9bca38cf52657e8b928cf268a9b12be42` |
 | [LPLK_Whitelist](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Whitelist.zip) | 0.2.3 | 29,227 | `a1bb645f4ccb133c0c14bb64236f85ac61ea13ce22db7281881f30ebbfcbef0b` |
-| [SerververwaltungBridge](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/SerververwaltungBridge.zip) | 1.6.4 | 1,208,182 | `49c51eba2c8e35e3c13d2cf3d3991770061d526deb085dbc159b83b085da1461` |
+| [SerververwaltungBridge](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/compat-2026.10.16-bridge-maps/SerververwaltungBridge.zip) | 1.6.5 | 1,207,709 | `c445712dd542a61d4f6a64ad44808cd73ae4ac0ed7f245525b13d80abb6c7b16` |

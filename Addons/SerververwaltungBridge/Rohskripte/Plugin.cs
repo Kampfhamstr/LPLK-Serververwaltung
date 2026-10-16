@@ -27,7 +27,7 @@ namespace SerververwaltungBridge;
 
 [PluginMetadata(
     Id = "lplk.serververwaltung.bridge",
-    Version = "1.6.4",
+    Version = "1.6.5",
     Name = "Serververwaltung Bridge",
     Author = "LPLK",
     Description = "Lokale Bridge zwischen LPLK Serververwaltung und SwiftlyS2")]
@@ -1913,11 +1913,9 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             throw new InvalidOperationException("Serverbefehl enthält unzulässige Steuerzeichen.");
 
         Core.Logger.LogWarning("Webpanel führt Serverbefehl aus: {Command}", command);
-        Core.Engine.ExecuteCommandWithBuffer(command, output =>
-        {
-            if (!string.IsNullOrWhiteSpace(output))
-                Core.Logger.LogInformation("Serverbefehl-Ausgabe: {Output}", Limit(output.Trim(), 1000));
-        });
+        // ExecuteCommand is shared by 1.4.14 and 1.5.0-beta.10. Console output
+        // stays in the engine log; it is not a synchronous execution receipt.
+        Core.Engine.ExecuteCommand(command);
     }
 
     private void ExecuteWhitelistRemoveSync(
@@ -2448,11 +2446,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
         var escapedValue = EscapeCommandArgument(value);
         var command = $"{name} \"{escapedValue}\"";
-        Core.Engine.ExecuteCommandWithBuffer(command, output =>
-        {
-            if (!string.IsNullOrWhiteSpace(output))
-                Core.Logger.LogInformation("ConVar-Ausgabe: {Output}", Limit(output.Trim(), 1000));
-        });
+        Core.Engine.ExecuteCommand(command);
     }
 
     private void SetHealth(ulong steamId, int value)
@@ -3140,7 +3134,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
             // Wie bei unseren robusten Mapwechsel-Plugins: einen eventuell alten nextlevel
             // zunächst getrennt im ersten WorldUpdate-Schritt leeren.
-            Core.Engine.ExecuteCommandWithBuffer("nextlevel \"\"", _ => { });
+            Core.Engine.ExecuteCommand("nextlevel \"\"");
 
             Core.Logger.LogInformation(
                 "Mapwechsel: Vorbereitung abgeschlossen, NextWorldUpdate #2 folgt. Ziel={Target}.",
@@ -3191,9 +3185,8 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                 // Nur wenn ein sicherer Token vorliegt, wird nextlevel gesetzt.
                 if (IsSafeMapToken(target.SourceFolder))
                 {
-                    Core.Engine.ExecuteCommandWithBuffer(
-                        $"nextlevel \"{EscapeCommandArgument(target.SourceFolder)}\"",
-                        _ => { });
+                    Core.Engine.ExecuteCommand(
+                        $"nextlevel \"{EscapeCommandArgument(target.SourceFolder)}\"");
                 }
 
                 Core.Logger.LogInformation(
@@ -3203,24 +3196,19 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                     IsSafeMapToken(target.SourceFolder) ? target.SourceFolder : "<nicht gesetzt>");
 
                 // Absichtlich letzte Engine-Aktion im Commit.
-                Core.Engine.ExecuteCommandWithBuffer(
-                    $"host_workshop_map {target.WorkshopId}",
-                    _ => { });
+                Core.Engine.ExecuteCommand($"host_workshop_map {target.WorkshopId}");
             }
             else
             {
-                Core.Engine.ExecuteCommandWithBuffer(
-                    $"nextlevel \"{EscapeCommandArgument(target.MapName)}\"",
-                    _ => { });
+                Core.Engine.ExecuteCommand(
+                    $"nextlevel \"{EscapeCommandArgument(target.MapName)}\"");
 
                 Core.Logger.LogInformation(
                     "Normaler Mapwechsel wird gepuffert ausgeführt: {Map}.",
                     target.MapName);
 
                 // Absichtlich letzte Engine-Aktion im Commit.
-                Core.Engine.ExecuteCommandWithBuffer(
-                    $"changelevel \"{EscapeCommandArgument(target.MapName)}\"",
-                    _ => { });
+                Core.Engine.ExecuteCommand($"changelevel \"{EscapeCommandArgument(target.MapName)}\"");
             }
         }
         catch (Exception ex)
@@ -3840,7 +3828,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
             var status = new BridgeStatus
             {
-                Version = "1.6.4",
+                Version = "1.6.5",
                 UpdatedAt = DateTimeOffset.UtcNow,
                 Map = _currentMapName,
                 CtScore = ctScore,

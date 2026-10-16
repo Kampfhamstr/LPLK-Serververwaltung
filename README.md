@@ -2,6 +2,8 @@
 
 **Fertige ZIPs:** [Paketdownloads und Prüfsummen](docs/DOWNLOADS.md) · [GitHub-Release](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Aktuelle Menüausgabe: **Teststand**.
 
+**Kompatibilitätsupdate 16.10.2026:** Bridge **1.6.5** und LPLK_Maps **0.2.7** für SwiftlyS2 **1.4.14 und 1.5.0-beta.10**. [Neue Pakete](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/compat-2026.10.16-bridge-maps) · [Prüfstand und Migrationsgrenzen](docs/COMPATIBILITY-20261016.md). Die anderen Komponenten behalten ihren bisherigen Prüfstand.
+
 CS2-/SwiftlyS2-Addons, Windows-Verwaltungsprogramm und Webverwaltung in einem gemeinsamen Quellprojekt. Die Komponenten lassen sich gezielt einsetzen; nicht jeder Server benötigt jedes Addon.
 
 Stand des ersten Imports: **14.10.2026**. Die Websitequelle unter `Website/` basiert auf dem freigegebenen Stand **1.15.2.8**. Die vorbereitete Erweiterung 1.15.2.9 ist nicht Bestandteil dieses ersten Imports.
