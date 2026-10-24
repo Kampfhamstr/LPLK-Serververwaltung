@@ -38,17 +38,7 @@ public sealed partial class Plugin
         CommandAction(context, () =>
         {
             bool enabled = context.Args[0] == "on";
-            var node = JsonNode.Parse(DataFiles.ReadLimited(ConfigPath), documentOptions: new JsonDocumentOptions {
-                AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip
-            })?.AsObject() ?? throw new InvalidDataException("Leere Konfiguration.");
-            string key = node.Select(x => x.Key).FirstOrDefault(x => x.Equals(nameof(SoundsConfig.DeadPlayersOnlyToDead), StringComparison.OrdinalIgnoreCase))
-                ?? nameof(SoundsConfig.DeadPlayersOnlyToDead);
-            node[key] = enabled;
-            DataFiles.WriteAtomic(ConfigPath, node.ToJsonString(SoundsConfig.Json));
-            if (config.DeadPlayersOnlyToDead != enabled) StopBroadcast();
-            config.DeadPlayersOnlyToDead = enabled;
-            // Close stale rule/status views; reopening reads the persisted setting.
-            CloseAllOwnedMenus();
+            ChangeConfiguration(c=>c.DeadPlayersOnlyToDead=enabled);
             context.Reply("[LPLK Sounds] Tote spielen nur fuer Tote: " + (enabled ? "AN" : "AUS") + " (gespeichert). Das Rundenlimit bleibt bei drei Sounds pro Spieler; Admins sind ausgenommen.");
         });
     }

@@ -30,13 +30,13 @@ public sealed class NativeNadeWorld(ISwiftlyCore core,Func<IPlayer,bool> admin,A
         catch{if(fade.IsValid)fade.Despawn();throw;}
     }
     public bool VerifyFade(uint h,NadeSettings s)=>Entity(h) is {IsValid:true} e&&Math.Abs(e.Duration-s.FadeDuration)<.001&&Math.Abs(e.HoldDuration-s.FadeHoldTime)<.001&&e.Spawnflags==4;
-    public void ProbeInput(uint h)=>Entity(h)?.AcceptInput<string>("Fade",string.Empty,null,null);
+    public void ProbeInput(uint h)=>Entity(h)?.AcceptInput<string>("Bildschirm",string.Empty,null,null);
     public bool Exists(uint h)=>Entity(h) is {IsValid:true};
     public uint Fade(NadeOwner owner,NadeSettings settings)
     {
         if(Same(owner) is null)throw new InvalidOperationException("Spielerfigur geändert");
         uint h=CreateFade(settings);if(h==uint.MaxValue)return h;
-        try{var p=Same(owner)??throw new InvalidOperationException("Spielerfigur geändert");Entity(h)!.AcceptInput<string>("Fade",string.Empty,p.PlayerPawn,p.PlayerPawn);return h;}
+        try{var p=Same(owner)??throw new InvalidOperationException("Spielerfigur geändert");Entity(h)!.AcceptInput<string>("Bildschirm",string.Empty,p.PlayerPawn,p.PlayerPawn);return h;}
         catch{Destroy(h);throw;}
     }
     public void Destroy(uint handle){if(Entity(handle) is {IsValid:true} entity)entity.Despawn();}

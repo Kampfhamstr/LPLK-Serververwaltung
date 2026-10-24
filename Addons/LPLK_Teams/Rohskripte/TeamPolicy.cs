@@ -1,8 +1,11 @@
+using System.Text.Json.Serialization;
 namespace LPLK_Teams;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record TeamSettings
 {
     public bool Enabled { get; init; } // Actual Inner Circle configuration: disabled.
+    public ulong[] ConfiguredSteamIds { get; init; } = [];
     public bool AutoDetectMaxRounds { get; init; } = true;
     public int FallbackMaxRounds { get; init; } = 20;
     public double BlockAtMaxRoundsPercent { get; init; } = .5;
@@ -21,8 +24,21 @@ public sealed record TeamSettings
     public bool ShowBlockedMessageInCenter { get; init; } = true;
     public bool ShowForceToLosingTeamMessage { get; init; } = true;
     public bool AllowChatStatusCommand { get; init; } = true;
+    public bool EnableLosingTeamMenu { get; init; } = true;
+    public bool ResetScoreOnNewMap { get; init; } = true;
+    public bool ResetScoreOnNewMatch { get; init; } = true;
+    public bool Debug { get; init; }
+    public string[] BlockedCommands { get; init; } = ["jointeam","teammenu"];
+    public string ChatPrefix { get; init; } = "[LPLK]";
+    public string BlockedMessage { get; init; } = "Dieser Teamwechsel ist nach den aktuellen Teamregeln gesperrt.";
+    public string CenterMessage { get; init; } = "TEAMWECHSEL GESPERRT: Bitte ein anderes Team wählen.";
+    public static TeamSettings Copy(TeamSettings s)=>s with{BlockedCommands=[..s.BlockedCommands],ConfiguredSteamIds=[..s.ConfiguredSteamIds]};
+    public static bool CommandName(string name)=>name.Length is >=1 and <=64 && name.All(c=>char.IsAsciiLetterOrDigit(c)||c=='_');
+    public static bool MessageText(string text,int max)=>text is not null && text.Length<=max && !text.Any(char.IsControl);
     public static void Validate(TeamSettings s)
     {
+        if(s.ConfiguredSteamIds is null || s.ConfiguredSteamIds.Length>256 || s.ConfiguredSteamIds.Distinct().Count()!=s.ConfiguredSteamIds.Length || s.ConfiguredSteamIds.Any(id=>id<76561197960265728UL||id>76561202255233023UL))throw new InvalidDataException("Ungültige konfigurierte Team-Auswahl.");
+        if(s.BlockedCommands is null || s.BlockedCommands.Length>32 || s.BlockedCommands.Any(c=>c is null||!CommandName(c)) || s.BlockedCommands.Distinct(StringComparer.OrdinalIgnoreCase).Count()!=s.BlockedCommands.Length || !MessageText(s.ChatPrefix,128)||!MessageText(s.BlockedMessage,512)||!MessageText(s.CenterMessage,512))throw new InvalidDataException("Ungültige Team-Befehle oder Meldungen.");
         if(s.FallbackMaxRounds is <2 or >1000 || !double.IsFinite(s.BlockAtMaxRoundsPercent) ||
            s.BlockAtMaxRoundsPercent is <=0 or >1 || s.HalftimeSwitchGraceSeconds is <1 or >120 ||
            s.MatchEndGuardWindowSeconds is <1 or >120)throw new InvalidDataException("Ungültige Teamregeln.");
@@ -63,10 +79,11 @@ public static class TeamPolicy
     }
     public static bool ScoreEndsMatch(TeamSettings s,Score score,int rounds,bool overtime,bool canClinch)
         =>score.Valid&&score.Leader!=0&&!overtime&&(score.Total>=rounds || s.TreatWinScoreAsMatchEnd&&canClinch&&Math.Max(score.Ct,score.T)>=rounds/2+1);
-    public static int? ParseRequest(string commandLine)
+    public static int? ParseRequest(string commandLine)=>ParseRequest(new TeamSettings(),commandLine);
+    public static int? ParseRequest(TeamSettings settings,string commandLine)
     {
         var parts=commandLine.Trim().Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries);
-        if(parts.Length==0 || !new[]{"jointeam","teammenu"}.Contains(parts[0],StringComparer.OrdinalIgnoreCase))return null;
+        if(parts.Length==0 || !settings.BlockedCommands.Contains(parts[0],StringComparer.OrdinalIgnoreCase))return null;
         if(parts.Length<2)return null; // Opening the team menu is harmless.
         return parts[1].Trim('"').ToLowerInvariant() switch
         {

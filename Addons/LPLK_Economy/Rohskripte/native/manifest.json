@@ -1,0 +1,13 @@
+{
+  "sqliteVersion": "3.53.4",
+  "sourceUrl": "https://www.sqlite.org/2026/sqlite-amalgamation-3530400.zip",
+  "sourceArchiveSha256": "1E71DDF93849C6A6ECF58B827C0692073D2DD7EE40196158068F7B29F422E87D",
+  "compilerUrl": "https://ziglang.org/download/0.14.1/zig-x86_64-windows-0.14.1.zip",
+  "compilerArchiveSha256": "554F5378228923FFD558EAC35E21AF020C73789D87AFEABF4BFD16F2E6FEED2C",
+  "target": "x86_64-linux-gnu.2.17",
+  "glibcVersions": [
+    "2.14",
+    "2.2.5"
+  ],
+  "sha256": "3DF9102A69C7D0F3C803CD0C4CA7F11877DDA4741A5D854BC44E713B0BF9F329"
+}

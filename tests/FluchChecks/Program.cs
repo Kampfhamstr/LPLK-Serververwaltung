@@ -48,12 +48,11 @@ for(int count=0;count<=64;count++)
 // Actual module menu callbacks, with native engine boundaries replaced by test doubles.
 var menu=new MenuWorld();Directory.CreateDirectory(menu.DataDirectory);File.WriteAllText(Path.Combine(menu.DataDirectory,"settings.json"),JsonSerializer.Serialize(s));
 var plugin=new Plugin(menu.Core);plugin.Load(false);plugin.Administration(menu.Context);Check(menu.Current is null,"Ordinary player denied");
-menu.Permissions.Add("lplk.fluch.admin");plugin.Administration(menu.Context);Check(menu.Labels.Count==3,"Module root leaves room for central return");
-await menu.Click("Einstellungen");await menu.Click("Wirkung");Check(menu.Labels.Count==5,"Effect submenu fits");
+menu.Permissions.Add("lplk.fluch.admin");plugin.Administration(menu.Context);Check(menu.Labels.Any(l=>l.Contains("Hühner:")),"Fluch settings directly available");
+Check(menu.Current!.Configuration.MaxVisibleItems==5,"Effect list shows five rows");
 var stale=menu.Find("Hühner:");menu.Permissions.Clear();await menu.Click(stale);Check(JsonSerializer.Deserialize<FluchSettings>(File.ReadAllText(Path.Combine(menu.DataDirectory,"settings.json")))!.ChickenCount==20,"Revoked rights cannot mutate settings");
-menu.Permissions.Add("@css/root");await menu.Click(stale);Check(JsonSerializer.Deserialize<FluchSettings>(File.ReadAllText(Path.Combine(menu.DataDirectory,"settings.json")))!.ChickenCount==32,"Legacy root permission retained");
-await menu.Click("Zurück");await menu.Click("Kreisbahn");await menu.Click("Bewegung");await menu.Click("Zurück");await menu.Click("Zurück");await menu.Click("Hinweise");await menu.Click("Bildschirm");
-Check(menu.AllMenus.All(m=>m.Options.Count<=5),"All module menus max five rows");Check(menu.Labels.Last()=="<font color='#FFFFFF'>Zurück</font>","White unnumbered return");
+menu.Permissions.Add("@css/root");await menu.Click(stale);((SwiftlyS2.Core.Menus.OptionsBase.InputMenuOption)menu.Current!.Options[0]).SetValue(menu.Player,"32");Check(JsonSerializer.Deserialize<FluchSettings>(File.ReadAllText(Path.Combine(menu.DataDirectory,"settings.json")))!.ChickenCount==32,"Legacy root permission retained");
+Check(menu.AllMenus.All(m=>m.Configuration.MaxVisibleItems==5),"All module menus max five rows");Check(menu.AllMenus.SelectMany(m=>m.Options).Where(o=>o.Text.Contains("Zurück")).All(o=>o.Text=="<font color='#FFFFFF'>Zurück</font>"),"White unnumbered returns");
 var staleToggle=menu.Find("Countdown");menu.Session++;await menu.Click(staleToggle);Check(!JsonSerializer.Deserialize<FluchSettings>(File.ReadAllText(Path.Combine(menu.DataDirectory,"settings.json")))!.ShowOrbitProgressMessage,"Reconnect invalidates old callbacks");
 plugin.Unload();Console.WriteLine($"{checks} Fluch checks passed (lifecycle, damage, identity, failure cleanup, real menu callbacks).");
 

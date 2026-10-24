@@ -10,23 +10,23 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_AntiTeamFlash;
 
-[PluginMetadata(Id="LPLK_AntiTeamFlash",Name="LPLK_AntiTeamFlash",Version="0.1.1",Author="LPLK; reference St1nixx",Description="Teamflash-Schutz mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_AntiTeamFlash",Name="LPLK_AntiTeamFlash",Version="0.1.3",Author="LPLK; reference St1nixx",Description="Teamflash-Schutz mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ModuleSupport module = null!;
-    private FlashSettings settings = new();
+    private WatchedSettings<FlashSettings> config=null!;
+    private FlashSettings settings=>config.Current;
+    private bool statusWriteFailed;
     private readonly FlashHistory history = new();
-    private DateTime stamp;
     private double nextStatus;
     private bool ready;
-    private string? reloadError;
+    private string? reloadError=>config.Error;
     private int cleared, preserved, errors;
 
     public override void Load(bool hotReload)
     {
         module = new(Core,"LPLK_AntiTeamFlash","Teamflash-Schutz","lplk.antiteamflash.admin",OpenAdmin);
-        settings = module.ReadSettings<FlashSettings>(FlashSettings.Validate);
-        stamp = File.GetLastWriteTimeUtc(module.SettingsPath);
+        config=new(module.SettingsPath,FlashSettings.Validate);
         module.Active = true;
         ready = !hotReload; // Existing flashes have unknown origin after a hotload.
         Core.GameEvent.HookPost<EventPlayerBlind>(OnBlind);
@@ -34,7 +34,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)history.Remove(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p)history.Remove(p.PlayerID);return HookResult.Continue;});
         WriteStatus();
-        Core.Logger.LogInformation("LPLK_AntiTeamFlash 0.1.1 geladen: enabled={Enabled}; flashOwner={Owner}; Schutzrecht={Permission}; hotloadWait={Wait}",settings.Enabled,settings.FlashOwner,settings.AccessPermission,!ready);
+        Core.Logger.LogInformation("LPLK_AntiTeamFlash 0.1.3 geladen: enabled={Enabled}; flashOwner={Owner}; Schutzrecht={Permission}; hotloadWait={Wait}",settings.Enabled,settings.FlashOwner,settings.AccessPermission,!ready);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
     public override void Unload(){if(module is not null)module.Active=false;ready=false;history.Clear();}
@@ -86,22 +86,13 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         if(module?.Active!=true)return;
         double now=Stopwatch.GetTimestamp()/(double)Stopwatch.Frequency;
         if(now<nextStatus)return;nextStatus=now+2;
-        try
-        {
-            var modified=File.GetLastWriteTimeUtc(module.SettingsPath);
-            if(modified!=stamp)
-            {
-                var next=JsonSerializer.Deserialize<FlashSettings>(File.ReadAllText(module.SettingsPath))??throw new InvalidDataException();
-                FlashSettings.Validate(next);settings=next;stamp=modified;reloadError=null;
-                // Keep flash history across configuration changes.
-            }
-        }
-        catch(Exception ex)
-        {
-            if(reloadError is null)Core.Logger.LogWarning(ex,"LPLK_AntiTeamFlash: ungültige Dateiänderung; letzter gültiger Stand bleibt aktiv.");
-            reloadError="Ungültige Änderung; letzter gültiger Stand aktiv.";
-        }
+        config.Reload(); // Preserve active enemy/self-flash history across valid and invalid edits.
         WriteStatus();
     }
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings,ready,cleared,preservedOverlaps=preserved,errors,tracked=history.Count,reloadError});
+    private void WriteStatus()
+    {
+        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.3",settings,ready,cleared,preservedOverlaps=preserved,errors,tracked=history.Count,reloadError}); statusWriteFailed=false; }
+        catch(Exception e) when(e is IOException or UnauthorizedAccessException)
+        { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_AntiTeamFlash: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
+    }
 }

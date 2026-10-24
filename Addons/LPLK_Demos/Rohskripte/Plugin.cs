@@ -10,12 +10,12 @@ using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.SchemaDefinitions;
 namespace LPLK_Demos;
-[PluginMetadata(Id="LPLK_Demos",Name="LPLK_Demos",Version="0.1.1",Author="LPLK; references K4ryuu/Chicken",Description="Isolierte lokale Demoaufnahmen und Anfragen",MinimumAPIVersion="1.4.14")]
-public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
+[PluginMetadata(Id="LPLK_Demos",Name="LPLK_Demos",Version="0.1.3",Author="LPLK; references K4ryuu/Chicken",Description="Isolierte lokale Demoaufnahmen und Anfragen",MinimumAPIVersion="1.4.14")]
+public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
  private ModuleSupport module=null!;private DemoSettings settings=new();private DemoArchive archive=null!;private DemoRecord? recording;
  private readonly Dictionary<string,(long Size,long Stable,long Deadline)> finalizing=[];private readonly HashSet<ulong> requesters=[];
- private string directory="",statusPath="";private DateTime stamp;private long nextTick,startAt,lastHuman,nextCleanup,retryAt;private bool mapReady,matchEnded;private int errors;private string? reloadError,lastError;
+ private string directory="",statusPath="";private WatchedSettings<DemoSettings> config=null!;private bool statusWriteFailed;private long nextTick,startAt,lastHuman,nextCleanup,retryAt;private bool mapReady,matchEnded;private int errors;private string? reloadError,lastError;
  private bool Human(IPlayer p)=>p.IsValid&&p.IsAuthorized&&!p.IsFakeClient&&p.SteamID!=0;
  // SourceTV is not returned as a normal valid player by every framework build.
  // A newly created owned file proves engine activity; validate its header AFTER
@@ -24,14 +24,14 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
  private bool PublicAllowed(IPlayer p)=>module.Active&&settings.Enabled&&settings.RequestsEnabled&&Human(p)&&mapReady&&recording?.State=="recording";
  public override void Load(bool hotReload)
  {
-  module=new(Core,"LPLK_Demos","Demos","community.example.invalidmos.admin",OpenAdmin);settings=module.ReadSettings<DemoSettings>(DemoSettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);
+  module=new(Core,"LPLK_Demos","Demos","lplk.demos.admin",OpenAdmin);config=new(module.SettingsPath,DemoSettings.Validate);settings=config.Current;
   directory=Path.Combine(Core.GameFilesDirectory,"demos","LPLK_Demos");statusPath=Path.Combine(Core.PluginDataDirectory,"status.json");archive=new(directory,Path.Combine(Core.PluginDataDirectory,"index.json"));archive.Load();module.Active=true;
   // Normal plugin load runs before a valid entity system exists. MapLoad/round
   // events establish readiness; only hot reload may inspect an existing world.
   mapReady=false;if(hotReload){try{mapReady=Core.EntitySystem.GetGameRules()is not null;}catch(InvalidOperationException){mapReady=false;}}
   Core.GameEvent.HookPost<EventRoundStart>(_=>{mapReady=true;matchEnded=false;if(settings.CropRounds||settings.RequestsEnabled)Stop(false);return HookResult.Continue;});
   Core.GameEvent.HookPost<EventCsWinPanelMatch>(_=>{matchEnded=true;Stop(false);return HookResult.Continue;});
-  WriteStatus();Core.Logger.LogInformation("LPLK_Demos 0.1.1 geladen; Auto={Auto}; Anfragen={Requests}; nur lokaler Speicher",settings.AutoRecord,settings.RequestsEnabled);
+  WriteStatus();Core.Logger.LogInformation("LPLK_Demos 0.1.3 geladen; Auto={Auto}; Anfragen={Requests}; nur lokaler Speicher",settings.AutoRecord,settings.RequestsEnabled);
  }
  public override void ConfigureSharedInterface(IInterfaceManager manager)
  {
@@ -64,13 +64,10 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
  public void Tick()
  {
   long now=Environment.TickCount64;if(!module.Active||now<nextTick)return;nextTick=now+1000;
+  config.Reload();reloadError=config.Error;
   try
   {
-   var changed=File.GetLastWriteTimeUtc(module.SettingsPath);if(changed!=stamp)
-   {var next=JsonSerializer.Deserialize<DemoSettings>(File.ReadAllText(module.SettingsPath))??throw new InvalidDataException();DemoSettings.Validate(next);if(recording is not null)Stop(false);settings=next;stamp=changed;reloadError=null;}
-  }catch(Exception e){if(reloadError is null)Core.Logger.LogWarning(e,"LPLK_Demos: letzter gültiger Stand bleibt aktiv");reloadError="Ungültige Dateiänderung";}
-  try
-  {
+   SyncSettings();
    if(recording is {} r)
    {
     if(r.State=="starting")
@@ -96,13 +93,25 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
   }catch(Exception e){errors++;lastError="Demo-Dateiverarbeitung fehlgeschlagen";Core.Logger.LogError(e,"LPLK_Demos: Datei bleibt zur Prüfung erhalten");retryAt=now+60000;}
   WriteStatus();
  }
- private void WriteStatus()=>AtomicJson.Write(statusPath,new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings.Enabled,settings.AutoRecord,settings.RequestsEnabled,settings.RecordWarmup,settings.CleanupEnabled,recording=recording?.State??"idle",currentFile=recording?.File,complete=archive.Records.Count(r=>r.State=="complete"),finalizing=finalizing.Count,last=archive.Records.LastOrDefault(),errors,lastError,reloadError,externalUploads=false});
- private void Save(DemoSettings next){DemoSettings.Validate(next);module.SaveSettings(next);if(recording is not null)Stop(false);settings=next;stamp=File.GetLastWriteTimeUtc(module.SettingsPath);reloadError=null;WriteStatus();}
- private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> entries,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,"Demos · "+title,()=>module.Active,module.CanAdmin,entries,back);
- private void OpenAdmin(IPlayer p)=>Page(p,"Verwaltung",_=>new (string,Action<IPlayer>)[]{($"Modul aktiv: {settings.Enabled}",a=>{Save(settings with{Enabled=!settings.Enabled});OpenAdmin(a);}),("Aufnahmeregeln",Rules),("Aufnahme",Control),("Aufbewahrung",Retention)});
- private void Rules(IPlayer p)=>Page(p,"Aufnahmeregeln",_=>new (string,Action<IPlayer>)[]{($"Automatisch aufnehmen: {settings.AutoRecord}",a=>{Save(settings with{AutoRecord=!settings.AutoRecord});Rules(a);}),($"Spieleranfragen: {settings.RequestsEnabled}",a=>{Save(settings with{RequestsEnabled=!settings.RequestsEnabled});Rules(a);}),($"Rundenschnitt: {settings.CropRounds}",a=>{Save(settings with{CropRounds=!settings.CropRounds});Rules(a);}),($"Warmup aufnehmen: {settings.RecordWarmup}",a=>{Save(settings with{RecordWarmup=!settings.RecordWarmup});Rules(a);})},OpenAdmin);
- private void Control(IPlayer p)=>Page(p,"Aufnahme",_=>new (string,Action<IPlayer>)[]{("Aufnahme starten",a=>{Start();a.SendChat("[LPLK] "+(recording?.State??lastError??"Aufnahme momentan nicht möglich"));Control(a);}),("Aufnahme stoppen",a=>{Stop(false);Control(a);}),("Status",a=>a.SendChat($"[LPLK] {recording?.State??"idle"}; vollständige Demos {archive.Records.Count(r=>r.State=="complete")}; Fehler {errors}; {lastError}"))},OpenAdmin);
- private void Retention(IPlayer p)=>Page(p,"Aufbewahrung",_=>new (string,Action<IPlayer>)[]{($"Bereinigung: {settings.CleanupEnabled}",a=>{Save(settings with{CleanupEnabled=!settings.CleanupEnabled});Retention(a);}),($"Unangefragte löschen: {settings.DeleteUnrequested}",a=>{Save(settings with{DeleteUnrequested=!settings.DeleteUnrequested});Retention(a);}),($"Leerlaufstopp: {settings.StopOnIdle}",a=>{Save(settings with{StopOnIdle=!settings.StopOnIdle});Retention(a);}), ("Grenzen",a=>a.SendChat($"[LPLK] Mindestlänge {settings.MinimumSeconds}s; Aufbewahrung {settings.RetentionHours}h; Leerlauf {settings.IdleSeconds}s. Speicher nur demos/LPLK_Demos; keine externen Uploads."))},OpenAdmin);
+ private void SyncSettings()
+ {
+  var next=config.Current;if(settings==next){settings=next;return;}
+  // Each record retains the cleanup/minimum-duration rules captured when it started.
+  if(recording is not null)Stop(false);settings=next;
+ }
+ private void WriteStatus()
+ {
+  try{AtomicJson.Write(statusPath,new{updatedAt=DateTimeOffset.UtcNow,version="0.1.3",settings.Enabled,settings.AutoRecord,settings.RequestsEnabled,settings.RecordWarmup,settings.CleanupEnabled,recording=recording?.State??"idle",currentFile=recording?.File,complete=archive.Records.Count(r=>r.State=="complete"),finalizing=finalizing.Count,last=archive.Records.LastOrDefault(),errors,lastError,reloadError,externalUploads=false});statusWriteFailed=false;}
+  catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Demos: Status nicht schreibbar.");statusWriteFailed=true;}
+ }
+ private void Save(IPlayer actor,Func<DemoSettings,DemoSettings> edit)
+ {
+  if(!module.CanAdmin(actor))return;
+  try{config.Change(edit);reloadError=null;}
+  catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
+  {reloadError=config.Error??e.GetType().Name;actor.SendChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
+  SyncSettings();WriteStatus();
+ }
  [Command("demo")]public void Request(ICommandContext c)
  {
   if(c.Sender is not {} p||!PublicAllowed(p)||recording is not {} r){c.Reply("[LPLK] Keine anfragbare Aufnahme aktiv.");return;}
@@ -114,6 +123,6 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
   if(c.Sender is {} p){OpenAdmin(p);return;}
   // Console path serves the permission-checked existing webpanel. No filenames or commands accepted.
   if(c.Args.Length==1&&c.Args[0]=="start")Start();else if(c.Args.Length==1&&c.Args[0]=="stop")Stop(false);
-  WriteStatus();c.Reply($"LPLK_Demos 0.1.1: enabled={settings.Enabled}; auto={settings.AutoRecord}; requests={settings.RequestsEnabled}; recording={recording?.State??"idle"}; complete={archive.Records.Count(r=>r.State=="complete")}; errors={errors}; error={lastError??"none"}");
+  WriteStatus();c.Reply($"LPLK_Demos 0.1.3: enabled={settings.Enabled}; auto={settings.AutoRecord}; requests={settings.RequestsEnabled}; recording={recording?.State??"idle"}; complete={archive.Records.Count(r=>r.State=="complete")}; errors={errors}; error={lastError??"none"}");
  }
 }

@@ -4,8 +4,21 @@ using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.Plugins;
+using SwiftlyS2.Shared.Menus;
 
 namespace LPLK.Common;
+
+// Flattened settings retain their context when several former pages used the
+// same short label (for example "Aktiv", "Status", or "Mindestspieler").
+public static class MenuRows
+{
+    public static (string,Action<IPlayer>)[] Join(params (string Group,IReadOnlyList<(string Label,Action<IPlayer> Action)> Rows)[] groups)
+    {
+        string Key(string label)=>label.Split(':')[0].Trim();
+        var repeated=groups.SelectMany(g=>g.Rows).GroupBy(r=>Key(r.Label)).Where(g=>g.Count()>1).Select(g=>g.Key).ToHashSet();
+        return groups.SelectMany(g=>g.Rows.Select(r=>(g.Group!="Allgemein"&&repeated.Contains(Key(r.Label))?g.Group+" · "+r.Label:r.Label,r.Action))).ToArray();
+    }
+}
 
 // Numbers identify visible actions. Navigation is explicitly left unnumbered by callers.
 public sealed class MenuNumbers
@@ -13,6 +26,7 @@ public sealed class MenuNumbers
     private int last;
     public string Next(string label,int? existingNumber=null,bool? enabled=null)
     {
+        if(MenuPresentation.Navigation(label))return MenuColors.Back(label);
         int number=existingNumber??(last+1);last=Math.Max(last,number);
         return MenuColors.Paint($"{number}. {label}",enabled is true?MenuColors.Green:enabled is false?MenuColors.Red:MenuColors.Yellow);
     }
@@ -30,6 +44,39 @@ public static class MenuColors
         foreach(string suffix in new[]{": Ja",": True",": AN"})if(label.EndsWith(suffix,StringComparison.Ordinal))return true;
         foreach(string suffix in new[]{": Nein",": False",": AUS"})if(label.EndsWith(suffix,StringComparison.Ordinal))return false;
         return null;
+    }
+}
+
+public static class MenuPresentation
+{
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IMenuOption,object> formatted=new();
+    private static string Plain(string text)=>System.Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Replace(text,"<[^>]*>",""));
+    public static bool Navigation(string text)=>Plain(text).Trim() is "Zurück" or "Weiter" or "Vorherige Seite" or "Nächste Seite" or "Zurueck";
+    // Classic CS2 center HTML has no per-row alignment property. Pad the rendered
+    // action row, after truncation, using the same width model as Swiftly's renderer.
+    // Navigation is left untouched and therefore keeps the HUD's native centering.
+    public static string AlignAction(string html,float width=26)
+    {
+        if(Navigation(html))return html;
+        float measured=Helper.EstimateTextWidth(Plain(html));
+        int spaces=Math.Clamp((int)Math.Round((width-measured)/.5f),0,52);
+        return html+new string('\u00A0',spaces);
+    }
+    public static void Apply(IMenuAPI menu)
+    {
+        foreach(var option in menu.Options)Apply(option);
+    }
+    public static void Apply(IMenuOption option)
+    {
+            if(formatted.TryGetValue(option,out _)||Navigation(option.Text))return;
+            formatted.Add(option,new());
+            string? last=null,rendered=null;
+            option.AfterFormat+=(_,args)=>
+            {
+                string html=args.CustomText??"";
+                if(html!=last){last=html;rendered=AlignAction(html);}
+                args.CustomText=rendered??html;
+            };
     }
 }
 
@@ -58,7 +105,8 @@ public sealed class ModuleSupport(ISwiftlyCore core, string id, string title, st
     {
         if (!CanAdmin(player)) return;
         var menu = Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false)
-            .Design.SetMenuTitle(MenuColors.Heading(caption)).Design.SetMaxVisibleItems(5);
+            .Design.SetMenuTitle(MenuColors.Heading(caption)).Design.SetMaxVisibleItems(5)
+            .Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter);
         var numbers=new MenuNumbers();int index=0;
         foreach (var (label, action) in actions)
         {
@@ -77,7 +125,7 @@ public sealed class ModuleSupport(ISwiftlyCore core, string id, string title, st
             });
             menu.AddOption(button);
         }
-        Core.MenusAPI.OpenMenuForPlayer(player, menu.Build());
+        var built=menu.Build();MenuPresentation.Apply(built);Core.MenusAPI.OpenMenuForPlayer(player,built);
     }
 
     public string SettingsPath => Path.Combine(Core.PluginDataDirectory, "settings.json");
@@ -99,6 +147,7 @@ public static class GameThreadMenu
 {
     public static void Bind(ISwiftlyCore core,ButtonMenuOption option,IPlayer owner,Func<bool> ready,Action<IPlayer> action)
     {
+        MenuPresentation.Apply(option);
         int slot=owner.PlayerID;ulong steam=owner.SteamID;string session=owner.SessionId.ToString();int pending=0;
 
         option.Click+=(_,_)=>
@@ -115,6 +164,7 @@ public static class GameThreadMenu
     }
     public static void BindInput(ISwiftlyCore core,InputMenuOption option,IPlayer owner,Func<bool> ready,Action<IPlayer,string> action)
     {
+        MenuPresentation.Apply(option);
         int slot=owner.PlayerID;ulong steam=owner.SteamID;string session=owner.SessionId.ToString();int pending=0;
         option.ValueChanged+=(_,a)=>
         {

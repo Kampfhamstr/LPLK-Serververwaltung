@@ -1,6 +1,8 @@
+using System.Text.Json.Serialization;
 using System.Numerics;
 namespace LPLK_Fluch;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FluchSettings
 {
     public bool Enabled {get;init;}=true;

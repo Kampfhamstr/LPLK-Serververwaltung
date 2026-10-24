@@ -1,8 +1,10 @@
 # LPLK-Serververwaltung
 
-**Fertige ZIPs:** [Paketdownloads und Prüfsummen](docs/DOWNLOADS.md) · [GitHub-Release](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Aktuelle Menüausgabe: **Teststand**.
+**Spielplugin-Ausgabe 24.10.2026:** [21 Pluginpakete und Zombie-Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/fleet-2026.10.24-gameplay) · [Produktivprofile und Prüfgrenzen](docs/FLEET-20261024.md). Surf/KZ und Zombie ohne Bank, Sounds und AntiCamp; Zombie nur Kopfschüsse mit erlaubtem Zielfernrohr.
 
-**Kompatibilitätsupdate 16.10.2026:** Bridge **1.6.5** und LPLK_Maps **0.2.7** für SwiftlyS2 **1.4.14 und 1.5.0-beta.10**. [Neue Pakete](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/compat-2026.10.16-bridge-maps) · [Prüfstand und Migrationsgrenzen](docs/COMPATIBILITY-20261016.md). Die anderen Komponenten behalten ihren bisherigen Prüfstand.
+**Fertige ZIPs:** [Paketdownloads und Prüfsummen](docs/DOWNLOADS.md) · [Aktuelles Prerelease](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/fleet-2026.10.24-gameplay). Die reale Client- und Mehrspielerabnahme steht aus.
+
+**Historischer Prüfstand 16.10.2026:** Bridge **1.6.5** und LPLK_Maps **0.2.7** für SwiftlyS2 **1.4.14 und 1.5.0-beta.10**. [Neue Pakete](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/compat-2026.10.16-bridge-maps) · [Prüfstand und Migrationsgrenzen](docs/COMPATIBILITY-20261016.md). Der aktuelle Spielplugin-Stand ist im Bericht vom 24.10.2026 dokumentiert.
 
 CS2-/SwiftlyS2-Addons, Windows-Verwaltungsprogramm und Webverwaltung in einem gemeinsamen Quellprojekt. Die Komponenten lassen sich gezielt einsetzen; nicht jeder Server benötigt jedes Addon.
 
@@ -12,7 +14,7 @@ Stand des ersten Imports: **14.10.2026**. Die Websitequelle unter `Website/` bas
 
 | Bereich | Was er macht | Anleitung |
 |---|---|---|
-| Addons | Spieler-/Adminmenüs, Bank und Spiele, Maps, Sounds, Statistik, Spielregeln und weitere Funktionen | [Alle 21 Projekte mit Einzelanleitungen](docs/ADDONS.md) |
+| Addons | Spieler-/Adminmenüs, Bank und Spiele, Maps, Sounds, Statistik, Spielregeln und weitere Funktionen | [Alle Addons mit Einzelanleitungen](docs/ADDONS.md) |
 | Windows-Programm | Server-/Addonübersicht, Verbindungsverwaltung und Versionsprüfung | [Einrichtung und Build](docs/INSTALLATION-PORTAL.md) |
 | Website | Server-, Spieler- und Rechteverwaltung sowie angebundene Bank-/Statistikansichten | [Installation und Updates](docs/INSTALLATION-WEBSITE.md) |
 
@@ -41,7 +43,7 @@ SDK, Laufzeiten, private Verbindungsdateien, produktive Konfigurationen, Datenba
 
 ## Entwicklungsstand
 
-Die Einzelanleitungen nennen Quellversion und benötigte SwiftlyS2-API. Kompilierung und erfolgreicher Pluginstart ersetzen keine Client- oder Mehrspielerabnahme. Die serverübergreifende Produktionsbank sowie eine öffentliche Statistikwebsite mit historischen Kurven sind noch nicht fertig aktiviert bzw. umgesetzt. EnvironmentCheck ist ausdrücklich nur ein leeres Buildbeispiel.
+Die Einzelanleitungen nennen Quellversion und benötigte SwiftlyS2-API. Kompilierung und erfolgreicher Pluginstart ersetzen keine Client- oder Mehrspielerabnahme. Die gemeinsame Bank ist auf den vier Standardservern aktiv. Die sechs Spielplugin-Profile und verbleibenden Prüfgrenzen sind in [FLEET-20261024.md](docs/FLEET-20261024.md) dokumentiert. EnvironmentCheck ist ausdrücklich nur ein leeres Buildbeispiel.
 
 Bestehende Chatbefehle und Aliasnamen bleiben bei der Weiterentwicklung wichtig, damit Spieler ihre Binds weiterverwenden können. Neue gemeinsame Menüs bieten zusätzliche Einstiege und zeigen nur passende aktive Funktionen.
 

@@ -22,7 +22,9 @@ public sealed class MenuWorld
     public HashSet<string> Permissions = [];
     public List<string> Plugins = ["LPLK_Maps", "LPLK_Sounds"];
     public List<string> Commands = [], Messages = [];
+    public List<Action> Delayed=[];
     public List<IMenuAPI> AllMenus = [];
+    public Dictionary<IMenuAPI,Dictionary<string,string>> MenuKeys=[];
     public ulong Session = 7;
     public int ModuleOpens;
     public string DataDirectory = Path.Combine(Environment.GetEnvironmentVariable("LPLK_BUILD_ROOT")!, "AdminMenuChecks", "test-data");
@@ -35,7 +37,10 @@ public sealed class MenuWorld
     public bool IncludePlayer;
     public bool TargetEnabled;public int TargetCalls;
     public List<string> AdminCalls = [];
+    public string FleetJson="[]";public List<string> FleetCalls=[];
+    public void AddFleet()=>modules["LPLK.Bridge.Fleet.v1"]=new Dictionary<string,Delegate>{["roster"]=(Func<ulong,string>)(_=>FleetJson),["request"]=(Func<ulong,string,string>)((_,request)=>{FleetCalls.Add(request);return "queued";})};
     public HashSet<string> FailedPlugins=[];
+    public Dictionary<string,List<CommandInfo>> OwnedCommands=[];
     private readonly Dictionary<string, IReadOnlyDictionary<string, Delegate>> modules = [];
     public IMenuAPI? Current;
     public IPlayer Player;
@@ -43,7 +48,14 @@ public sealed class MenuWorld
     public IInterfaceManager Interfaces;
     public ICommandContext Context;
     public List<string> Labels => Current!.Options.Select(o => o.Text).ToList();
-    public IMenuOption Find(string text) => Current!.Options.Single(o => o.Text.Contains(text));
+    public IMenuOption Find(string text) => Select(o => o.Text.Contains(text), text);
+    public IMenuOption FindExact(string text) => Select(o => System.Text.RegularExpressions.Regex.Replace(System.Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Replace(o.Text,"<[^>]*>","")),@"^\s*\d+[.)]\s*","").Trim()==text, text);
+    private IMenuOption Select(Func<IMenuOption,bool> match,string text)
+    {
+        var found=Current!.Options.Where(match).ToArray();
+        if(found.Length!=1)throw new InvalidOperationException($"Expected one menu item '{text}', found {found.Length}. Actual: {string.Join(" | ",Labels)}");
+        return found[0];
+    }
     public async Task Click(string label) => await Click(Find(label));
     public async Task Click(IMenuOption option) { await option.OnClickAsync(Player); }
     public MenuWorld()
@@ -57,7 +69,9 @@ public sealed class MenuWorld
         Context = Proxy.Make<ICommandContext>((m, a) => m.Name switch
         { "get_Sender" => Player, "get_IsSentByPlayer" => true, "get_Args" => Array.Empty<string>(), "Reply" => Capture(Messages, (string)a![0]!), _ => Proxy.Empty(m.ReturnType) });
         Interfaces = Proxy.Make<IInterfaceManager>((m, a) =>
-        { if (m.Name == "TryGetSharedInterface") { bool found = modules.TryGetValue((string)a![0]!, out var api); a[1] = api; return found; } return Proxy.Empty(m.ReturnType); });
+        { if (m.Name == "TryGetSharedInterface") { bool found = modules.TryGetValue((string)a![0]!, out var api); a[1] = api; return found; }
+          if (m.Name == "AddSharedInterface") { modules[(string)a![0]!] = (IReadOnlyDictionary<string, Delegate>)a[1]!; }
+          return Proxy.Empty(m.ReturnType); });
         modules["LPLK.Player.Maps.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>MapsEnabled)};
         modules["LPLK.Bridge.Admin.v1"]=new Dictionary<string,Delegate>{["execute"]=(Func<ulong,string,string,string>)((_,action,payload)=>{AdminCalls.Add(action+":"+payload);return "{\"success\":true,\"message\":\"geprüft\"}";})};
         modules["LPLK.Player.Sounds.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>SoundsEnabled)};
@@ -69,6 +83,7 @@ public sealed class MenuWorld
         Core = Proxy.Make<ISwiftlyCore>((m, a) =>
         {
             if (m.Name == "get_Logger") return NullLogger.Instance;
+            if (m.Name == "get_PluginPath") return DataDirectory;
             if (m.Name == "get_PluginDataDirectory") return DataDirectory;
             if (m.Name == "get_GameFilesDirectory") return DataDirectory;
             if (!services.TryGetValue(m.ReturnType, out var service)) services[m.ReturnType] = service = Proxy.Make(m.ReturnType, Service);
@@ -80,6 +95,8 @@ public sealed class MenuWorld
     {
         switch (m.Name)
         {
+            case "add_MenuOpened": menuOpened += (EventHandler<MenuManagerEventArgs>)a![0]!; return null;
+            case "remove_MenuOpened": menuOpened -= (EventHandler<MenuManagerEventArgs>)a![0]!; return null;
             case "GetGameRules": EntityAccesses++;if(RejectEntityAccess)throw new InvalidOperationException("Entity system not ready");return null;
             case "ExecuteCommand": Commands.Add((string)a![0]!);return null;
             case "GetAllPlugins": return Plugins.ToList();
@@ -87,10 +104,13 @@ public sealed class MenuWorld
             case "PlayerHasPermission": return Permissions.Contains((string)a![1]!);
             case "GetPlayerPermissions": return Permissions.ToList();
             case "IsCommandRegistered": return true;
+            case "GetAllCommandsInfo": return OwnedCommands.Values.SelectMany(x=>x).ToList();
+            case "GetCommandsByPlugin": return OwnedCommands.GetValueOrDefault((string)a![0]!,[]);
             case "GetPlayer": return Player;
             case "GetAllPlayers": return IncludePlayer ? new List<IPlayer>{Player} : new List<IPlayer>();
             case "GetAllValidPlayers": return IncludePlayer ? new List<IPlayer>{Player} : new List<IPlayer>();
             case "NextTick": ((Action)a![0]!)(); return Proxy.Empty(m.ReturnType);
+            case "DelayBySeconds": Delayed.Add((Action)a![1]!);return Proxy.Empty(m.ReturnType);
             case "NextWorldUpdate": ((Action)a![0]!)(); return Proxy.Empty(m.ReturnType);
             case "CreateBuilder": return Builder();
             case "GetCurrentMenu": return Current;
@@ -113,6 +133,17 @@ public sealed class MenuWorld
         if(!Plugins.Contains("LPLK_Weapons"))Plugins.Add("LPLK_Weapons");
         modules["LPLK.Player.Weapons.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>WeaponsEnabled)};
     }
+    public int LotteryAdminOpens;
+    public void AddLotteryAdminApi() => modules["LPLK.AdminSections.Economy.v1"] =
+        new Dictionary<string, Delegate> { ["lotto"] = (Action<IPlayer>)(_ => LotteryAdminOpens++) };
+    public IMenuAPI ReopenRoot(string? title)
+    {
+        Current = Builder().Build();
+        Current.Configuration.Title = title;
+        menuOpened?.Invoke(this, new MenuManagerEventArgs { Player = Player, Menu = Current });
+        return Current;
+    }
+    private EventHandler<MenuManagerEventArgs>? menuOpened;
     public void AddTargetModule(string id,string label)
     {
         AddModule(id,label);
@@ -120,24 +151,26 @@ public sealed class MenuWorld
     }
     private IMenuBuilderAPI Builder()
     {
-        var options = new List<IMenuOption>(); var config = new MenuConfiguration();
+        var options = new List<IMenuOption>(); var config = new MenuConfiguration();var bindings=new Dictionary<string,string>();var scroll=MenuOptionScrollStyle.CenterFixed;
         IMenuBuilderAPI builder = null!;
         var menu = Proxy.Make<IMenuAPI>((m, a) => m.Name switch
         {
-            "get_Options" => options, "get_Configuration" => config,
+            "get_Options" => options, "get_Configuration" => config,"get_OptionScrollStyle"=>scroll,
             "AddOption" => Add(options, (IMenuOption)a![0]!), _ => Proxy.Empty(m.ReturnType)
         });
         var design = Proxy.Make<IMenuDesignAPI>((m, a) =>
         {
             if (m.Name == "SetMenuTitle") config.Title = (string)a![0]!;
             if (m.Name == "SetMaxVisibleItems") config.MaxVisibleItems = (int)a![0]!;
+            if (m.Name == "SetGlobalScrollStyle") scroll=(MenuOptionScrollStyle)a![0]!;
             return builder;
         });
         builder = Proxy.Make<IMenuBuilderAPI>((m, a) =>
         {
+            if (m.Name.StartsWith("Set")&&m.Name.EndsWith("Button"))bindings[m.Name]=a![0]!.ToString()!;
             if (m.Name == "get_Design") return design;
             if (m.Name == "AddOption") options.Add((IMenuOption)a![0]!);
-            if (m.Name == "Build") { AllMenus.Add(menu); return menu; }
+            if (m.Name == "Build") { AllMenus.Add(menu);MenuKeys[menu]=bindings; return menu; }
             return builder;
         });
         return builder;

@@ -10,14 +10,14 @@ public sealed partial class Plugin
     private readonly string boot=Guid.NewGuid().ToString("N");
     private void BettingProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-11110004"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy betprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy betprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         string path=Path.Combine(Core.PluginDataDirectory,"betting-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"betting-probe.json");
         const string a="76561198000000001",b="76561198000000002";
         try
         {
             bool prior=File.Exists(path);string seedBoot=boot;
             if(File.Exists(report)){using var j=JsonDocument.Parse(File.ReadAllText(report));seedBoot=j.RootElement.GetProperty("seedBoot").GetString()!;}
-            using var probe=new Ledger(path,settings with{Profile="bet-probe-11110004",StartBank=0});
+            using var probe=new Ledger(path,settings with{Profile="bet-probe-89450e53",StartBank=0});
             var rules=new BettingSettings();
             if(!prior)
             {
@@ -43,14 +43,14 @@ public sealed partial class Plugin
     }
     private void Probe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-11110004"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy probe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy probe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         string path=Path.Combine(Core.PluginDataDirectory,"probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"probe.json");
         const string a="76561198000000001",b="76561198000000002";
         try
         {
             bool prior=File.Exists(path);string? previousBoot=null;
             if(File.Exists(report)){using var j=JsonDocument.Parse(File.ReadAllText(report));previousBoot=j.RootElement.GetProperty("boot").GetString();}
-            var config=settings with{Profile="probe-11110004",StartBank=0};
+            var config=settings with{Profile="probe-89450e53",StartBank=0};
             using var probe=new Ledger(path,config);
             if(!prior)
             {

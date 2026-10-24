@@ -16,10 +16,11 @@ public static class MenuLayout
 
     public static string ModuleGroup(string id) => id switch
     {
-        "LPLK_Maps" or "LPLK_Demos" or "LPLK_Statistics" => "server",
-        "LPLK_Whitelist" or "LPLK_ChatGuard" => "access",
-        "LPLK_Parachute" or "LPLK_Teams" or "LPLK_AntiCamp" or "LPLK_ThirdPerson" => "movement",
-        "LPLK_BombWires" or "LPLK_AntiTeamFlash" or "LPLK_Weapons" or "LPLK_CombatRules" or "LPLK_Fluch" or "LPLK_NadeEffects" => "combat",
+        "LPLK_Demos" or "LPLK_Statistics" => "server",
+        "LPLK_Whitelist" or "LPLK_ChatGuard" or "LPLK_Teams" => "players",
+        "LPLK_Parachute" or "LPLK_AntiCamp" or "LPLK_ThirdPerson" or "LPLK_BombWires" or "LPLK_AntiTeamFlash" or "LPLK_Weapons" or "LPLK_CombatRules" => "rules",
+        "LPLK_Fluch" or "LPLK_NadeEffects" => "effects",
+        "LPLK_Maps" => "maps",
         "LPLK_Sounds" => "sounds",
         "LPLK_Economy" or "LPLK_Betting" or "LPLK_Lottery" or "LPLK_BankRobbery" or "LPLK_Titles" => "economy",
         _ => "other"

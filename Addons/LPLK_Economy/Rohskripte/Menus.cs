@@ -7,8 +7,8 @@ namespace LPLK_Economy;
 public sealed partial class Plugin
 {
     private static string NewId()=>"ui:"+Guid.NewGuid().ToString("N");
-    private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null,bool admin=false)=>
-        CompactMenu.Open(Core,p,title,()=>module.Active,a=>Human(a)&&(admin?module.CanAdmin(a):CanUse(a)),a=>rows(a).Select(x=>(Escape(x.Item1),(Action<IPlayer>)(b=>Guard(b,()=>x.Item2(b))))).ToArray(),back,autoCloseSeconds:settings.MenuAutoCloseSeconds);
+    private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null,bool admin=false,bool scroll=true)=>
+        CompactMenu.Open(Core,p,title,()=>module.Active,a=>{RefreshSettings();return Human(a)&&(admin?module.CanAdmin(a):CanUse(a));},a=>rows(a).Select(x=>(Escape(x.Item1),(Action<IPlayer>)(b=>Guard(b,()=>x.Item2(b))))).ToArray(),back,autoCloseSeconds:settings.MenuAutoCloseSeconds,scroll:scroll);
     private static string Escape(string s)=>s.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;");
     private void Confirm(IPlayer p,string title,Action<IPlayer> action,Action<IPlayer> back,bool admin=false)
     {
@@ -22,26 +22,31 @@ public sealed partial class Plugin
         bank!.Open(Id(p),p.Name);
         Page(p,$"Bank · {bank.Balance(Id(p)):N0} $",a=>
         {
-            var rows=new List<(string,Action<IPlayer>)>{("Bargeld",CashMenu),("Konto",AccountMenu)};
-            if(settings.TransfersEnabled)rows.Add(("Überweisen",Targets));rows.Add(("Extras",BankExtras));return rows;
+            var rows=new List<(string,Action<IPlayer>)>{("Einzahlen",b=>Amounts(b,true)),("Abheben",b=>Amounts(b,false))};
+            if(settings.TransfersEnabled)rows.Add(("Überweisen",Targets));
+            if(settings.BankRobbery.Enabled)rows.Add(("Bankraub",RobberyMenu));
+            if(settings.Betting.Enabled)rows.Add(("Wetten",OpenBet));
+            if(settings.Lotto.Enabled)rows.Add(("Lotto",OpenLotto));
+            if(settings.Bounty.Enabled)rows.Add(("Kopfgeld",BountyMenu));
+            if(settings.TitleSystem.Enabled)rows.Add(("Titel",TitlesMenu));
+            if(settings.KillReward.Enabled)rows.Add(("Kill-Belohnungen",KillRewardInfo));
+            rows.Add(("Buchungen",History));rows.Add(("Rangliste",Ranking));
+            rows.Add(($"Meldungen: {(bank.Muted(Id(a))?"AUS":"AN")}",b=>{bank.SetMuted(Id(b),!bank.Muted(Id(b)));OpenBank(b);}));
+            rows.Add(("Hilfe",Help));return rows;
         },a=>a.ExecuteCommand("sw_menu"));
     }
-    private void CashMenu(IPlayer p)=>Page(p,"Bank · Einzahlen & Abheben",_=>[("Einzahlen",a=>Amounts(a,true)),("Abheben",a=>Amounts(a,false))],OpenBank);
-    private void BankExtras(IPlayer p)=>Page(p,"Bank · Weitere Funktionen",_=>
-    {
-        var rows=new List<(string,Action<IPlayer>)>();
-        if(settings.Betting.Enabled)rows.Add(("Wetten",OpenBet));if(settings.Lotto.Enabled)rows.Add(("Lotterie",OpenLotto));if(settings.BankRobbery.Enabled)rows.Add(("Bankraub",RobberyMenu));if(settings.Bounty.Enabled)rows.Add(("Kopfgeld",BountyMenu));if(settings.TitleSystem.Enabled)rows.Add(("Titel",TitlesMenu));if(settings.KillReward.Enabled)rows.Add(("Kill-Belohnungen",KillRewardInfo));rows.Add(("Hilfe",Help));return rows;
-    },OpenBank);
+    private void CashMenu(IPlayer p)=>OpenBank(p);
+    private void BankExtras(IPlayer p)=>OpenBank(p);
     private void Amounts(IPlayer p,bool deposit)=>Page(p,deposit?"Bank · Einzahlen":"Bank · Abheben",_=>
         (deposit?settings.DepositButtons:settings.WithdrawButtons).Select(v=>(v.ToString("N0")+" $",(Action<IPlayer>)(a=>CashConfirmation(a,deposit,v.ToString(System.Globalization.CultureInfo.InvariantCulture)))))
+        .Prepend(("Eigener Betrag",(Action<IPlayer>)(a=>AmountInput(a,deposit?"Einzahlen":"Abheben",(b,v)=>CashConfirmation(b,deposit,v.ToString(System.Globalization.CultureInfo.InvariantCulture)),b=>Amounts(b,deposit)))))
         .Append(("Alles Mögliche",a=>CashConfirmation(a,deposit,"all"))).ToArray(),CashMenu);
     private void CashConfirmation(IPlayer p,bool deposit,string amount)
     {
         string id=NewId();long period=bank!.Period;
         Confirm(p,$"{(deposit?"Einzahlen":"Abheben")}: {amount} $",a=>CashMove(a,deposit,amount,id,period),CashMenu);
     }
-    private void AccountMenu(IPlayer p)=>Page(p,$"Konto · {bank!.Balance(Id(p)):N0} $",_=>
-        [("Letzte Buchungen",History),("Bankrangliste",Ranking),("Kontostand",a=>a.SendChat($"[LPLK Bank] {bank.Balance(Id(a)):N0} $ · Periode {bank.Period} · "+(bank.Blocked(Id(a))?"Cash-Vorgang offen; Adminprüfung erforderlich.":"Keine offene Cash-Buchung."))),($"Meldungen: {(bank.Muted(Id(p))?"AUS":"AN")}",a=>{bank.SetMuted(Id(a),!bank.Muted(Id(a)));AccountMenu(a);})],OpenBank);
+    private void AccountMenu(IPlayer p)=>OpenBank(p);
     [Command("topbank")][CommandAlias("banktop")][CommandAlias("rich")][CommandAlias("ranking")][CommandAlias("topbank",registerRaw:true)][CommandAlias("banktop",registerRaw:true)][CommandAlias("rich",registerRaw:true)][CommandAlias("ranking",registerRaw:true)]
     public void RankingCommand(ICommandContext ctx){if(ctx.Sender is {} p)Guard(p,()=>{Require(p);Ranking(p);});else ctx.Reply("Bankrangliste im Spiel: !topbank / !banktop / !rich.");}
     private void Ranking(IPlayer p)=>Page(p,"Bank · Rangliste",_=>bank!.Accounts(40).Select((a,i)=>($"{i+1}. {Ledger.SafeName(a.Name)} · {a.Balance:N0} $",(Action<IPlayer>)(b=>b.SendChat($"[LPLK Bank] Platz {i+1}: {Ledger.SafeName(a.Name)} mit {a.Balance:N0} $.")))).ToArray(),AccountMenu);
@@ -56,6 +61,7 @@ public sealed partial class Plugin
         return online.Select(x=>(x.Name+" · "+x.Id[^4..],(Action<IPlayer>)(b=>{if(fixedAmount is null)TransferAmounts(b,x.Id,x.Name);else TransferConfirmation(b,x.Id,x.Name,fixedAmount);}))).ToArray();
     },OpenBank);
     private void TransferAmounts(IPlayer p,string target,string name)=>Page(p,"Überweisen · "+name,_=>settings.TransferButtons.Select(v=>(v.ToString("N0")+" $",(Action<IPlayer>)(a=>TransferConfirmation(a,target,name,v.ToString(System.Globalization.CultureInfo.InvariantCulture)))))
+        .Prepend(("Eigener Betrag",(Action<IPlayer>)(a=>AmountInput(a,"Überweisen",(b,v)=>TransferConfirmation(b,target,name,v.ToString(System.Globalization.CultureInfo.InvariantCulture)),b=>TransferAmounts(b,target,name)))))
         .Append(("Alles Mögliche",a=>TransferConfirmation(a,target,name,"all"))).ToArray(),Targets);
     private void TransferConfirmation(IPlayer p,string target,string name,string amount)
     {
@@ -139,13 +145,14 @@ public sealed partial class Plugin
         if(ctx.Args.Length==1&&ctx.Args[0]=="killprobe"){KillRewardProbe(ctx);return;}if(ctx.Args.Length==1&&ctx.Args[0]=="bountyprobe"){BountyProbe(ctx);return;}
         if(ctx.Args.Length==1&&ctx.Args[0]=="bonusprobe"){BonusProbe(ctx);return;}
         if(ctx.Args.Length==1&&ctx.Args[0]=="lottoprobe"){LotteryProbe(ctx);return;}
-        WriteStatus();ctx.Reply($"LPLK_Economy 0.9.1: healthy={failure is null}; effective={Active}; profile={settings.Profile}; period={bank?.Period}; accounts={bank?.AccountCount}; transactions={bank?.TransactionCount}; pending={bank?.PendingCount}; reset={settings.ResetMode}; errors={errors}; reloadError={reloadError??"none"}; resetDelay={resetDelay??"none"}");
+        WriteStatus();ctx.Reply($"LPLK_Economy 0.10.0: healthy={failure is null}; effective={Active}; profile={settings.Profile}; period={bank?.Period}; accounts={bank?.AccountCount}; transactions={bank?.TransactionCount}; pending={bank?.PendingCount}; reset={settings.ResetMode}; errors={errors}; reloadError={reloadError??"none"}; resetDelay={resetDelay??"none"}");
     }
-    private void OpenAdmin(IPlayer p)=>Page(p,"LPLK · Bank & Konten",_=>
-        [("Vorgänge",AdminStatus),("Konten",AdminAccounts),("Einstellungen",EconomySettingsMenu),("Bankreset",AdminPeriod)],null,true);
-    private void AdminStatus(IPlayer p)=>Page(p,"Bank · Verwaltung",_=>
-        [("Status",a=>a.SendChat($"[LPLK Bank] Aktiv: {Active}; Konten: {bank?.AccountCount}; offene Buchungen: {bank?.PendingCount}; {failure??"Journal bereit."}")),
-        ("Cashvorgänge",PendingMenu),("Journal prüfen",a=>{bank?.Verify();a.SendChat(bank is null?"[LPLK Bank] Datenbank nicht geöffnet.":"[LPLK Bank] Buchungen und Kontostände stimmen überein.");})],OpenAdmin,true);
+    private void OpenAdmin(IPlayer p) => Page(p,"Bank & Bankraub",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Bank",TimingMenuRows(actor)),("Raubpreise",RobberyAdminPricesRows(actor)),("Raubschutz",RobberyAdminProtectionRows(actor)),("Bankraub",RobberyAdminStatusRows(actor)),("Webbank",WebSettingsRows(actor)),("Bank",AdminStatusRows(actor)),("Periode",AdminPeriodRows(actor)),("Wetten",BetAdminRows(actor)),("Wettstart",BetOpeningRows(actor)),("Wettlimits",BetLimitsRows(actor)),("Kopfgeld",BountyAdminRows(actor)),("Kopfgeldzahlung",BountyFundingAdminRows(actor)),("Kopfgeldregeln",BountyRulesAdminRows(actor)),("Markierung",BountyMarkerAdminRows(actor)),("Titel",TitlesAdminRows(actor)),("Titel",TitleSwitchesRows(actor)),("Zinsen",InterestAdminRows(actor)),("Steuern",TaxAdminRows(actor)),("Killbelohnung",KillRewardAdminRows(actor))),a=>a.ExecuteCommand("sw_admin"),true,scroll:true);
+    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
+        [("Konten",AdminAccounts),        ($"Bank: {(settings.BankEnabled?"AN":"AUS")}",a=>{Save(a,current=>current with{BankEnabled=!current.BankEnabled});OpenAdmin(a);}),        ($"Überweisungen: {(settings.TransfersEnabled?"AN":"AUS")}",a=>{Save(a,current=>current with{TransfersEnabled=!current.TransfersEnabled});OpenAdmin(a);}),        ("Guthabenlimit",LimitMenu),        ($"Bankraub: {(settings.BankRobbery.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{BankRobbery=current.BankRobbery with{Enabled=!current.BankRobbery.Enabled}});OpenAdmin(a);}),        ($"Economy gesamt: {(settings.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Enabled=!current.Enabled});OpenAdmin(a);})]))(p);
+    private void AdminStatus(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> AdminStatusRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
+        [("Status",a=>a.SendChat($"[LPLK Bank] Aktiv: {Active}; Konten: {bank?.AccountCount}; offene Buchungen: {bank?.PendingCount}; {failure??"Journal bereit."}")),        ("Cashvorgänge",PendingMenu),("Journal prüfen",a=>{bank?.Verify();a.SendChat(bank is null?"[LPLK Bank] Datenbank nicht geöffnet.":"[LPLK Bank] Buchungen und Kontostände stimmen überein.");})]))(p);
     private void PendingMenu(IPlayer p)=>Page(p,"Bank · Offene Cash-Vorgänge",_=>(bank?.Pending()??[]).Select(i=>($"{bank!.CashPurpose(i.Id)} {i.Account[^4..]}: {i.Before} → {i.After} $",(Action<IPlayer>)(a=>ResolveMenu(a,i)))).ToArray(),AdminStatus,true);
     private void ResolveMenu(IPlayer p,CashIntent i)=>Page(p,$"Prüfen · {i.Account}",_=>
         [("Details",a=>a.SendChat($"[LPLK Bank] {bank!.CashPurpose(i.Id)} · {i.Id} · Konto {i.Account} · Cash vorher {i.Before}, nachher {i.After}. Abschluss betrifft den zugehörigen Bank-, Wett-, Bonus-, Kill- oder Kopfgeldvorgang. Nur nach tatsächlicher Prüfung entscheiden.")),
@@ -166,7 +173,8 @@ public sealed partial class Plugin
     private void AccountAdmin(IPlayer p,string target,string name)=>Page(p,"Konto · "+name,_=>
         [("Gutschrift",a=>AdjustAmounts(a,target,"add")),("Abziehen",a=>AdjustAmounts(a,target,"remove")),("Guthaben setzen",a=>AdjustAmounts(a,target,"set")),("Letzte Buchungen",a=>{if(!MayManage(a,target))throw new BankRejected("Berechtigung entzogen.");foreach(var e in bank!.History(target,5))a.SendChat($"[LPLK Bank] {e.At}: {e.Reason} {e.Delta:N0} $; danach {e.Balance:N0} $");})],AdminAccounts,true);
     private void AdjustAmounts(IPlayer p,string target,string operation)=>Page(p,"Bank · "+operation,_=>BankPolicy.MenuAmounts(operation=="set"?settings.AdminSetButtons:operation=="add"?settings.AdminAddButtons:settings.AdminRemoveButtons,operation=="set"?0:1,operation=="set"?Math.Min(settings.Limit,settings.MaxManualBankSet<0?settings.Limit:settings.MaxManualBankSet):operation=="add"?Math.Max(0,settings.Limit-bank!.Balance(target)):bank!.Balance(target))
-        .Select(v=>(v.ToString("N0")+" $",(Action<IPlayer>)(a=>AdjustConfirm(a,target,v,operation)))).ToArray(),AdminAccounts,true);
+        .Select(v=>(v.ToString("N0")+" $",(Action<IPlayer>)(a=>AdjustConfirm(a,target,v,operation))))
+        .Prepend(("Eigener Betrag",(Action<IPlayer>)(a=>AmountInput(a,"Bankbetrag",(b,v)=>AdjustConfirm(b,target,v,operation),b=>AdjustAmounts(b,target,operation),true,operation=="set"?0:1)))).ToArray(),AdminAccounts,true);
     private void AdjustConfirm(IPlayer p,string target,long amount,string operation)
     {
         if(!MayManage(p,target))throw new BankRejected("Keine Kontoberechtigung.");string id=NewId();long period=bank!.Period;
@@ -203,36 +211,39 @@ public sealed partial class Plugin
         p.SendChat($"[LPLK Bank] Bank geändert: {target} · {before:N0} → {after:N0} $. Angefordert: {operation} {amount:N0} $; Kontolimit berücksichtigt.");
         foreach(var online in Core.PlayerManager.GetAllValidPlayers().Where(Human).Where(a=>Id(a)==target&&a.SteamID!=p.SteamID))online.SendChat($"[LPLK Bank] Dein Bankguthaben wurde von einem Admin auf {after:N0} $ angepasst.");
     }
-    private void AdminSettings(IPlayer p)=>Page(p,"Bank · Regeln",_=>
-        [($"Bank: {(settings.BankEnabled?"AN":"AUS")}",a=>{Save(settings with{BankEnabled=!settings.BankEnabled});AdminSettings(a);}),
-        ($"Überweisungen: {(settings.TransfersEnabled?"AN":"AUS")}",a=>{Save(settings with{TransfersEnabled=!settings.TransfersEnabled});AdminSettings(a);}),
-        ("Guthabenlimit",LimitMenu),("Ein-/Auszahlungsregeln",TimingMenu),("Webpanel",WebSettings)],OpenAdmin,true);
-    private void WebSettings(IPlayer p)=>Page(p,"Bank · Website",_=>
-        [($"Webansicht: {(settings.WebBank.ExportEnabled?"AN":"AUS")}",a=>{Save(settings with{WebBank=settings.WebBank with{ExportEnabled=!settings.WebBank.ExportEnabled}});WebSettings(a);}),
-        ($"Web-Adminänderungen: {(settings.WebBank.AdminChangesEnabled?"AN":"AUS")}",a=>{Save(settings with{WebBank=settings.WebBank with{AdminChangesEnabled=!settings.WebBank.AdminChangesEnabled}});WebSettings(a);}),
-        ("Berechtigungen",a=>a.SendChat("[LPLK Bank] Webänderungen benötigen eigene Panelrechte und einen Buchungsbeleg. Anbindung nur für Testprofil 11110004 freigegeben. Produktivverbund vorbereitet, noch nicht aktiv."))],AdminSettings,true);
-    private void TimingMenu(IPlayer p)=>Page(p,"Bank · Ein-/Auszahlung",_=>
-        [($"Pistolensperre: {(settings.BlockWithdrawDuringPistolRounds?"AN":"AUS")}",a=>{Save(settings with{BlockWithdrawDuringPistolRounds=!settings.BlockWithdrawDuringPistolRounds});TimingMenu(a);}),
-        ($"Kaufzeit: {(settings.AllowWithdrawDuringBuyTime?"AN":"AUS")}",a=>{Save(settings with{AllowWithdrawDuringBuyTime=!settings.AllowWithdrawDuringBuyTime});TimingMenu(a);}),
-        ($"Warmupsperre: {(settings.BlockDepositDuringWarmup?"AN":"AUS")}",a=>{Save(settings with{BlockDepositDuringWarmup=!settings.BlockDepositDuringWarmup});TimingMenu(a);}),
-        ("Details",a=>a.SendChat($"[LPLK Bank] Min. Einzahlung {settings.MinDeposit}; Min. Auszahlung {settings.MinWithdraw}; Buytime {settings.BuyTimeSeconds}s; gesperrte Einzahlmaps {string.Join(", ",settings.BlockDepositOnMapPrefixes)}. Weitere Werte in settings.json."))],AdminSettings,true);
-    private void LimitMenu(IPlayer p)=>Page(p,"Bank · Guthabenlimit",_=>new long[]{50000,1000000,-1}.Select(v=>(v<0?"Unbegrenzt":v.ToString("N0")+" $",(Action<IPlayer>)(a=>
-        {if(!settings.AllowChangeMaxBank)throw new BankRejected("Limitänderung gesperrt.");Save(settings with{MaxBank=v});a.SendChat("[LPLK Bank] Bestehende Guthaben bleiben erhalten; Limit begrenzt neue Gutschriften.");AdminSettings(a);}))).ToArray(),AdminSettings,true);
-    private void AdminPeriod(IPlayer p)=>Page(p,"Bank · Periode "+bank?.Period,_=>
+    private void WebSettings(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> WebSettingsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
+        [($"Webansicht: {(settings.WebBank.ExportEnabled?"AN":"AUS")}",a=>{Save(a,current=>current with{WebBank=current.WebBank with{ExportEnabled=!current.WebBank.ExportEnabled}});WebSettings(a);}),        ($"Web-Adminänderungen: {(settings.WebBank.AdminChangesEnabled?"AN":"AUS")}",a=>{Save(a,current=>current with{WebBank=current.WebBank with{AdminChangesEnabled=!current.WebBank.AdminChangesEnabled}});WebSettings(a);}),        ("Berechtigungen",a=>a.SendChat("[LPLK Bank] Webänderungen benötigen eigene Panelrechte und einen Buchungsbeleg. Anbindung nur für Testprofil 89450e53 freigegeben. Produktivverbund vorbereitet, noch nicht aktiv."))]))(p);
+    private void TimingMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> TimingMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
+        [($"Pistolensperre: {(settings.BlockWithdrawDuringPistolRounds?"AN":"AUS")}",a=>{Save(a,current=>current with{BlockWithdrawDuringPistolRounds=!current.BlockWithdrawDuringPistolRounds});TimingMenu(a);}),        ($"Kaufzeit: {(settings.AllowWithdrawDuringBuyTime?"AN":"AUS")}",a=>{Save(a,current=>current with{AllowWithdrawDuringBuyTime=!current.AllowWithdrawDuringBuyTime});TimingMenu(a);}),        ($"Warmupsperre: {(settings.BlockDepositDuringWarmup?"AN":"AUS")}",a=>{Save(a,current=>current with{BlockDepositDuringWarmup=!current.BlockDepositDuringWarmup});TimingMenu(a);}),        ("Details",a=>a.SendChat($"[LPLK Bank] Min. Einzahlung {settings.MinDeposit}; Min. Auszahlung {settings.MinWithdraw}; Buytime {settings.BuyTimeSeconds}s; gesperrte Einzahlmaps {string.Join(", ",settings.BlockDepositOnMapPrefixes)}. Weitere Werte in settings.json."))]))(p);
+    private void ChangeLimit(IPlayer p,long value)
+    {
+        Save(p,current=>current.AllowChangeMaxBank?current with{MaxBank=value}:throw new BankRejected("Limitänderung gesperrt."));
+        p.SendChat("[LPLK Bank] Bestehende Guthaben bleiben erhalten; Limit begrenzt neue Gutschriften.");OpenAdmin(p);
+    }
+    private void LimitMenu(IPlayer p)=>Page(p,"Bank · Guthabenlimit",_=>new long[]{50000,1000000,-1}.Select(v=>(v<0?"Unbegrenzt":v.ToString("N0")+" $",(Action<IPlayer>)(a=>ChangeLimit(a,v))))
+        .Append(("Eigener Betrag",(Action<IPlayer>)(a=>AmountInput(a,"Guthabenlimit",(b,v)=>Confirm(b,$"Guthabenlimit: {v:N0} $",c=>ChangeLimit(c,v),LimitMenu,true),LimitMenu,true,0,settings.UnlimitedLimit)))).ToArray(),OpenAdmin,true);
+    private void AdminPeriod(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> AdminPeriodRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
         [("Resetmodus: "+settings.ResetMode,ResetModeMenu),("Zurücksetzen",a=>
         {
             if(!settings.AllowManualBankReset||bank is null)throw new BankRejected("Reset gesperrt.");long period=bank.Period;string id=NewId();
             Confirm(a,"Bank zurücksetzen?",b=>{if(!settings.AllowManualBankReset)throw new BankRejected("Reset inzwischen gesperrt.");bank.Reset(id,period,Id(b),settings,ResetNow);b.SendChat("[LPLK Bank] Neue Bankperiode gestartet.");},AdminPeriod,true);
-        })],OpenAdmin,true);
+        })]))(p);
     private void ResetModeMenu(IPlayer p)=>Page(p,"Bank · Resetmodus",_=>new[]{"Never","Daily","Weekly","Monthly"}.Select(v=>(v,(Action<IPlayer>)(a=>
-        {if(!settings.AllowChangeResetMode)throw new BankRejected("Resetmodusänderung gesperrt.");Save(settings with{ResetMode=v});bank?.CheckReset(settings,ResetNow);AdminPeriod(a);}))).ToArray(),AdminPeriod,true);
-    private void Save(EconomySettings s)
+        {if(!settings.AllowChangeResetMode)throw new BankRejected("Resetmodusänderung gesperrt.");Save(a,current=>current.AllowChangeResetMode?current with{ResetMode=v}:throw new BankRejected("Resetmodusänderung gesperrt."));bank?.CheckReset(settings,ResetNow);AdminPeriod(a);}))).ToArray(),AdminPeriod,true);
+    private void Save(IPlayer actor,Func<EconomySettings,EconomySettings> edit)
     {
-        EconomySettings.Validate(s);bank?.Configure(s);
-        try{module.SaveSettings(s);}catch{bank?.Configure(settings);throw;}
-        settings=s;stamp=File.GetLastWriteTimeUtc(module.SettingsPath);WriteStatus();
+        RefreshSettings();
+        if(!module.Active||!Human(actor)||!module.CanAdmin(actor))throw new BankRejected("Keine Einstellungsberechtigung.");
+        if(config is null||config.Error is not null)throw new BankRejected("Externe Konfiguration zuerst korrigieren; bisherige Regeln bleiben aktiv.");
+        try
+        {
+            settings=config.Change(edit,(next,persist)=>{if(bank is {} ledger)ledger.ConfigureWithPersistence(next,persist);else persist();});
+            reloadError=null;WriteStatus();
+        }
+        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or BankRejected)
+        {reloadError=e.Message;throw new BankRejected("Nicht gespeichert: "+e.Message);}
     }
 }
-
-
-

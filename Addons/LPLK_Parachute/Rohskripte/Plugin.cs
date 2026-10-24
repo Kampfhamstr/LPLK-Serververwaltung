@@ -13,10 +13,13 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Parachute;
 
-[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.4", Author = "LPLK / schwarper", Description = "Fallschirm mit E; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
-public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
+[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.6", Author = "LPLK / schwarper", Description = "Fallschirm mit Benutzen-Aktion; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
+public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
-    private ParachuteSettings settings = new();
+    private WatchedSettings<ParachuteSettings> config = null!;
+    private ParachuteSettings settings => config.Current;
+    private long nextConfigCheck;
+    private bool statusWriteFailed;
     private ModuleSupport module = null!;
     private IConVar<bool>? enabledConvar;
     private sealed record Flight(CHandle<CCSPlayerPawn> Pawn, float OriginalGravity);
@@ -25,14 +28,13 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
     public override void Load(bool hotReload)
     {
         module = new(Core, "LPLK_Parachute", "Fallschirm", "lplk.parachute.admin", OpenAdmin);
-        settings = module.ReadSettings<ParachuteSettings>(ParachuteSettings.Validate);
-        // Rewrites the initial test-only InstantBrake field into the explicit v5 settings.
-        module.SaveSettings(settings);
+        config = new(module.SettingsPath,ParachuteSettings.Validate);
         enabledConvar = Core.ConVar.Find<bool>("sv_parachute") ?? Core.ConVar.Create("sv_parachute", "LPLK Fallschirm aktiv", true);
         Core.GameEvent.HookPre<EventPlayerDeath>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         Core.GameEvent.HookPre<EventPlayerSpawn>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         module.Active = true;
-        Core.Logger.LogInformation("LPLK_Parachute 0.1.4 bereit; Parachute-v5-Mechanik: E, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
+        Core.Logger.LogInformation("LPLK_Parachute 0.1.6 bereit; Parachute-v5-Mechanik: +use, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
+        WriteStatus();
     }
 
     public override void Unload() { if (module is not null) module.Active = false; ReleaseAll(); }
@@ -48,6 +50,12 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
     [EventListener<EventDelegates.OnTick>]
     public void Tick()
     {
+        if(module?.Active==true&&Environment.TickCount64>=nextConfigCheck)
+        {
+            nextConfigCheck=Environment.TickCount64+2000;
+            if(config.Reload())ReleaseAll();
+            WriteStatus();
+        }
         if (module?.Active != true || !settings.Enabled || enabledConvar?.Value != true) { ReleaseAll(); return; }
         HashSet<int> active = [];
         foreach (var player in Core.PlayerManager.GetAllPlayers())
@@ -74,23 +82,18 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
     public void Command(ICommandContext ctx)
     {
         if (ctx.IsSentByPlayer && ctx.Sender is { } player) OpenAdmin(player);
-        else ctx.Reply($"LPLK_Parachute 0.1.4: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored");
+        else ctx.Reply($"LPLK_Parachute 0.1.6: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored; reloadError={config.Error??"none"}");
     }
-
-    private void Apply(ParachuteSettings next, IPlayer player)
+    private void WriteStatus()
     {
-        ParachuteSettings.Validate(next);
-        module.SaveSettings(next);
-        settings = next;
-        player.SendChat("[LPLK] Fallschirm-Einstellung gespeichert.");
-        OpenAdmin(player);
+        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.6",settings.Enabled,settings.FallSpeed,settings.BrakePerTick,settings.Linear,settings.DisableWhenCarryingHostage,useRestricted=settings.UsePermission.Length>0,activeFlights=flights.Count,reloadError=config.Error}); statusWriteFailed=false; }
+        catch(Exception e) when(e is IOException or UnauthorizedAccessException)
+        { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_Parachute: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }
-
-    private void OpenAdmin(IPlayer player) => module.Menu(player, "LPLK · Fallschirm",
-        ($"Aktiv: {(settings.Enabled ? "Ja" : "Nein")}", p => Apply(settings with { Enabled = !settings.Enabled }, p)),
-        ($"Fallgeschwindigkeit: {settings.FallSpeed:0} → +10", p => Apply(settings with { FallSpeed = Math.Min(500, settings.FallSpeed + 10) }, p)),
-        ("Fallgeschwindigkeit −10", p => Apply(settings with { FallSpeed = Math.Max(20, settings.FallSpeed - 10) }, p)),
-        ($"Gleichmäßiges Sinken: {(settings.Linear ? "Ja" : "Nein")}", p => Apply(settings with { Linear = !settings.Linear }, p)),
-        ($"Bremsschritt: {settings.BrakePerTick:0} → +5 (0=sofort)", p => Apply(settings with { BrakePerTick = settings.BrakePerTick>=50 ? 0 : settings.BrakePerTick+5 }, p)),
-        ($"Geiselsperre: {(settings.DisableWhenCarryingHostage ? "Ja" : "Nein")}", p => Apply(settings with { DisableWhenCarryingHostage = !settings.DisableWhenCarryingHostage }, p)));
+    private void Apply(Func<ParachuteSettings,ParachuteSettings> edit,IPlayer player)
+    {
+        ParachuteSettings? before=null;config.Change(s=>{before=s;return edit(s);});ReleaseAll();WriteStatus();
+        Core.Logger.LogInformation("LPLK_Parachute: Admin {Actor}; vorher={Before}; nachher={After}",player.SteamID,System.Text.Json.JsonSerializer.Serialize(before),System.Text.Json.JsonSerializer.Serialize(settings));
+        player.SendChat("[LPLK] Fallschirm-Einstellung gespeichert.");
+    }
 }

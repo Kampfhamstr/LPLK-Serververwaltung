@@ -51,12 +51,13 @@ public sealed partial class Plugin
     private void RobberyMenu(IPlayer p)
     {
         RequireRobbery(p);
-        Page(p,"Bankraub",_=>[("Überfall beauftragen",RobberyTargets),("Schutz",RobberyUpgrades),("Spionage",SpyMenu),("Status",RobberyInfo)],a=>a.ExecuteCommand("sw_menu"));
+        Page(p,"Bankraub",_=>[("Überfall",RobberyTargets),("Tresore",VaultMenu),("Schutzmaßnahmen",ProtectionMenu),("Fähigkeiten",RobberySkills),("Spion beauftragen",SpyTargets),("Spionberichte",SpyReports),("Status",RobberyInfo)],OpenBank);
     }
     private IPlayer[] RobberyTargetsFor(IPlayer p)=>Core.PlayerManager.GetAllValidPlayers().Where(x=>Human(x)&&x.SteamID!=p.SteamID&&x.Controller.TeamNum is 2 or 3).GroupBy(x=>x.SteamID).Select(g=>g.First()).ToArray();
     private void RobberyTargets(IPlayer p)
     {
         RequireRobbery(p);
+        if(RobberyTargetsFor(p).Length==0)p.SendChat("[LPLK Bankraub] Gerade ist kein anderer menschlicher Spieler im T- oder CT-Team als Ziel verfügbar. Bots zählen nicht.");
         Page(p,"Bankraub · Ziel wählen",a=>RobberyTargetsFor(a).Select(target=>
         {
             string id=Id(target),session=target.SessionId.ToString();
@@ -79,10 +80,7 @@ public sealed partial class Plugin
             a.SendChat($"[LPLK Bankraub] Auftrag gegen {o.TargetName} für {o.Cost:N0} $ gespeichert.");
         },RobberyTargets);
     }
-    private void RobberyUpgrades(IPlayer p)
-    {
-        RequireRobbery(p);Page(p,"Bankraub · Ausbauten",_=>[("Tresore",VaultMenu),("Schutzmaßnahmen",ProtectionMenu),("Fähigkeiten",RobberySkills),("Preise",a=>{RequireRobbery(a);a.SendChat(settings.BankRobbery.UpgradesValidUntilBankReset?"[LPLK Bankraub] Ausbauten gelten bis zum Bankreset. Beim Tresor-Upgrade zahlst du nur die Preisdifferenz.":"[LPLK Bankraub] Tresor/Schutz gelten für die konfigurierte Dauer; Fähigkeiten bis Bankreset.");})],RobberyMenu);
-    }
+    private void RobberyUpgrades(IPlayer p)=>RobberyMenu(p);
     private void VaultMenu(IPlayer p)
     {
         RequireRobbery(p);Page(p,"Bankraub · Tresore",a=>new[]{(1,"Alter Stahltresor"),(2,"Moderner Stahltresor"),(3,"Titan-Tresor")}.Select(v=>
@@ -123,9 +121,11 @@ public sealed partial class Plugin
         if(sec.ProtectedUntil>RobNow)p.SendChat($"[LPLK Bankraub] Raubschutz bis {DateTimeOffset.FromUnixTimeSeconds(sec.ProtectedUntil).ToLocalTime():dd.MM. HH:mm}.");
         foreach(var o in bank.RobberyOrders(true,10000).Where(o=>o.Sponsor==Id(p)).Take(10))p.SendChat($"[LPLK Bankraub] {o.TargetName}: {o.Status switch{"queued"=>"Wartet auf gültiges Rundenende","done"=>"Auszahlung offen",_=>"Abrechnung gespeichert"}} · offener Beuteanspruch {o.Claim:N0} $.");
     }
-    private void SpyMenu(IPlayer p)
+    private void SpyMenu(IPlayer p)=>RobberyMenu(p);
+    private void SpyReports(IPlayer p)
     {
-        RequireRobbery(p);Page(p,"Bankraub · Spionage",_=>[("Spion beauftragen",SpyTargets),("Spionberichte anzeigen",a=>{RequireRobbery(a);var lines=bank!.SpyLog(Id(a),settings.BankRobbery,RobNow,100);Page(a,"Spion · Berichte",_=>lines.Select(line=>(line,(Action<IPlayer>)(b=>{RequireRobbery(b);b.SendChat("[LPLK Spion] "+line);}))).ToArray(),SpyMenu);})],RobberyMenu);
+        RequireRobbery(p);var lines=bank!.SpyLog(Id(p),settings.BankRobbery,RobNow,100);
+        Page(p,"Spionberichte",_=>lines.Select(line=>(line,(Action<IPlayer>)(a=>{RequireRobbery(a);a.SendChat("[LPLK Spion] "+line);}))).ToArray(),RobberyMenu);
     }
     private void SpyTargets(IPlayer p)
     {
@@ -151,20 +151,14 @@ public sealed partial class Plugin
             }
         },SpyMenu);
     }
-    private void RobberyAdmin(IPlayer p)=>Page(p,"Bankraub · Regeln",_=>
-        [($"Bankraub: {(settings.BankRobbery.Enabled?"AN":"AUS")}",a=>{Save(settings with{BankRobbery=settings.BankRobbery with{Enabled=!settings.BankRobbery.Enabled}});RobberyAdmin(a);}),
-        ("Preise",RobberyAdminPrices),("Schutz",RobberyAdminProtection),("Status",RobberyAdminStatus)],EconomySettingsMenu,true);
-    private void RobberyAdminPrices(IPlayer p)=>Page(p,"Bankraub · Preise",_=>
-        [("Aufträge",a=>a.SendChat($"[LPLK Bankraub] Auftrag {settings.BankRobbery.RobberyCost:N0} $, Spionage {settings.BankRobbery.SpyCost:N0} $. Preise in Bank-Dollar.")),
-        ("Ausbauten",a=>a.SendChat($"[LPLK Bankraub] Tresore {settings.BankRobbery.OldSteelVaultPrice:N0}/{settings.BankRobbery.ModernSteelVaultPrice:N0}/{settings.BankRobbery.TitanVaultPrice:N0} $; Räuber-Stufe {settings.BankRobbery.RobberSkillUpgradeCost:N0} $, Spion-Stufe {settings.BankRobbery.SpySkillUpgradeCost:N0} $.")),
-        ($"Periodenbindung: {(settings.BankRobbery.UpgradesValidUntilBankReset?"AN":"AUS")}",a=>a.SendChat("[LPLK Bankraub] Gültigkeit bestehender Käufe bleibt erhalten; weitere Regeln in BankRobbery in settings.json."))],RobberyAdmin,true);
-    private void RobberyAdminProtection(IPlayer p)=>Page(p,"Bankraub · Schutzregeln",_=>
-        [("Schutzzeiten",a=>a.SendChat($"[LPLK Bankraub] Erfolg {settings.BankRobbery.ProtectionHoursAfterSuccess}h, Fehlschlag {settings.BankRobbery.ProtectionHoursAfterFail}h, gleiches Ziel {settings.BankRobbery.SameTargetCooldownHours}h; absoluter Schutz {settings.BankRobbery.HighRollerProtectionAbsoluteMinutes}min.")),
-        ($"High-Roller-Bypass: {(settings.BankRobbery.HighRollerProtectionBypassEnabled?"AN":"AUS")}",a=>{Save(settings with{BankRobbery=settings.BankRobbery with{HighRollerProtectionBypassEnabled=!settings.BankRobbery.HighRollerProtectionBypassEnabled}});RobberyAdminProtection(a);}),
-        ("Bypasskosten",a=>a.SendChat($"[LPLK Bankraub] Ab {settings.BankRobbery.HighRollerProtectionBypassTargetBankThreshold:N0} $ Zielbank; Start {settings.BankRobbery.HighRollerProtectionBypassBaseCost:N0} $, Faktor {settings.BankRobbery.HighRollerProtectionBypassCostMultiplier}, Maximum {settings.BankRobbery.HighRollerProtectionBypassMaxCost:N0} $; {settings.BankRobbery.HighRollerProtectionBypassSuperpotShareBasisPoints/100m}% Superpot."))],RobberyAdmin,true);
-    private void RobberyAdminStatus(IPlayer p)=>Page(p,"Bankraub · Laufzeit",_=>
-        [("Offene Vorgänge",a=>a.SendChat($"[LPLK Bankraub] Offene Aufträge {bank?.RobberyOrders(true,10000).Count(o=>o.Status!="done")}, Beuteansprüche {bank?.RobberyClaims:N0} $. Bezahlte Aufträge bleiben über Neustarts erhalten.")),
-        ($"Spion-Log: {(settings.BankRobbery.SpyLogEnabled?"AN":"AUS")}",a=>{Save(settings with{BankRobbery=settings.BankRobbery with{SpyLogEnabled=!settings.BankRobbery.SpyLogEnabled}});RobberyAdminStatus(a);}),
-        ("Erweiterungen",a=>a.SendChat("[LPLK Bankraub] Titel und Lotto-Ausbaurabatte sind in Economy enthalten. Kopfgeld folgt als weiterer interner Bereich."))],RobberyAdmin,true);
+    private void RobberyAdminPrices(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> RobberyAdminPricesRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
+        [("Aufträge",a=>a.SendChat($"[LPLK Bankraub] Auftrag {settings.BankRobbery.RobberyCost:N0} $, Spionage {settings.BankRobbery.SpyCost:N0} $. Preise in Bank-Dollar.")),        ("Ausbauten",a=>a.SendChat($"[LPLK Bankraub] Tresore {settings.BankRobbery.OldSteelVaultPrice:N0}/{settings.BankRobbery.ModernSteelVaultPrice:N0}/{settings.BankRobbery.TitanVaultPrice:N0} $; Räuber-Stufe {settings.BankRobbery.RobberSkillUpgradeCost:N0} $, Spion-Stufe {settings.BankRobbery.SpySkillUpgradeCost:N0} $.")),        ($"Periodenbindung: {(settings.BankRobbery.UpgradesValidUntilBankReset?"AN":"AUS")}",a=>a.SendChat("[LPLK Bankraub] Gültigkeit bestehender Käufe bleibt erhalten; weitere Regeln in BankRobbery in settings.json."))]))(p);
+    private void RobberyAdminProtection(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> RobberyAdminProtectionRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
+        [("Schutzzeiten",a=>a.SendChat($"[LPLK Bankraub] Erfolg {settings.BankRobbery.ProtectionHoursAfterSuccess}h, Fehlschlag {settings.BankRobbery.ProtectionHoursAfterFail}h, gleiches Ziel {settings.BankRobbery.SameTargetCooldownHours}h; absoluter Schutz {settings.BankRobbery.HighRollerProtectionAbsoluteMinutes}min.")),        ($"High-Roller-Bypass: {(settings.BankRobbery.HighRollerProtectionBypassEnabled?"AN":"AUS")}",a=>{Save(a,current=>current with{BankRobbery=current.BankRobbery with{HighRollerProtectionBypassEnabled=!current.BankRobbery.HighRollerProtectionBypassEnabled}});RobberyAdminProtection(a);}),        ("Bypasskosten",a=>a.SendChat($"[LPLK Bankraub] Ab {settings.BankRobbery.HighRollerProtectionBypassTargetBankThreshold:N0} $ Zielbank; Start {settings.BankRobbery.HighRollerProtectionBypassBaseCost:N0} $, Faktor {settings.BankRobbery.HighRollerProtectionBypassCostMultiplier}, Maximum {settings.BankRobbery.HighRollerProtectionBypassMaxCost:N0} $; {settings.BankRobbery.HighRollerProtectionBypassSuperpotShareBasisPoints/100m}% Superpot."))]))(p);
+    private void RobberyAdminStatus(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> RobberyAdminStatusRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
+        [("Offene Vorgänge",a=>a.SendChat($"[LPLK Bankraub] Offene Aufträge {bank?.RobberyOrders(true,10000).Count(o=>o.Status!="done")}, Beuteansprüche {bank?.RobberyClaims:N0} $. Bezahlte Aufträge bleiben über Neustarts erhalten.")),        ($"Spion-Log: {(settings.BankRobbery.SpyLogEnabled?"AN":"AUS")}",a=>{Save(a,current=>current with{BankRobbery=current.BankRobbery with{SpyLogEnabled=!current.BankRobbery.SpyLogEnabled}});RobberyAdminStatus(a);}),        ("Erweiterungen",a=>a.SendChat("[LPLK Bankraub] Titel und Lotto-Ausbaurabatte sind in Economy enthalten. Kopfgeld folgt als weiterer interner Bereich."))]))(p);
 }
 

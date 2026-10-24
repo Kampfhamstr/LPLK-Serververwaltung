@@ -43,6 +43,7 @@ public sealed partial class Plugin
         .DisableSound().EnableExit().SetPlayerFrozen(false).SetAutoCloseDelay(120)
         // Keep the server keybinds; visible rows are limited to five, logical sound pages to ten.
         .Design.SetMenuTitle(MenuColors.Heading(title)).Design.SetMaxVisibleItems(5)
+        .Design.SetGlobalScrollStyle(MenuOptionScrollStyle.WaitingCenter)
         .Design.SetMenuFooterVisible(true)
         .Design.SetCommentVisible(true)
         .Design.SetDefaultComment("");
@@ -83,6 +84,7 @@ public sealed partial class Plugin
     private void OpenOwnedMenu(IPlayer player,OwnedMenu owner,IMenuBuilderAPI builder)
     {
         owner.Menu=builder.Build();
+        MenuPresentation.Apply(owner.Menu);
         CloseOwnedMenu(player.Slot);
         ownedMenus[player.Slot]=owner;
         try { Core.MenusAPI.OpenMenuForPlayer(player,owner.Menu); }

@@ -1,5 +1,7 @@
+using System.Text.Json.Serialization;
 namespace LPLK_Parachute;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record ParachuteSettings
 {
     public bool Enabled { get; init; } = true;

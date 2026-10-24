@@ -1,0 +1,15 @@
+{
+  "origin": "https://github.com/H-AN/HanZombieRiotS2",
+  "commit": "55dbd2f1a945e59433ae6e93c18ca6d3f38b6176",
+  "license": "GPL-3.0",
+  "originalAuthor": "H-AN",
+  "derivative": "LPLK_Zombie",
+  "productionInstalled": false,
+  "sourceReceipt": "state/fleet-zombie-source-review.json",
+  "changes": [
+    "LPLK lifecycle and scoped timers",
+    "Atomic validated profile pairs",
+    "LPLK administration and status",
+    "Safe entity removal and map command validation"
+  ]
+}

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 namespace LPLK_BombWires;
 
 public sealed class WireRound
@@ -15,7 +16,11 @@ public sealed class WireRound
         if (!Planting || Planter != planter || Generation != generation || color is < 0 or > 3) return false;
         Color = color; return true;
     }
-    public void Plant(int fallback) { Color ??= fallback; Planting = false; Planted = true; }
+    public bool Plant(int fallback)
+    {
+        if(!Planting||Planted||Resolved||fallback is <0 or >3)return false;
+        Color ??= fallback; Planting = false; Planted = true;return true;
+    }
     public bool? Cut(int generation, int color)
     {
         if (!Planted || Resolved || Generation != generation || color is < 0 or > 3) return null;
@@ -23,6 +28,7 @@ public sealed class WireRound
     }
 }
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record WireSettings
 {
     public bool Enabled { get; init; } = true;

@@ -90,10 +90,19 @@ Check(!AdminActionPolicy.CanTarget(1,2,10,100),"cannot select higher rank");
 Check(!AdminActionPolicy.CanTarget(1,2,10,10),"cannot select equal rank");
 Check(AdminActionPolicy.CanTarget(1,1,100,100),"self selection");
 foreach(var bad in new[]{on with{FallbackMaxRounds=0},on with{BlockAtMaxRoundsPercent=double.NaN},on with{BlockAtMaxRoundsPercent=1.1},on with{HalftimeSwitchGraceSeconds=0},on with{MatchEndGuardWindowSeconds=121}})Invalid(bad);
+Invalid(on with{ConfiguredSteamIds=[1]});
+Invalid(on with{ConfiguredSteamIds=[76561198000000001,76561198000000001]});
+var configured=on with{ConfiguredSteamIds=[76561198000000001]};TeamSettings.Validate(configured);var copied=TeamSettings.Copy(configured);copied.ConfiguredSteamIds[0]=76561198000000002;Check(configured.ConfiguredSteamIds[0]==76561198000000001,"Configured selections copied independently");
 string workspace=args[0];
 var reference=JsonDocument.Parse(File.ReadAllText(Path.Combine(workspace,"state/reference-teams.json")));
-var live=JsonSerializer.Deserialize<TeamSettings>(reference.RootElement.GetProperty("settings"))!;
-Eq(live,settings,"defaults equal actual nonpersonal reference settings");
+// The legacy schema also contains original-menu/debug/profile switches. Compare
+// every common setting without passing foreign keys to the strict new schema.
+var legacy=reference.RootElement.GetProperty("settings");
+var shared=legacy.EnumerateObject().Where(p=>typeof(TeamSettings).GetProperty(p.Name) is not null).ToDictionary(p=>p.Name,p=>p.Value);
+var omitted=typeof(TeamSettings).GetProperties().Where(p=>!shared.ContainsKey(p.Name)).Select(p=>p.Name).Order().ToArray();
+Check(omitted.SequenceEqual(new[]{"BlockedMessage","CenterMessage","ChatPrefix","ConfiguredSteamIds"}),"Only diagnostic-redacted message fields absent from reference");
+var live=JsonSerializer.Deserialize<TeamSettings>(JsonSerializer.Serialize(shared))!;
+foreach(var pair in shared){var property=typeof(TeamSettings).GetProperty(pair.Key)!;Eq(JsonSerializer.Serialize(property.GetValue(live)),JsonSerializer.Serialize(property.GetValue(settings)),"Default equals actual reference: "+pair.Key);}
 var permits=new TeamPermits();
 permits.Grant(key,3,100);Check(permits.Consume(key,3,100.5),"admin move exempt once");
 Check(!permits.Consume(key,3,100.6),"permit consumed");

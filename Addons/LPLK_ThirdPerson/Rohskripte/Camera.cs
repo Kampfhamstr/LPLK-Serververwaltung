@@ -3,9 +3,11 @@ using System.Text.RegularExpressions;
 
 namespace LPLK_ThirdPerson;
 
+[System.Text.Json.Serialization.JsonUnmappedMemberHandling(System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow)]
 public sealed record CameraSettings
 {
     public bool Enabled { get; init; } = true;
+    public string CustomTPCommand { get; init; } = "tp";
     public string UseTpPermission { get; init; } = "thirdperson.use";
     public bool UseSmoothCam { get; init; } = true;
     public float ThirdPersonDistance { get; init; } = 100;
@@ -16,6 +18,7 @@ public sealed record CameraSettings
     public static bool PermissionValid(string? value) => value is not null && (value.Length == 0 || Regex.IsMatch(value,@"^[a-zA-Z0-9_.:-]{1,128}$"));
     public static void Validate(CameraSettings s)
     {
+        CameraCommandName.Normalize(s.CustomTPCommand);
         if(!PermissionValid(s.UseTpPermission) || s.DamageMode is not ("back" or "none" or "all") ||
             !float.IsFinite(s.ThirdPersonDistance) || s.ThirdPersonDistance is < 20 or > 250 ||
             !float.IsFinite(s.ThirdPersonHeight) || s.ThirdPersonHeight is < 20 or > 120 ||

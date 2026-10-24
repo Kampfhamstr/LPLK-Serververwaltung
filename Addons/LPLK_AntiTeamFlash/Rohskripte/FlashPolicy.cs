@@ -1,7 +1,9 @@
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace LPLK_AntiTeamFlash;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record FlashSettings
 {
     public bool Enabled { get; init; } = true;

@@ -8,14 +8,14 @@ public sealed partial class Plugin
 {
     private void LotteryProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-11110004"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy lottoprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy lottoprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         string path=Path.Combine(Core.PluginDataDirectory,"lottery-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"lottery-probe.json");
         const string a="76561198000000001",b="76561198000000002";
         try
         {
             bool prior=File.Exists(path);string seedBoot=boot;
             if(File.Exists(report)){using var j=JsonDocument.Parse(File.ReadAllText(report));seedBoot=j.RootElement.GetProperty("seedBoot").GetString()!;}
-            using var probe=new Ledger(path,settings with{Profile="lottery-probe-11110004",StartBank=0});var rules=new LotterySettings();
+            using var probe=new Ledger(path,settings with{Profile="lottery-probe-89450e53",StartBank=0});var rules=new LotterySettings();
             if(!prior)
             {
                 probe.Open(a,"Prüfkonto A");probe.Open(b,"Prüfkonto B");probe.Adjust("seed-a",1,a,a,10000,"set");probe.Adjust("seed-b",1,b,b,10000,"set");

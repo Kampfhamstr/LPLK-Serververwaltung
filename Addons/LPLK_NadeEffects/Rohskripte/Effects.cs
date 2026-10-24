@@ -1,6 +1,8 @@
+using System.Text.Json.Serialization;
 using LPLK.Common;
 namespace LPLK_NadeEffects;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record NadeSettings
 {
     public bool Enabled {get;init;}=true;

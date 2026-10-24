@@ -7,7 +7,7 @@ public sealed partial class Plugin
 {
     private void TitlesProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-11110004"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy titleprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy titleprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         const string a="76561198000000001",b="76561198000000002";
         string path=Path.Combine(Core.PluginDataDirectory,"titles-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"titles-probe.json");
         try
@@ -16,7 +16,7 @@ public sealed partial class Plugin
             if(aliases.Any(c=>!Core.Command.IsCommandRegistered(c)))throw new InvalidDataException("Title alias missing");
             bool prior=File.Exists(path);string seedBoot=boot;long expectedA=0,expectedB=0,expectedTransactions=0;
             if(File.Exists(report)){using var j=JsonDocument.Parse(File.ReadAllText(report));seedBoot=j.RootElement.GetProperty("seedBoot").GetString()!;expectedA=j.RootElement.GetProperty("accountA").GetInt64();expectedB=j.RootElement.GetProperty("accountB").GetInt64();expectedTransactions=j.RootElement.GetProperty("transactions").GetInt64();}
-            using var probe=new Ledger(path,settings with{Profile="titles-probe-11110004",StartBank=0});
+            using var probe=new Ledger(path,settings with{Profile="titles-probe-89450e53",StartBank=0});
             if(!prior)
             {
                 probe.Open(a,"Prüfkonto A");probe.Open(b,"Prüfkonto B");probe.Adjust("seed-a",1,a,a,1_000_000,"set");probe.Adjust("seed-b",1,b,b,2_000_000,"set");probe.Transfer("transfer",1,a,b,1000);probe.SelectTitle("title",1,a,"wealth_1000000");

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AllowUnsafeBlocks>true</AllowUnsafeBlocks><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
+ <ItemGroup>
+  <Compile Include="../../Addons/LPLK_ThirdPerson/Rohskripte/*.cs" Link="ThirdPerson/%(Filename)%(Extension)" />
+  <Compile Include="../../Addons/_Gemeinsam/ModuleSupport.cs" Link="ModuleSupport.cs" />
+  <Compile Include="../../Addons/_Gemeinsam/AdminActionPolicy.cs" Link="AdminActionPolicy.cs" />
+  <Compile Include="../../Addons/_Gemeinsam/WatchedSettings.cs" Link="WatchedSettings.cs" />
+  <Compile Include="../../Addons/LPLK_Admin/Rohskripte/MenuLayout.cs" Link="MenuLayout.cs" />
+  <Compile Include="../AdminMenuChecks/MenuWorld.cs" Link="MenuWorld.cs" />
+  <PackageReference Include="SwiftlyS2.CS2" Version="1.4.14" />
+ </ItemGroup>
+</Project>

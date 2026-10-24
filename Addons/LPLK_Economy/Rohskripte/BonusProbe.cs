@@ -7,14 +7,14 @@ public sealed partial class Plugin
 {
     private void BonusProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-11110004"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy bonusprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy bonusprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         const string a="76561198000000001",b="76561198000000002";
         string path=Path.Combine(Core.PluginDataDirectory,"bonus-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"bonus-probe.json");
         try
         {
             bool prior=File.Exists(path);string seedBoot=boot;bool alreadyCompleted=false;
             if(File.Exists(report)){using var j=JsonDocument.Parse(File.ReadAllText(report));seedBoot=j.RootElement.GetProperty("seedBoot").GetString()!;alreadyCompleted=j.RootElement.GetProperty("restarted").GetBoolean();}
-            var rules=settings with{Profile="bonus-probe-11110004",StartBank=0,ResetMode="Never"};
+            var rules=settings with{Profile="bonus-probe-89450e53",StartBank=0,ResetMode="Never"};
             using var probe=new Ledger(path,rules);
             if(!prior)
             {

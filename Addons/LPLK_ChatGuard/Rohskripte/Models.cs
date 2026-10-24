@@ -57,7 +57,7 @@ public sealed class AntiAdConfig
             "steamlvls.com",
             "steamlevels.com"
         ],
-        AllowedDomains = ["community.example.invalid"],
+        AllowedDomains = ["lplk.de"],
         MarketingKeywords = [
             "free commends",
             "free commend",

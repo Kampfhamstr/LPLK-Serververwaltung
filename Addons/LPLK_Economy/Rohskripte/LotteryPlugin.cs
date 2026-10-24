@@ -1,4 +1,5 @@
 using SwiftlyS2.Shared.Commands;
+using LPLK.Common;
 using SwiftlyS2.Shared.Players;
 namespace LPLK_Economy;
 
@@ -101,29 +102,25 @@ public sealed partial class Plugin
     {
         string round=lotRound??"";long period=bank!.Period;var rules=bank.GetLotteryRound(round)?.Rules??settings.Lotto;
         return rules.TicketAmountButtons.Where(n=>n<=rules.MaxSingleTicketsPerPlayerPerDraw).Distinct().Select(n=>($"{n} Lose · {n*rules.TicketPrice:N0} $",(Action<IPlayer>)(a=>
-        {string id=NewId();Confirm(a,$"{n} Lose für {n*rules.TicketPrice:N0} $ kaufen?",b=>BuyLotto(b,n.ToString(System.Globalization.CultureInfo.InvariantCulture),id,round,period),OpenLotto);}))).ToArray();
+        {string id=NewId();Confirm(a,$"{n} Lose für {n*(long)rules.TicketPrice:N0} $ kaufen?",b=>BuyLotto(b,n.ToString(System.Globalization.CultureInfo.InvariantCulture),id,round,period),OpenLotto);})))
+        .Prepend(("Eigene Anzahl",(Action<IPlayer>)(a=>AmountInput(a,"Anzahl Lose",(b,n)=>{if(lotRound!=round||bank.Period!=period)throw new BankRejected("Lottorunde gewechselt; neu auswählen.");string id=NewId();Confirm(b,$"{n} Lose für {n*rules.TicketPrice:N0} $ kaufen?",c=>BuyLotto(c,n.ToString(System.Globalization.CultureInfo.InvariantCulture),id,round,period),OpenLotto);},LottoAmounts,maximum:rules.MaxSingleTicketsPerPlayerPerDraw)))).ToArray();
     },OpenLotto);
     private void LottoPermanent(IPlayer p)=>Page(p,"Lotto · Dauerlose",a=>
     {
         var plan=bank!.LotteryPlan(Id(a));int max=bank!.PermanentLotteryLimit(Id(a),settings.Lotto,plan.Bought);
-        return [($"Dauerlose {plan.Count}/{max} · +1 aktivieren",b=>LottoPlanConfirm(b,plan.Count+1,plan.Revision)),("Aktivieren",b=>LottoPlanConfirm(b,max,plan.Revision)),("Kündigen",b=>LottoPlanConfirm(b,0,plan.Revision)),("Kosten",LottoInfo)];
+        return [($"Dauerlose {plan.Count}/{max} · +1 aktivieren",b=>LottoPlanConfirm(b,plan.Count+1,plan.Revision)),("Eigene Anzahl",b=>AmountInput(b,"Anzahl Dauerlose",(c,n)=>LottoPlanConfirm(c,(int)n,plan.Revision),LottoPermanent,minimum:0,maximum:max)),("Aktivieren",b=>LottoPlanConfirm(b,max,plan.Revision)),("Kündigen",b=>LottoPlanConfirm(b,0,plan.Revision)),("Kosten",LottoInfo)];
     },OpenLotto);
     private void LottoPlanConfirm(IPlayer p,int count,long revision){string id=NewId();long period=bank!.Period;Confirm(p,count==0?"Dauerlose kündigen?":$"{count} Dauerlose · bis {count*settings.Lotto.TicketPrice:N0} $/Runde?",a=>ChangeLottoPlan(a,count,id,period,revision),OpenLotto);}
-    private void LottoAdmin(IPlayer p)=>Page(p,"Economy · Lotto",_=>[($"Lotto: {(settings.Lotto.Enabled?"AN":"AUS")}",a=>{Save(settings with{Lotto=settings.Lotto with{Enabled=!settings.Lotto.Enabled}});LottoAdmin(a);}),
-        ("Lose",LottoTicketSettings),
-        ("Ziehung",LottoDrawSettings),
-        ("Boni",LottoBonusMenu)],EconomySettingsMenu,true);
-    private void LottoChoice(IPlayer p,string title,int[] values,Func<LotterySettings,int,LotterySettings> change,Action<IPlayer> back)=>Page(p,title,_=>values.Select(v=>(v.ToString("N0"),(Action<IPlayer>)(a=>{Save(settings with{Lotto=change(settings.Lotto,v)});a.SendChat("[LPLK Lotto] Gespeichert. Lospreis und Ziehungsregeln gelten ab der nächsten Runde.");back(a);}))).ToArray(),back,true);
-    private void LottoTicketSettings(IPlayer p)=>Page(p,"Lotto · Lose & Dauerlose",_=>[
-        ($"Lospreis: {settings.Lotto.TicketPrice:N0} $",a=>LottoChoice(a,"Lotto · Preis pro Los",[100,250,500,1000,2500],(s,v)=>s with{TicketPrice=v},LottoTicketSettings)),
-        ($"Loslimit: {settings.Lotto.MaxSingleTicketsPerPlayerPerDraw}",a=>LottoChoice(a,"Lotto · Loslimit",[1,5,10,20,50],(s,v)=>s with{MaxSingleTicketsPerPlayerPerDraw=v},LottoTicketSettings)),
-        ($"Basis-Dauerlose: {settings.Lotto.MaxPermanentTicketsPerPlayer}",a=>LottoChoice(a,"Lotto · Basis-Dauerlose",[0,1,3,5,10],(s,v)=>s with{MaxPermanentTicketsPerPlayer=v},LottoTicketSettings)),
-        ($"Dauerloslimit: {settings.Lotto.MaxPermanentTicketsTotal}",a=>LottoChoice(a,"Lotto · Dauerlos-Gesamtlimit",[5,10,15,20],(s,v)=>s with{MaxPermanentTicketsTotal=v},LottoTicketSettings))],LottoAdmin,true);
-    private void LottoDrawSettings(IPlayer p)=>Page(p,"Lotto · Ziehung & Superpot",_=>[
-        ($"Mindestspieler: {settings.Lotto.MinActivePlayersForLotto}",a=>LottoChoice(a,"Lotto · Aktive Menschen",[2,3,4,6],(s,v)=>s with{MinActivePlayersForLotto=v},LottoDrawSettings)),
-        ($"Jackpotchance: {settings.Lotto.JackpotChanceBasisPoints/100m:0.##} %",a=>LottoChoice(a,"Lotto · Chance in Basispunkten",[0,100,200,500,1000],(s,v)=>s with{JackpotChanceBasisPoints=v},LottoDrawSettings)),
-        ($"Superpotreset: {(settings.Lotto.ResetSuperpotWithBankReset?"AN":"AUS")}",a=>{Save(settings with{Lotto=settings.Lotto with{ResetSuperpotWithBankReset=!settings.Lotto.ResetSuperpotWithBankReset}});LottoDrawSettings(a);}),
-        ($"Rundenerstattung: {(settings.Lotto.RefundOnInvalidRoundEnd?"AN":"AUS")}",a=>{Save(settings with{Lotto=settings.Lotto with{RefundOnInvalidRoundEnd=!settings.Lotto.RefundOnInvalidRoundEnd}});LottoDrawSettings(a);})],LottoAdmin,true);
+    private void LottoAdmin(IPlayer p) => Page(p,"Lotto",actor => MenuRows.Join(("Lotto",LottoAdminRows(actor)),("Lose",LottoTicketSettingsRows(actor)),("Ziehung",LottoDrawSettingsRows(actor)),("Boni",LottoBonusMenuRows(actor))),a=>a.ExecuteCommand("sw_admin"),true);
+    private IReadOnlyList<(string,Action<IPlayer>)> LottoAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[($"Lotto: {(settings.Lotto.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Lotto=current.Lotto with{Enabled=!current.Lotto.Enabled}});LottoAdmin(a);})]))(p);
+    private void LottoChoice(IPlayer p,string title,int[] values,Func<LotterySettings,int,LotterySettings> change,Action<IPlayer> back)=>Page(p,title,_=>values.Select(v=>(v.ToString("N0"),(Action<IPlayer>)(a=>{Save(a,current=>current with{Lotto=change(current.Lotto,v)});a.SendChat("[LPLK Lotto] Gespeichert. Lospreis und Ziehungsregeln gelten ab der nächsten Runde.");back(a);})))
+        .Prepend(("Eigener Wert",(Action<IPlayer>)(a=>AmountInput(a,title,(b,v)=>{var candidate=change(settings.Lotto,(int)v);LotterySettings.Validate(candidate);Confirm(b,$"{title}: {v:N0}",c=>Save(c,current=>current with{Lotto=change(current.Lotto,(int)v)}),back,true);},b=>LottoChoice(b,title,values,change,back),true,0,int.MaxValue)))).ToArray(),back,true);
+    private void LottoTicketSettings(IPlayer p) => LottoAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> LottoTicketSettingsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[
+        ($"Lospreis: {settings.Lotto.TicketPrice:N0} $",a=>LottoChoice(a,"Lotto · Preis pro Los",[100,250,500,1000,2500],(s,v)=>s with{TicketPrice=v},LottoTicketSettings)),        ($"Loslimit: {settings.Lotto.MaxSingleTicketsPerPlayerPerDraw}",a=>LottoChoice(a,"Lotto · Loslimit",[1,5,10,20,50],(s,v)=>s with{MaxSingleTicketsPerPlayerPerDraw=v},LottoTicketSettings)),        ($"Basis-Dauerlose: {settings.Lotto.MaxPermanentTicketsPerPlayer}",a=>LottoChoice(a,"Lotto · Basis-Dauerlose",[0,1,3,5,10],(s,v)=>s with{MaxPermanentTicketsPerPlayer=v},LottoTicketSettings)),        ($"Dauerloslimit: {settings.Lotto.MaxPermanentTicketsTotal}",a=>LottoChoice(a,"Lotto · Dauerlos-Gesamtlimit",[5,10,15,20],(s,v)=>s with{MaxPermanentTicketsTotal=v},LottoTicketSettings))]))(p);
+    private void LottoDrawSettings(IPlayer p) => LottoAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> LottoDrawSettingsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[
+        ($"Mindestspieler: {settings.Lotto.MinActivePlayersForLotto}",a=>LottoChoice(a,"Lotto · Aktive Menschen",[2,3,4,6],(s,v)=>s with{MinActivePlayersForLotto=v},LottoDrawSettings)),        ($"Jackpotchance: {settings.Lotto.JackpotChanceBasisPoints/100m:0.##} %",a=>LottoChoice(a,"Lotto · Chance in Basispunkten",[0,100,200,500,1000],(s,v)=>s with{JackpotChanceBasisPoints=v},LottoDrawSettings)),        ($"Superpotreset: {(settings.Lotto.ResetSuperpotWithBankReset?"AN":"AUS")}",a=>{Save(a,current=>current with{Lotto=current.Lotto with{ResetSuperpotWithBankReset=!current.Lotto.ResetSuperpotWithBankReset}});LottoDrawSettings(a);}),        ($"Rundenerstattung: {(settings.Lotto.RefundOnInvalidRoundEnd?"AN":"AUS")}",a=>{Save(a,current=>current with{Lotto=current.Lotto with{RefundOnInvalidRoundEnd=!current.Lotto.RefundOnInvalidRoundEnd}});LottoDrawSettings(a);})]))(p);
 }
 
 

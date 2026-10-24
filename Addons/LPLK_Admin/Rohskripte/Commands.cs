@@ -30,17 +30,17 @@ public sealed partial class Plugin
     private string[] Targets(ICommandContext c,string token,bool offline)
     {
         var players=Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient&&p.IsAuthorized).ToArray();
-        if(AdminActionPolicy.SteamId(token)) { if(!offline&&Find(ulong.Parse(token)) is null)throw new ArgumentException("Spieler nicht verbunden.");return [token]; }
+        if(LegacyAdminTargets.TrySteamId(token,out var normalized)) { token=normalized; if(!offline&&Find(ulong.Parse(token)) is null)throw new ArgumentException("Spieler nicht verbunden.");return [token]; }
         if(token=="@me"&&c.Sender is {} self)return [self.SteamID.ToString()];
         var filtered=token.ToLowerInvariant() switch {
             "@all" or "@humans"=>players,
-            "@t"=>players.Where(p=>p.Controller.TeamNum==2).ToArray(),
-            "@ct"=>players.Where(p=>p.Controller.TeamNum==3).ToArray(),
+            "@t" or "@terrorists"=>players.Where(p=>p.Controller.TeamNum==2).ToArray(),
+            "@ct" or "@counterterrorists"=>players.Where(p=>p.Controller.TeamNum==3).ToArray(),
             "@alive"=>players.Where(p=>p.PlayerPawn is {IsValid:true,Health:>0}).ToArray(),
             "@dead"=>players.Where(p=>p.PlayerPawn is not {IsValid:true,Health:>0}).ToArray(),
             _=>null};
         if(filtered is not null){if(filtered.Length==0)throw new ArgumentException("Keine passenden Spieler.");return filtered.Select(p=>p.SteamID.ToString()).ToArray();}
-        if(token.StartsWith('#')&&int.TryParse(token[1..],out int slot))filtered=players.Where(p=>p.PlayerID==slot).ToArray();
+        if(int.TryParse(token.StartsWith('#')?token[1..]:token,out int slot))filtered=players.Where(p=>p.PlayerID==slot).ToArray();
         else { filtered=players.Where(p=>string.Equals(p.Controller.PlayerName,token,StringComparison.OrdinalIgnoreCase)).ToArray();if(filtered.Length==0)filtered=players.Where(p=>p.Controller.PlayerName.Contains(token,StringComparison.OrdinalIgnoreCase)).ToArray(); }
         if(filtered.Length!=1)throw new ArgumentException("Spieler fehlt oder Name ist mehrdeutig. SteamID64 oder #Slot verwenden.");
         return [filtered[0].SteamID.ToString()];
@@ -65,7 +65,7 @@ public sealed partial class Plugin
     },c.Reply);
 
     [Command("rr")][CommandAlias("restart")]
-    public void Restart(ICommandContext c)=>Guard(()=>Run(c.Sender,"round_restart",null,new(){["countdown_seconds"]=5},c.Reply),c.Reply);
+    public void Restart(ICommandContext c)=>Guard(()=>Run(c.Sender,"round_restart",null,new(){["countdown_seconds"]=LegacyAdminTargets.RestartDelay(c.Args)},c.Reply),c.Reply);
     [Command("say")] public void Say(ICommandContext c)=>Broadcast(c,"chat");
     [Command("csay")] public void Csay(ICommandContext c)=>Broadcast(c,"center");
     [Command("hsay")] public void Hsay(ICommandContext c)=>Broadcast(c,"hint");

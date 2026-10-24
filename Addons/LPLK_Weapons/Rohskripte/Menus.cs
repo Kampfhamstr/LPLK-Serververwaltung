@@ -8,48 +8,47 @@ namespace LPLK_Weapons;
 
 public sealed partial class Plugin
 {
-    private bool PlayerAllowed(IPlayer p)=>module.Active&&p.IsValid&&p.IsAuthorized&&!p.IsFakeClient&&settings.Enabled&&settings.MenuEnabled&&
-        (settings.MenuPermission.Length==0||Core.Permission.PlayerHasPermission(p.SteamID,settings.MenuPermission));
+    private bool PlayerAllowed(IPlayer p){RefreshSettings();return module.Active&&p.IsValid&&p.IsAuthorized&&!p.IsFakeClient&&settings.Enabled&&settings.MenuEnabled&&
+        (settings.MenuTeam==0||p.Controller is {IsValid:true}&&p.Controller.TeamNum==settings.MenuTeam)&&
+        (settings.MenuPermission.Length==0||Core.Permission.PlayerHasPermission(p.SteamID,settings.MenuPermission));}
     private void AdminPage(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null,int page=0)=>
-        CompactMenu.Open(Core,p,title,()=>module.Active,module.CanAdmin,a=>rows(a).Select(row=>(row.Item1,(Action<IPlayer>)(actor=>
+        CompactMenu.Open(Core,p,title,()=>module.Active,a=>{RefreshSettings();return module.CanAdmin(a);},a=>rows(a).Select(row=>(row.Item1,(Action<IPlayer>)(actor=>
         {
-            var before=settings;row.Item2(actor);
+            var before=settings;try{row.Item2(actor);}catch(Exception e)when(e is IOException or UnauthorizedAccessException or InvalidOperationException or System.Text.Json.JsonException){actor.SendChat("[LPLK] Änderung nicht übernommen: "+e.Message);return;}
             if(!ReferenceEquals(before,settings))Core.Logger.LogInformation("LPLK_Weapons: Admin {Actor}; vorher={Before}; nachher={After}",actor.SteamID,System.Text.Json.JsonSerializer.Serialize(before),System.Text.Json.JsonSerializer.Serialize(settings));
         }))).ToArray(),back,page);
-    private void OpenAdmin(IPlayer p)=>AdminPage(p,"LPLK · Waffen & Auswahl",_=>new (string,Action<IPlayer>)[]
+    private void OpenAdmin(IPlayer p) => AdminPage(p,"LPLK · Waffen & Auswahl",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Waffen",RestrictionsRows(actor)),("Auswahl",SelectionSettingsRows(actor))));
+    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
-        ($"Modul aktiv: {settings.Enabled}",a=>{Save(settings with{Enabled=!settings.Enabled});OpenAdmin(a);}),
-        ("Waffenfreigaben",Restrictions),("Spielerauswahl",SelectionSettings),
-        ("Status",a=>a.SendChat($"[LPLK] Preset {settings.ActivePreset}; {settings.AllowedWeapons.Length} Freigaben; {settings.Rules.Count} Sonderregeln; Fehler {errors}. Sonderregeln: settings.json / Rules."))
-    });
-    private void Restrictions(IPlayer p)=>AdminPage(p,"Waffen · Freigaben",_=>new (string,Action<IPlayer>)[]
+("Sonderregeln",SpecialRules),        ("Status",a=>a.SendChat($"[LPLK] Preset {settings.ActivePreset}; {settings.AllowedWeapons.Length} Freigaben; {settings.Rules.Count} Sonderregeln; Fehler {errors}. Mapquoten und Rechte: settings.json / Rules."))
+    }))(p);
+    private void SettingsMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
-        ($"Beschränkung: {settings.RestrictionEnabled}",a=>{Save(settings with{RestrictionEnabled=!settings.RestrictionEnabled});Restrictions(a);}),
-        ("Preset",Presets),("Einzelne Waffen",a=>AdminGroups(a,false)),
-        ("Weitere Regeln",a=>AdminPage(a,"Waffen · Weitere Regeln",_=>new (string,Action<IPlayer>)[]
+        ($"Modul aktiv: {settings.Enabled}",a=>{Save(current=>current with{Enabled=!current.Enabled});SettingsMenu(a);})    }))(p);
+    private void Restrictions(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> RestrictionsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
+    {
+        ($"Beschränkung: {settings.RestrictionEnabled}",a=>{Save(current=>current with{RestrictionEnabled=!current.RestrictionEnabled});Restrictions(a);}),        ("Preset",Presets),("Einzelne Waffen",a=>AdminGroups(a,false)),        ("Weitere Regeln",a=>AdminPage(a,"Waffen · Weitere Regeln",_=>new (string,Action<IPlayer>)[]
         {
-            ($"Unbekannte sperren: {settings.RestrictUnknownWeapons}",b=>{Save(settings with{RestrictUnknownWeapons=!settings.RestrictUnknownWeapons});Restrictions(b);}),
-            ($"Sperrhinweise: {settings.ShowRestrictionAlert}",b=>{Save(settings with{ShowRestrictionAlert=!settings.ShowRestrictionAlert});Restrictions(b);})
+            ($"Unbekannte sperren: {settings.RestrictUnknownWeapons}",b=>{Save(current=>current with{RestrictUnknownWeapons=!current.RestrictUnknownWeapons});Restrictions(b);}),
+            ($"Sperrhinweise: {settings.ShowRestrictionAlert}",b=>{Save(current=>current with{ShowRestrictionAlert=!current.ShowRestrictionAlert});Restrictions(b);})
         },Restrictions))
-    },OpenAdmin);
+    }))(p);
     private void Presets(IPlayer p)=>AdminPage(p,"Waffen · Presets",_=>new[]{("AllWeapons","Alle Waffen"),("PistolsOnly","Nur Pistolen"),("DeagleOnly","Nur Deagle"),("RiflesOnly","Nur Gewehre"),("SnipersOnly","Nur Scharfschützen"),("AwpOnly","Nur AWP"),("NoSnipers","Keine Scharfschützen")}
-        .Select(x=>(x.Item2,(Action<IPlayer>)(a=>{Save(settings with{AllowedWeapons=WeaponCatalog.Preset(x.Item1),ActivePreset=x.Item1});a.SendChat("[LPLK] Preset gespeichert; Beschränkung bleibt "+(settings.RestrictionEnabled?"AN":"AUS")+".");Restrictions(a);}))).ToArray(),Restrictions);
-    private void SelectionSettings(IPlayer p)=>AdminPage(p,"Waffen · Spielerauswahl",_=>new (string,Action<IPlayer>)[]
+        .Select(x=>(x.Item2,(Action<IPlayer>)(a=>{Save(current=>current with{AllowedWeapons=WeaponCatalog.Preset(x.Item1),ActivePreset=x.Item1});a.SendChat("[LPLK] Preset gespeichert; Beschränkung bleibt "+(settings.RestrictionEnabled?"AN":"AUS")+".");Restrictions(a);}))).ToArray(),Restrictions);
+    private void SelectionSettings(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> SelectionSettingsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
-        ($"Kostenlose Auswahl: {settings.MenuEnabled}",a=>{Save(settings with{MenuEnabled=!settings.MenuEnabled});SelectionSettings(a);}),
-        ("Angebotene Waffen",a=>AdminGroups(a,true)),
-        ("Berechtigung",a=>a.SendChat("[LPLK] Menürecht: "+(settings.MenuPermission.Length==0?"alle Spieler":settings.MenuPermission)+". Lebender Spieler in T/CT erforderlich.")),
-        ("Ausprobieren",a=>Guns(a,null))
-    },OpenAdmin);
+        ($"Kostenlose Auswahl: {settings.MenuEnabled}",a=>{Save(current=>current with{MenuEnabled=!current.MenuEnabled});SelectionSettings(a);}),        ("Angebotene Waffen",a=>AdminGroups(a,true)),        ("Berechtigung",a=>a.SendChat("[LPLK] Menürecht: "+(settings.MenuPermission.Length==0?"alle Spieler":settings.MenuPermission)+". Lebender Spieler in T/CT erforderlich.")),        ("Ausprobieren",a=>Guns(a,null))
+    }))(p);
     private void AdminGroups(IPlayer p,bool blacklist)=>AdminPage(p,blacklist?"Auswahl · Kategorien":"Freigaben · Kategorien",_=>WeaponCatalog.Groups.Select(group=>(group,(Action<IPlayer>)(a=>AdminWeapons(a,group,blacklist)))).ToArray(),blacklist?SelectionSettings:Restrictions);
     private void AdminWeapons(IPlayer p,string group,bool blacklist)=>AdminPage(p,group,_=>WeaponCatalog.All.Where(w=>w.Group==group).Select(w=>
     {
         bool on=blacklist?!settings.MenuBlacklist.Contains(w.Id):settings.AllowedWeapons.Contains(w.Id);
         return ($"{w.Name}: {on}",(Action<IPlayer>)(a=>
         {
-            var list=(blacklist?settings.MenuBlacklist:settings.AllowedWeapons).ToHashSet(StringComparer.Ordinal);
-            if(!list.Remove(w.Id))list.Add(w.Id);
-            Save(blacklist?settings with{MenuBlacklist=list.Order().ToArray()}:settings with{AllowedWeapons=list.Order().ToArray(),ActivePreset="Custom"});
+            Save(current=>{var list=(blacklist?current.MenuBlacklist:current.AllowedWeapons).ToHashSet(StringComparer.Ordinal);if(!list.Remove(w.Id))list.Add(w.Id);return blacklist?current with{MenuBlacklist=list.Order().ToArray()}:current with{AllowedWeapons=list.Order().ToArray(),ActivePreset="Custom"};});
             AdminWeapons(a,group,blacklist);
         }));
     }).ToArray(),a=>AdminGroups(a,blacklist));

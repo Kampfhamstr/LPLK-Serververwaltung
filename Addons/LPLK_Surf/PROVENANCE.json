@@ -1,0 +1,16 @@
+{
+  "origin": "User workspace SwiftSurf 2.1.8",
+  "files": [
+    {
+      "path": "Surfserver Swiftly2/SwiftSurf/src/Plugin.cs",
+      "sha256": "69F45ABCAD7E1A136F0BC922D3FCE1A84064B87E931FCB73A0C7AD52633F6D30"
+    },
+    {
+      "path": "Surfserver Swiftly2/SwiftSurf/src/Features.cs",
+      "sha256": "ECD7CF188699207BDF8E525AE6D0A4EB4071FA0C86C37B1BA0A7ED846F22780C"
+    }
+  ],
+  "purpose": "Full existing Surf/KZ functionality retained; LPLK lifecycle, configuration, administration and migration implementation follows",
+  "version": "0.1.0",
+  "productionInstalled": false
+}

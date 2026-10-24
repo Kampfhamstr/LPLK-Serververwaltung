@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Mono.Cecil;
 using SerververwaltungBridge;
 using SwiftlyS2.Shared;
+using SwiftlyS2.Shared.Players;
+using System.Text.Json;
 
 int checks = 0;
 void Check(bool ok, string label) { if (!ok) throw new Exception(label); checks++; }
@@ -62,6 +64,26 @@ world.Call("QueueMapSwitchDispatch",7L,new MapSwitchTarget{IsWorkshop=true,Works
 world.Tick();world.Tick();
 Check(world.Commands.SequenceEqual(new[]{"nextlevel \"\"","host_workshop_map 3149392523"}),"Unsafe workshop nextlevel never dispatched");
 
+// Execute the actual cross-server guard and durable receipt with a fake native boundary.
+world=new World();string fleetRoot=Path.Combine(Environment.GetEnvironmentVariable("LPLK_BUILD_ROOT")!,"BridgeCompatibilityChecks","fleet",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(fleetRoot);world.Set("_root",fleetRoot);
+world.ActorPermissions.UnionWith(["admin.menu","admin.chat"]);
+BridgeCommand FleetCommand()=>new(){Id="fleet_1_"+Guid.NewGuid().ToString("N"),Action="private_message",TargetSteamid="76561198000000002",Payload=new(){["message"]=JsonSerializer.SerializeToElement("test")},Fleet=new("76561198000000001","7",DateTimeOffset.UtcNow.AddSeconds(20))};
+var fleetCommand=FleetCommand();world.Call("Execute",fleetCommand);world.Call("Execute",fleetCommand);Check(world.PlayerMessages==1,"Durable fleet receipt prevents repeated native action");
+var afterRestart=new World();afterRestart.Set("_root",fleetRoot);afterRestart.Call("Execute",fleetCommand);Check(afterRestart.PlayerMessages==0,"Receipt survives plugin restart without requiring re-execution");
+world.TargetSession=8;Reject(()=>world.Call("Execute",FleetCommand()),"Reconnected remote target rejected");world.TargetSession=7;
+world.TargetPermissions.Add("admin.root");Reject(()=>world.Call("Execute",FleetCommand()),"Remote target immunity rechecked natively");world.TargetPermissions.Clear();
+world.ActorPermissions.Clear();Reject(()=>world.Call("Execute",FleetCommand()),"Revoked target-server permissions rejected");world.ActorPermissions.Add("admin.chat");
+var expired=FleetCommand();expired.Fleet=expired.Fleet! with{ExpiresAt=DateTimeOffset.UtcNow.AddSeconds(-1)};Reject(()=>world.Call("Execute",expired),"Expired remote action rejected");
+var forbidden=FleetCommand();forbidden.Action="server_command";Reject(()=>world.Call("Execute",forbidden),"Fleet does not allow arbitrary console commands");
+Check(world.PlayerMessages==1,"All rejected remote commands leave native state unchanged");
+string outbox=Path.Combine(fleetRoot,"fleet-outbox");Directory.CreateDirectory(outbox);
+File.WriteAllText(Path.Combine(outbox,new string('0',32)+".json"),"{}");
+string pendingId=Guid.NewGuid().ToString("N");
+File.WriteAllText(Path.Combine(outbox,pendingId+".json"),JsonSerializer.Serialize(new FleetRequest(pendingId,"76561198000000001","origin",2,"76561198000000002","7","kick",[],DateTimeOffset.UtcNow),new JsonSerializerOptions{PropertyNamingPolicy=JsonNamingPolicy.SnakeCaseLower}));
+var outboxRows=(List<FleetRequest>)typeof(Plugin).GetMethod("SafeFleetRequests",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(world.Plugin,null)!;
+Check(outboxRows.Count==1&&outboxRows[0].Id==pendingId,"damaged outbox row does not block valid commands or central moderation exchange");
+Check(File.Exists(Path.Combine(outbox,new string('0',32)+".json")),"damaged evidence is preserved");
+
 // Inspect the single stable-built DLL against the real API loaded by each harness.
 using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(AppContext.BaseDirectory);
 using var module=ModuleDefinition.ReadModule(typeof(Plugin).Assembly.Location,new ReaderParameters{AssemblyResolver=resolver});
@@ -83,6 +105,9 @@ public class Proxy:DispatchProxy {
     public static object? Empty(Type t)=>t==typeof(void)?null:t.IsValueType?Activator.CreateInstance(t):null;
 }
 public sealed class World {
+    public HashSet<string> ActorPermissions=[],TargetPermissions=[];public ulong TargetSession=7;public int PlayerMessages;
+    private IPlayer Player=> (IPlayer)Proxy.Make(typeof(IPlayer),(m,a)=>m.Name switch {"get_IsValid" or "get_IsAuthorized"=>true,"get_IsFakeClient"=>false,"get_SteamID"=>76561198000000002UL,"get_SessionId"=>TargetSession,"SendMessage"=>Message(),_=>Proxy.Empty(m.ReturnType)});
+    private object? Message(){PlayerMessages++;return null;}
     public List<string> Commands=[];public Queue<Action> Next=[];public List<Action> Timers=[];
     public bool CvarExists,CvarThrows;public string? CvarValue;public int FailAt;private int attempts;
     public Plugin Plugin;
@@ -97,6 +122,8 @@ public sealed class World {
     }
     private object? Service(MethodInfo method,object?[]? args){
         switch(method.Name){
+            case "GetPlayerFromSteamId":return (ulong)args![0]! ==76561198000000002UL?Player:null;
+            case "PlayerHasPermission":return ((ulong)args![0]! ==76561198000000001UL?ActorPermissions:TargetPermissions).Contains((string)args[1]!);
             case "ExecuteCommandWithBuffer":throw new Exception("Removed API must never be called");
             case "ExecuteCommand":if(++attempts==FailAt)throw new InvalidOperationException("engine fixture error");Commands.Add((string)args![0]!);return null;
             case "NextWorldUpdate":Next.Enqueue((Action)args![0]!);return null;

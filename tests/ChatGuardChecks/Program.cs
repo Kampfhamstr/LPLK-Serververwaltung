@@ -8,12 +8,12 @@ void Ad(string text,bool name,bool expected,AntiAdConfig? settings=null,GlobalPr
 foreach(string domain in new[]{"cs2commends.com","jaegerservice.xyz","sinlyxe.cc","clash.gg","steamlvls.com","steamlevels.com"})
     foreach(bool name in new[]{false,true})Ad(domain,name,true);
 foreach(string text in new[]{"CLASH[.]GG","c l a s h . gg","clash\u200b.gg","clash dot gg","ｃｌａｓｈ．ｇｇ","clash(.)gg"})Ad(text,false,true);
-foreach(string text in new[]{"Hallo zusammen!","gg wp","community.example.invalid","https://verwaltung.example.invalid/servers/7","example.com","127.0.0.1:27015","ÄÖÜß",""," ","free cases"})Ad(text,false,false);
+foreach(string text in new[]{"Hallo zusammen!","gg wp","lplk.de","https://verwaltung.lplk.de/servers/7","example.com","127.0.0.1:27015","ÄÖÜß",""," ","free cases"})Ad(text,false,false);
 Ad("promo code https://evilsite.com",false,true);
-Ad("free cases community.example.invalid",false,false);
-Ad("promo code https://verwaltung.example.invalid/servers/7",false,false);
-Ad("promo code community.example.invalid https://evilsite.com",false,true);
-Ad("community.example.invalid clash.gg",false,true);
+Ad("free cases lplk.de",false,false);
+Ad("promo code https://verwaltung.lplk.de/servers/7",false,false);
+Ad("promo code lplk.de https://evilsite.com",false,true);
+Ad("lplk.de clash.gg",false,true);
 Ad("discord.gg/test",false,true);
 Ad("discord.gg/test",true,true); // Existing keyword list includes discord.gg.
 Ad("unknown.com",true,false);
@@ -21,7 +21,7 @@ Ad("cheap steam levels unknown.com",true,true);
 Ad("free cs2 commends",true,true);
 var allow=AntiAdConfig.CreateDefault();allow.AllowedDomains.Add("clash.gg");Ad("clash.gg",false,true,allow);
 allow.AllowedDomains.Add("discord.gg");Ad("discord.gg/test",false,false,allow);
-Ad("free cases community.example.invalid.attacker.com",false,true);
+Ad("free cases lplk.de.attacker.com",false,true);
 Ad("play safely",false,true,snapshot:new(){BlockedPhrases=["play safely"]});
 Ad("newblock.site",false,true,snapshot:new(){Domains=["newblock.site"]});
 Ad("dealword newsite.com",false,true,snapshot:new(){MarketingKeywords=["dealword"]});

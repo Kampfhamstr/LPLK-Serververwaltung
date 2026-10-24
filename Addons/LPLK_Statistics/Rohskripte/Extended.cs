@@ -53,7 +53,7 @@ public sealed partial class Plugin
  }
  private void ExtendedTick(long now)
  {
-  if(!Live||!settings.PvpEnabled){playClocks.Clear();ownership.Clear();knownWeapons.Clear();return;}
+  if(!mapReady||!Live||!settings.PvpEnabled){playClocks.Clear();ownership.Clear();knownWeapons.Clear();return;}
   if(now>=nextOwnership){nextOwnership=now+200;ScanWeapons();}
   if(now<nextStatus)return;
   var current=new HashSet<string>();bool warm=Warmup();

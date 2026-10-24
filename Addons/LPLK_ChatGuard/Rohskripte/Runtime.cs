@@ -15,6 +15,7 @@ public sealed partial class Plugin
     private bool _active;
     private string? _configError;
     private long _nextScan;
+    private bool _statusWriteFailed;
     private IInterfaceManager? _interfaces;
     private bool BridgePresent=>Core.PluginManager.GetAllPlugins().Contains("lplk.serververwaltung.bridge");
     public override void UseSharedInterface(IInterfaceManager manager)=>_interfaces=manager;
@@ -65,13 +66,13 @@ public sealed partial class Plugin
     }
     private void SaveConfig(AntiAdConfig settings)
     {
-        string temp=_configPath+".tmp";File.WriteAllText(temp,JsonSerializer.Serialize(settings,_json));File.Move(temp,_configPath,true);_configLastWriteUtc=File.GetLastWriteTimeUtc(_configPath);
+        string temp=_configPath+".tmp";File.WriteAllText(temp,JsonSerializer.Serialize(settings,_json));File.Move(temp,_configPath,true);
     }
     private void WriteStatus()
     {
-        try{AtomicJson.Write(Path.Combine(_root,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.0",enabled=_config.Enabled,bridgePresent=BridgePresent,filterReady=_active,bridgeFilterReady=BridgeFilterReady(),localData=true,centralExport=false,
+        try{AtomicJson.Write(Path.Combine(_root,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.4",enabled=_config.Enabled,bridgePresent=BridgePresent,filterReady=_active,bridgeFilterReady=BridgeFilterReady(),localData=true,centralExport=false,
             trackedDisconnects=_advertisingDisconnects.Count,activeGags=_gagUntil.Count,localDomains=_config.BlockedDomains.Count,allowedDomains=_config.AllowedDomains.Count,
-            globalDomains=_globalBlockedDomains.Count,globalPhrases=_globalBlockedPhrases.Count,importedBlockedIdentities=_globalBlockedSteamIds.Count,configError=_configError});}
-        catch(Exception e){Core.Logger.LogWarning(e,"ChatGuard-Status konnte nicht geschrieben werden.");}
+            globalDomains=_globalBlockedDomains.Count,globalPhrases=_globalBlockedPhrases.Count,importedBlockedIdentities=_globalBlockedSteamIds.Count,configError=_configError});_statusWriteFailed=false;}
+        catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!_statusWriteFailed)Core.Logger.LogWarning(e,"ChatGuard-Status konnte nicht geschrieben werden.");_statusWriteFailed=true;}
     }
 }

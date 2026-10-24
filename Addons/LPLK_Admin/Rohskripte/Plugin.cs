@@ -7,13 +7,13 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_Admin;
 
-[PluginMetadata(Id = "LPLK_Admin", Name = "LPLK_Admin", Version = "0.5.0", Author = "LPLK", Description = "Einfache Spieler- und Adminmenüs", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_Admin", Name = "LPLK_Admin", Version = "0.10.5", Author = "LPLK", Description = "Einfache Spieler- und Adminmenüs", MinimumAPIVersion = "1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private IInterfaceManager? interfaces;
     private bool active;
-    public override void Load(bool hotReload) { LoadSettings(); active = true; Core.Logger.LogInformation("LPLK_Admin 0.5.0: !menu, !admin und !adminmenu bereit."); }
-    public override void Unload() { active = false; generation++; interfaces = null; }
+    public override void Load(bool hotReload) { LoadSettings(); active = true; Core.MenusAPI.MenuOpened += ModuleMenuOpened; ReconcileAdminCommands(); WriteSettingsStatus(); Core.Logger.LogInformation("LPLK_Admin 0.10.5: !menu, !admin und !adminmenu bereit."); }
+    public override void Unload() { active = false; Core.MenusAPI.MenuOpened -= ModuleMenuOpened; moduleReturns.Clear(); RemoveAdminCommands(); InvalidateMenus(); interfaces = null; }
     public override void UseSharedInterface(IInterfaceManager manager) => interfaces = manager;
 
     private IReadOnlyDictionary<string, Delegate>? Api(string id)
@@ -28,7 +28,8 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     {
         if (!ctx.IsSentByPlayer || ctx.Sender is not { } player)
         {
-            ctx.Reply("LPLK_Admin 0.5.0; Backend="+(Backend() is not null)+"; Module: " + string.Join(", ", Core.PluginManager.GetAllPlugins().Where(id => Api(id) is not null)));
+            ReloadSettings();WriteSettingsStatus();
+            ctx.Reply("LPLK_Admin 0.10.5; Gründe="+settings.Reasons.Length+"; Dauern="+settings.Durations.Length+"; reloadError="+(settingsError??"none")+"; Backend="+(Backend() is not null)+"; Module: " + string.Join(", ", Core.PluginManager.GetAllPlugins().Where(id => Api(id) is not null)));
             return;
         }
         OpenAdministration(player);

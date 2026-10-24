@@ -96,14 +96,14 @@ foreach(bool enabled in new[]{false,true})foreach(bool known in new[]{false,true
 foreach(bool noWinner in new[]{false,true})foreach(bool warmup in new[]{false,true})foreach(int players in new[]{0,1,2,10})foreach(int winner in new[]{0,2,3})
     Check(LotteryPolicy.DrawAllowed(rules with{ProcessEconomyOnRoundEndWithoutWinner=noWinner},warmup,players,winner)==(!warmup&&players>=2&&(winner>0||noWinner)),"draw validity including inherited winnerless policy");
 var world=new MenuWorld{DataDirectory=Path.Combine(root,"menus"),RejectEntityAccess=true};var plugin=new Plugin(world.Core);plugin.Load(false);
-Check(world.EntityAccesses==0,"cold load independent of native game objects");plugin.LottoCommand(world.Context);Check(world.Labels.Count==5,"lotto main short page");await world.Click("Lose kaufen");
-for(int i=0;i<5;i++){Check(world.Labels.Count<=5,"ticket menus max five rows");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
+Check(world.EntityAccesses==0,"cold load independent of native game objects");plugin.LottoCommand(world.Context);Check(world.Labels.Count==5,"lotto main short page");await world.Click("Kaufen");
+for(int i=0;i<5;i++){Check(world.Current!.Configuration.MaxVisibleItems==5,"ticket menus max five rows");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
 var callback=world.Current!.Options.First(o=>o.Text.Contains("Lose"));int menusBefore=world.AllMenus.Count;world.Session++;await world.Click(callback);Check(world.AllMenus.Count==menusBefore&&world.EntityAccesses==0,"old connection menu cannot advance or touch engine");
-world.Permissions.Add("lplk.economy.admin");plugin.Administration(world.Context);await world.Click("Einstellungen");Check(world.Labels.Count<=5,"four settings plus back fit");while(!world.Labels.Any(x=>x.Contains("Lottoregeln")))await world.Click("Nächste");await world.Click("Lottoregeln");
+world.Permissions.Add("lplk.economy.admin");plugin.ConfigureSharedInterface(world.Interfaces);Check(world.Interfaces.TryGetSharedInterface<IReadOnlyDictionary<string,Delegate>>("LPLK.AdminSections.Economy.v1",out var adminSections),"Lotto section exported");((Action<SwiftlyS2.Shared.Players.IPlayer>)adminSections!["lotto"])(world.Player);
 var toggle=world.Find("Lotto: AN");world.Permissions.Clear();await world.Click(toggle);Check(JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(Path.Combine(world.DataDirectory,"settings.json")))!.Lotto.Enabled,"lost admin permission cannot toggle lottery");
 world.Permissions.Add("lplk.economy.admin");await world.Click(toggle);plugin.LottoCommand(world.Context);Check(world.Messages.Last().Contains("nicht verfügbar"),"disabled lotto rejects public command");
-await world.Click("Lose &amp; Dauerlose");Check(world.Labels.Count==5,"ticket settings short page");await world.Click("Lospreis");
-for(int i=0;i<4;i++){Check(world.Labels.Count<=5,"price choices bounded");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
+Check(world.Current!.Configuration.MaxVisibleItems==5,"ticket settings five visible rows");await world.Click("Lospreis");
+for(int i=0;i<4;i++){Check(world.Current!.Configuration.MaxVisibleItems==5,"price choices bounded");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
 plugin.Unload();
 var configWorld=new MenuWorld{DataDirectory=Path.Combine(root,"config-upgrade"),RejectEntityAccess=true};Directory.CreateDirectory(configWorld.DataDirectory);
 var configNode=System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(settings))!.AsObject();configNode.Remove("Lotto");configNode["local-note"]="preserve-me";

@@ -5,7 +5,7 @@ public sealed partial class Plugin
     {
         int checks=0;void Check(bool value){if(!value)throw new InvalidDataException("Webbank-Prüfung fehlgeschlagen.");checks++;}
         const string a="76561198000000001";
-        var rules=settings with{Profile="webbank-probe-11110004",ResetMode="Never",StartBank=0,MaxBank=100000};
+        var rules=settings with{Profile="webbank-probe-89450e53",ResetMode="Never",StartBank=0,MaxBank=100000};
         using var db=new Ledger(Path.Combine(Core.PluginDataDirectory,"webbank-probe.sqlite3"),rules);db.Open(a,"Prüfkonto");
         string seed="web:"+Guid.NewGuid().ToString("N");DateTimeOffset now=DateTimeOffset.UtcNow;
         var request=new PanelBankRequest(seed,rules.Profile,db.Period,a,db.AccountRevision(a),1,"",100,"set",500,"Isolierte Linux-Prüfung",now.AddMinutes(5));

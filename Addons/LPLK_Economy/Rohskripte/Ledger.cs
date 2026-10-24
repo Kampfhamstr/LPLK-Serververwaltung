@@ -25,18 +25,23 @@ public sealed partial class Ledger : IDisposable
     public long Limit { get; private set; }
     public long StartBank { get; private set; }
     public string Profile { get; }
-    public Ledger(string path,EconomySettings settings,Action<string>? fault=null)
+    public Ledger(string path,EconomySettings settings,Action<string>? fault=null,string? server=null,bool provision=false)
     {
         EconomySettings.Validate(settings);Limit=settings.Limit;StartBank=settings.StartBank;Profile=settings.Profile;this.fault=fault;robberyRules=settings.BankRobbery;titleRules=settings;
-        path=Path.GetFullPath(path);Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        scope=server??"";ValidateScope(scope);
+        path=Path.GetFullPath(path);
+        if(Networked&&!provision&&!File.Exists(path))throw new InvalidDataException("Gemeinsame Bank fehlt; kein lokales Ersatzkonto angelegt.");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         foreach(var item in new[]{path,path+"-wal",path+"-shm"})if(new FileInfo(item).LinkTarget is not null)throw new InvalidDataException("Verlinkte Bankdatei abgelehnt.");
         bool exists=File.Exists(path);
+        if(Networked)AcquireScopeLease(path);
         db=new(new SqliteConnectionStringBuilder{DataSource=path,Mode=exists?SqliteOpenMode.ReadWrite:SqliteOpenMode.ReadWriteCreate,Pooling=false,DefaultTimeout=1}.ToString());
         try
         {
             db.Open();long version=Number("PRAGMA user_version");
-            if(exists&&version is not (1 or 2 or 3))throw new InvalidDataException("Unbekanntes oder unvollständiges Bankformat; Datei bleibt erhalten.");
+            if(exists&&(Networked?version!=4:version is not (1 or 2 or 3)))throw new InvalidDataException("Unbekanntes oder unvollständiges Bankformat; Datei bleibt erhalten.");
             Exec("PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA wal_autocheckpoint=256;");
+            if(Networked){InitializeNetwork(settings,exists);Verify();return;}
             if(!exists)Atomic(()=>
             {
                 Exec("""
@@ -57,12 +62,12 @@ public sealed partial class Ledger : IDisposable
             if(version<2)UpgradeBettingSchema(); if(version<3)UpgradeLotterySchema();
             Verify();
         }
-        catch{db.Dispose();throw;}
+        catch{db.Dispose();networkLease?.Dispose();throw;}
     }
     private SqliteCommand Command(string sql,params object[] values)
     {
-        var c=db.CreateCommand();c.Transaction=transaction;c.CommandText=sql;
-        for(int i=0;i<values.Length;i++)c.Parameters.AddWithValue("$p"+i,values[i]);return c;
+        var c=db.CreateCommand();c.Transaction=transaction;c.CommandText=ScopeSql(sql);
+        for(int i=0;i<values.Length;i++)c.Parameters.AddWithValue("$p"+i,values[i] is string s?ScopeAccount(s):values[i]);return c;
     }
     private int Exec(string sql,params object[] v){using var c=Command(sql,v);return c.ExecuteNonQuery();}
     private long Number(string sql,params object[] v){using var c=Command(sql,v);var result=c.ExecuteScalar();return result is null or DBNull?0:Convert.ToInt64(result);}
@@ -73,6 +78,7 @@ public sealed partial class Ledger : IDisposable
         lock(gate)
         {
             ObjectDisposedException.ThrowIf(disposed,this);
+            if(transaction is not null)return work();
             using var tx=db.BeginTransaction(deferred:false);transaction=tx;
             try{T value=work();fault?.Invoke("before-commit");tx.Commit();return value;}
             finally{transaction=null;}
@@ -82,7 +88,7 @@ public sealed partial class Ledger : IDisposable
     public int AccountCount { get {lock(gate)return (int)Number("SELECT count(*) FROM accounts WHERE id GLOB '[0-9]*'");} }
     public long TransactionCount { get {lock(gate)return Number("SELECT count(*) FROM transactions");} }
     public int PendingCount { get {lock(gate)return (int)Number("SELECT count(*) FROM cash WHERE status='pending'");} }
-    public bool Blocked(string account){lock(gate)return Number("SELECT count(*) FROM cash WHERE account=$p0 AND status='pending'",account)>0;}
+    public bool Blocked(string account){lock(gate)return Number(Networked?"SELECT count(*) FROM network_cash_locks WHERE account=$p0":"SELECT count(*) FROM cash WHERE account=$p0 AND status='pending'",account)>0;}
     public bool Exists(string account){lock(gate)return Number("SELECT count(*) FROM accounts WHERE id=$p0",account)>0;}
     public long Balance(string account){lock(gate)return Number("SELECT balance FROM accounts WHERE id=$p0",account);}
     public bool Muted(string account){lock(gate)return Number("SELECT muted FROM preferences WHERE id=$p0",account)==1;}
@@ -93,7 +99,21 @@ public sealed partial class Ledger : IDisposable
     }
     public void Configure(EconomySettings settings)
     {
-        EconomySettings.Validate(settings);lock(gate){if(settings.Profile!=Profile)throw new BankRejected("Profilwechsel erfordert einen vollständigen Serverprofilwechsel.");if(settings.Limit<Limit&&PendingCount>0)throw new BankRejected("Limit erst nach Prüfung offener Cash-Buchungen senken.");Limit=settings.Limit;StartBank=settings.StartBank;robberyRules=settings.BankRobbery;titleRules=settings;}
+        ConfigureWithPersistence(settings,()=>{});
+    }
+    internal void ConfigureWithPersistence(EconomySettings settings,Action persist)
+    {
+        EconomySettings.Validate(settings);
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);
+            if(Networked)CheckNetworkRules(settings);
+            if(settings.Profile!=Profile)throw new BankRejected("Profilwechsel erfordert einen vollständigen Serverprofilwechsel.");
+            if(settings.Limit<Limit&&PendingCount>0)throw new BankRejected("Limit erst nach Prüfung offener Cash-Buchungen senken.");
+            // Failed persistence must never require a second, potentially rejected configuration change.
+            persist();Limit=settings.Limit;StartBank=settings.StartBank;robberyRules=settings.BankRobbery;titleRules=settings;
+            if(Networked)Atomic(()=>Exec("UPDATE network_scopes SET settings=$p1 WHERE id=$p0",scope,JsonSerializer.Serialize(settings)));
+        }
     }
     internal static bool Key(string value,int max=128)=>value.Length is >0&&value.Length<=max&&value.All(c=>char.IsAsciiLetterOrDigit(c)||c is '-' or '_' or ':' or '.' or '/');
     private static bool AccountKey(string id)=>BankPolicy.Steam(id)||id=="pool:lottery"||id.StartsWith("system:",StringComparison.Ordinal)&&Key(id);
@@ -123,7 +143,7 @@ public sealed partial class Ledger : IDisposable
         if(!Key(r.Id)||!Key(r.Owner,64)||string.IsNullOrWhiteSpace(r.Reason)||r.Reason.Length>160||r.Postings is null||r.Postings.Length>128||r.Changes?.Length>64)throw new BankRejected("Ungültiger Buchungsauftrag.");
         if(r.Period!=Period)throw new BankRejected("Bankperiode hat gewechselt. Menü erneut öffnen.");
         string hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(r))));
-        var old=Text("SELECT fingerprint FROM transactions WHERE id=$p0",r.Id);
+        var old=Text("SELECT fingerprint FROM transactions WHERE id=$p0",TransactionId(r.Id));
         if(old is not null){if(old!=hash)throw new BankRejected("Transaktionsnummer mit anderem Inhalt bereits verwendet.");return new(r.Id,r.Period,true);}
         if(r.Postings.Any(p=>p is null||p.Account is null||!AccountKey(p.Account)||!p.Account.StartsWith("system:",StringComparison.Ordinal)&&p.Delta is < -9_000_000_000_000_000 or >9_000_000_000_000_000)||r.Postings.Select(p=>p.Account).Distinct(StringComparer.Ordinal).Count()!=r.Postings.Length||r.Postings.Sum(p=>(decimal)p.Delta)!=0)throw new BankRejected("Buchung ist nicht ausgeglichen oder überschreitet das technische Limit.");
         if(r.Changes is not null&&(r.Changes.Select(c=>c.Key).Distinct().Count()!=r.Changes.Length||r.Changes.Any(c=>!Key(c.Key)||c.ExpectedRevision<0||c.Json is null||c.Json.Length>16384)))throw new BankRejected("Ungültige Moduländerung.");
@@ -138,20 +158,21 @@ public sealed partial class Ledger : IDisposable
             long before=Balance(p.Account),after=checked(before+p.Delta);
             if(!p.Account.StartsWith("system:",StringComparison.Ordinal)&&(after<0||p.Delta>0&&after>Limit))throw new BankRejected(after<0?"Guthaben reicht nicht aus.":"Empfängerkonto hat sein Limit erreicht.");
         }
-        Exec("INSERT INTO transactions VALUES($p0,$p1,$p2,$p3,$p4,$p5)",r.Id,r.Period,r.Owner,r.Reason,hash,DateTimeOffset.UtcNow.ToString("O"));
+        Exec("INSERT INTO transactions VALUES($p0,$p1,$p2,$p3,$p4,$p5)",TransactionId(r.Id),r.Period,r.Owner,r.Reason,hash,DateTimeOffset.UtcNow.ToString("O"));
         foreach(var p in r.Postings)
         {
             long after=checked(Balance(p.Account)+p.Delta);
             Exec("UPDATE accounts SET balance=$p1 WHERE id=$p0",p.Account,after);
-            Exec("INSERT INTO entries(tx,account,delta,balance) VALUES($p0,$p1,$p2,$p3)",r.Id,p.Account,p.Delta,after);
+            Exec("INSERT INTO entries(tx,account,delta,balance) VALUES($p0,$p1,$p2,$p3)",TransactionId(r.Id),p.Account,p.Delta,after);
             fault?.Invoke("after-posting");
         }
         foreach(var s in r.Changes??[])
         {
             using var json=JsonDocument.Parse(s.Json);
-            long revision=Number("SELECT revision FROM module_state WHERE period=$p0 AND owner=$p1 AND key=$p2",r.Period,r.Owner,s.Key);
+            string table=StateTable(r.Owner,s.Key);
+            long revision=Number("SELECT revision FROM "+table+" WHERE period=$p0 AND owner=$p1 AND key=$p2",r.Period,r.Owner,s.Key);
             if(revision!=s.ExpectedRevision)throw new BankRejected("Modulstand wurde inzwischen geändert.");
-            Exec("INSERT INTO module_state VALUES($p0,$p1,$p2,$p3,$p4) ON CONFLICT(period,owner,key) DO UPDATE SET revision=excluded.revision,json=excluded.json",r.Period,r.Owner,s.Key,checked(revision+1),s.Json);
+            Exec("INSERT INTO "+table+" VALUES($p0,$p1,$p2,$p3,$p4) ON CONFLICT(period,owner,key) DO UPDATE SET revision=excluded.revision,json=excluded.json",r.Period,r.Owner,s.Key,checked(revision+1),s.Json);
         }
         foreach(var p in r.Postings)ResetRobberyBypassForBalance(p.Account);
         foreach(var p in r.Postings)TitleWealthInside(p.Account,r.Reason!="BetBank-Migration");
@@ -165,7 +186,7 @@ public sealed partial class Ledger : IDisposable
     }
     public (long Revision,string? Json) State(string owner,string key)
     {
-        lock(gate){using var c=Command("SELECT revision,json FROM module_state WHERE period=$p0 AND owner=$p1 AND key=$p2",Period,owner,key);using var r=c.ExecuteReader();return r.Read()?(r.GetInt64(0),r.GetString(1)):(0,null);}
+        lock(gate){using var c=Command("SELECT revision,json FROM "+StateTable(owner,key)+" WHERE period=$p0 AND owner=$p1 AND key=$p2",Period,owner,key);using var r=c.ExecuteReader();return r.Read()?(r.GetInt64(0),r.GetString(1)):(0,null);}
     }
     public Receipt Transfer(string id,long period,string from,string to,long amount)
     {
@@ -183,10 +204,10 @@ public sealed partial class Ledger : IDisposable
         {
             // Stable original request, including the actor, is stored separately from its computed delta.
             string reason=$"Admin {actor}: {operation} {amount}"+(legacy?" (legacy)":"");
-            var old=Text("SELECT reason FROM transactions WHERE id=$p0",id);
+            var old=Text("SELECT reason FROM transactions WHERE id=$p0",TransactionId(id));
             if(old is not null)
             {
-                if(old!=reason||period!=Period||Number("SELECT count(*) FROM entries WHERE tx=$p0 AND account=$p1",id,account)!=1)throw new BankRejected("Abweichende Admin-Wiederholung.");
+                if(old!=reason||period!=Period||Number("SELECT count(*) FROM entries WHERE tx=$p0 AND account=$p1",TransactionId(id),account)!=1)throw new BankRejected("Abweichende Admin-Wiederholung.");
                 return new Receipt(id,period,true);
             }
             long balance=Balance(account);
@@ -248,6 +269,7 @@ public sealed partial class Ledger : IDisposable
     {
         return Atomic(()=>
         {
+            if(Networked)CheckNetworkRules(s);
             string key=BankPolicy.ResetKey(s.ResetMode,now),oldMode=Text("SELECT value FROM meta WHERE key='resetMode'")??"",oldKey=Text("SELECT value FROM meta WHERE key='resetKey'")??"";
             if(oldMode!=s.ResetMode||oldKey.Length==0){Put("resetMode",s.ResetMode);Put("resetKey",key);return false;}
             if(s.ResetMode=="Never"||string.CompareOrdinal(key,oldKey)<=0)return false;
@@ -256,10 +278,12 @@ public sealed partial class Ledger : IDisposable
     }
     public void Reset(string id,long expectedPeriod,string actor,EconomySettings s,DateTime now)=>Atomic(()=>
     {
+        if(Networked)CheckNetworkRules(s);
         ResetInside(id,expectedPeriod,"Admin "+actor,s.ResetMode,BankPolicy.ResetKey(s.ResetMode,now),s.Lotto);return 0;
     });
     private void ResetInside(string id,long expectedPeriod,string reason,string mode,string key,LotterySettings lottery)
     {
+        if(Networked){ResetNetworkInside(id,expectedPeriod,reason,mode,key);return;}
         if(expectedPeriod!=Period)throw new BankRejected("Reset-Ansicht veraltet; nicht erneut ausgeführt.");
         if(PendingCount>0||Number("SELECT count(*) FROM bet_tickets WHERE status='accepted'")>0||BetClaims>0)throw new BankRejected("Vor dem Reset offene Cash-Buchungen, Wetteinsätze und Auszahlungen abschließen.");
         if(RobberyClaims>0)throw new BankRejected("Vor dem Reset offene Bankraub-Beuteansprüche auszahlen.");
@@ -289,7 +313,7 @@ public sealed partial class Ledger : IDisposable
     }
     public void Verify()
     {
-        lock(gate)
+        Atomic(()=>
         {
             if(Text("PRAGMA quick_check")!="ok"||Period<1)throw new InvalidDataException("Bankprüfung fehlgeschlagen.");
             using(var c=Command("PRAGMA foreign_key_check"))using(var r=c.ExecuteReader())if(r.Read())throw new InvalidDataException("Verwaiste Buchung.");
@@ -307,9 +331,11 @@ public sealed partial class Ledger : IDisposable
                 if(!AccountKey(id)||totals.GetValueOrDefault(id)!=balance||!id.StartsWith("system:",StringComparison.Ordinal)&&balance<0)throw new InvalidDataException("Kontostand stimmt nicht mit Buchungen überein.");
             }
             VerifyBetting(); VerifyLottery(); VerifyTitles(); VerifyBonuses(); VerifyBounties(); VerifyKillRewards();
+            if(Networked)VerifyNetworkLocks();
             var pending=Pending();
             if(pending.Any(i=>i.Period!=Period||i.Before<0||i.After<0||i.Before>(BonusCashSpec(i.Id)?.MaxCash??16000)||i.After>(BonusCashSpec(i.Id)?.MaxCash??16000)||i.Delta!=(long)i.Before-i.After)||pending.GroupBy(i=>i.Account).Any(g=>g.Count()>1)||Balance("system:escrow")!=pending.Where(i=>i.Delta<0).Sum(i=>-i.Delta))throw new InvalidDataException("Offene Cash-Buchungen sind inkonsistent.");
-        }
+            return 0;
+        });
     }
     public void ImportLegacy(string json,string expectedHash)
     {
@@ -344,7 +370,7 @@ public sealed partial class Ledger : IDisposable
             Put("migration",migrationId);return 0;
         });
     }
-    public void Dispose(){lock(gate){if(disposed)return;disposed=true;db.Dispose();}}
+    public void Dispose(){lock(gate){if(disposed)return;disposed=true;db.Dispose();networkLease?.Dispose();}}
 }
 
 

@@ -45,11 +45,12 @@ public sealed partial class Plugin
         p.SendChat($"[LPLK Economy] Kill-Belohnung: {s.PercentOfVictimCash}% des Opfer-Cash, ab {s.MinReward:N0} $ berechnetem Bonus, maximal {(s.MaxReward<0?"unbegrenzt":s.MaxReward.ToString("N0")+" $")}. Auszahlung: {s.RewardMode}. Dem Opfer wird dafür nichts abgezogen.");
         p.SendChat($"[LPLK Economy] Teamkills {(s.IgnoreTeamKills?"ausgeschlossen":"zugelassen")}; Bots und Botübernahme ausgeschlossen. Wie bisher auch im Warmup und in Pistolenrunden. Eigene offene Ansprüche: {bank!.KillRewardClaims().Where(c=>c.Account==Id(p)).Sum(c=>(long)c.Remaining):N0} $.");
     }
-    private void KillRewardAdmin(IPlayer p)=>Page(p,"Kill-Belohnung · Verwaltung",_=>
+    private void KillRewardAdmin(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> KillRewardAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
     {
         var rows=new List<(string,Action<IPlayer>)>();
-        if(settings.AllowToggleKillReward)rows.Add(($"Kill-Belohnung: {(settings.KillReward.Enabled?"AN":"AUS")}",a=>{if(!settings.AllowToggleKillReward)throw new BankRejected("Umschalten nicht freigegeben.");Save(settings with{KillReward=settings.KillReward with{Enabled=!settings.KillReward.Enabled}});KillRewardAdmin(a);}));
+        if(settings.AllowToggleKillReward)rows.Add(($"Kill-Belohnung: {(settings.KillReward.Enabled?"AN":"AUS")}",a=>{if(!settings.AllowToggleKillReward)throw new BankRejected("Umschalten nicht freigegeben.");Save(a,current=>current.AllowToggleKillReward?current with{KillReward=current.KillReward with{Enabled=!current.KillReward.Enabled}}:throw new BankRejected("Umschalten nicht freigegeben."));KillRewardAdmin(a);}));
         rows.Add(("Berechnung",a=>a.SendChat($"[LPLK Economy] {settings.KillReward.PercentOfVictimCash}% vom Opfer-Cash; Schwelle {settings.KillReward.MinReward:N0} $, Maximum {settings.KillReward.MaxReward:N0} $. Modus {settings.KillReward.RewardMode}; offene Ansprüche {bank?.KillRewardClaims().Sum(c=>(long)c.Remaining):N0} $. Angenommene Ansprüche werden auch nach Ausschalten abgewickelt.")));
         rows.Add(("Weitere Regeln",a=>a.SendChat("[LPLK Economy] settings.json > KillReward: Prozent, Schwelle, Maximum, Teamkills, Auszahlung und Hinweise. Feste Bot-Sperre aus BetBank bleibt erhalten. Offene Cash-Vorgänge über Status & offene Vorgänge prüfen.")));return rows;
-    },EconomySettingsMenu,true);
+    }))(p);
 }

@@ -8,13 +8,20 @@ namespace SerververwaltungBridge;
 
 public sealed partial class Plugin
 {
-    public override void ConfigureSharedInterface(IInterfaceManager manager)=>
+    public override void ConfigureSharedInterface(IInterfaceManager manager)
+    {
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Bridge.Admin.v1",new()
         {
             ["execute"]=(Func<ulong,string,string,string>)ExecuteLplkAdmin,
             ["teamsReady"]=(Func<bool>)TeamsReady,
             ["chatguardReady"]=(Func<bool>)(()=>FilterWithChatGuard(-1,"",false)==SwiftlyS2.Shared.Misc.HookResult.Continue)
         });
+        manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Bridge.Fleet.v1",new()
+        {
+            ["roster"]=(Func<ulong,string>)FleetRoster,
+            ["request"]=(Func<ulong,string,string>)QueueFleetRequest
+        });
+    }
 
     // Called synchronously on the game thread. Both UI paths use Execute and the same local data.
     private string ExecuteLplkAdmin(ulong actor,string action,string request)

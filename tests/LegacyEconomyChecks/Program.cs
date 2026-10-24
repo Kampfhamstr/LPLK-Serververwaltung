@@ -47,7 +47,7 @@ var world=new MenuWorld{DataDirectory=Path.Combine(root,"commands"),RejectEntity
 File.WriteAllText(Path.Combine(world.DataDirectory,"settings.json"),JsonSerializer.Serialize(settings));var plugin=new Plugin(world.Core);plugin.Load(false);
 var flags=BindingFlags.Instance|BindingFlags.NonPublic;
 var ledger=(Ledger)typeof(Plugin).GetField("bank",flags)!.GetValue(plugin)!;
-void Rules(EconomySettings rules){typeof(Plugin).GetField("settings",flags)!.SetValue(plugin,rules);ledger.Configure(rules);}
+void Rules(EconomySettings rules){File.WriteAllText(Path.Combine(world.DataDirectory,"settings.json"),JsonSerializer.Serialize(rules));typeof(Plugin).GetMethod("RefreshSettings",flags)!.Invoke(plugin,[]);}
 void Rights(params string[] values)=>world.PermissionsByPlayer![ulong.Parse(actor)]=values.ToHashSet();
 ledger.Open(actor,"Prüfspieler");ledger.Open(target,"Jane Doe");ledger.Open(other,"Jane Other");
 ICommandContext Context(bool console,params string[] values)=>Proxy.Make<ICommandContext>((m,a)=>m.Name switch
@@ -100,7 +100,7 @@ foreach(string permission in new[]{"betbank.admin","lplk.economy.admin","lplk.ad
     Call("bankadd",[target,"1k"]);Call("bankset",[target,"all"]);Check(ledger.Balance(target)==1000&&Said("konkreten Betrag"),"all does not wipe balance "+permission);
     Call("bankset",["Jane","1k"]);Check(ledger.Balance(target)==1000&&Said("nicht eindeutig"),"ambiguous name cannot edit "+permission);
     Call("bankresetkonto",["Jane","Doe"]);Check(ledger.Balance(target)==0,"reset multiword name "+permission);
-    Call("bbadmin");Check(world.Current?.Configuration.Title.Contains("Bank & Konten")==true,"authorized legacy admin menu "+permission);
+    Call("bbadmin");Check(world.Current?.Configuration.Title.Contains("Bank & Bankraub")==true,"authorized legacy admin menu "+permission);
     Rules(settings with{Enabled=false});Call("bankadmin");Check(world.Current is not null,"administrator can reach disabled addon "+permission);Rules(settings);
 }
 Rights("betbank.admin");world.PermissionsByPlayer![ulong.Parse(target)]=["betbank.admin"];Call("bankadd",[target,"1000"]);Check(ledger.Balance(target)==0&&Said("Kontoberechtigung"),"equal admin target protected");
@@ -139,5 +139,5 @@ Rules(settings with{TransfersEnabled=false});Call("transfer");Check(world.Curren
 Rules(settings with{BankEnabled=false,Betting=settings.Betting with{Enabled=false},Lotto=settings.Lotto with{Enabled=false}});Call("help");Check(world.Current is not null&&world.Labels.All(s=>!s.Contains("Bankbefehle")&&!s.Contains("Wetten")&&!s.Contains("Lotterie")&&!s.Contains("Kopfgeld")&&!s.Contains("Spionberichte")&&!s.Contains("Titel")),"help hides all unavailable areas including bank-dependent ones");
 Rules(settings);Call("help");var betHelp=world.Find("Wetten");Rules(settings with{Betting=settings.Betting with{Enabled=false}});world.Messages.Clear();await world.Click(betHelp);Check(Said("ausgeschaltet")&&!Said("!bet"),"old help callback rechecks feature");
 Rules(settings);ledger.PrepareCash("help-pending",ledger.Period,actor,"s",1000,500);Call("bbhelp");Check(world.Current is not null,"help stays available with pending cash");ledger.ResolveCash("help-pending",false,"test");
-Check(world.EntityAccesses==0,"cold commands never access unready native entities");Check(world.AllMenus.All(m=>m.Options.Count<=5),"every tested menu has at most five rows");ledger.Verify();plugin.Unload();
+Check(world.EntityAccesses==0,"cold commands never access unready native entities");Check(world.AllMenus.All(m=>m.Configuration.MaxVisibleItems==5),"every tested menu has at most five visible rows");ledger.Verify();plugin.Unload();
 var report=new{checkedAt=DateTimeOffset.UtcNow,checks,legacyGroups=groups,legacyAliases=aliases,rawAndPrefixedHandlers=true,permissionsVerified=true,argumentCorrectionsVerified=true,processCrashVerified=true,clientAcceptancePending=true};File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("LPLK_BUILD_ROOT")!,"LegacyEconomyChecks","result.json"),JsonSerializer.Serialize(report));Console.WriteLine(JsonSerializer.Serialize(report));

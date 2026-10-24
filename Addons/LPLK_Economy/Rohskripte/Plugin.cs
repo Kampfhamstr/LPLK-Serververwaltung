@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_Economy;
 
-[PluginMetadata(Id="LPLK_Economy",Name="LPLK_Economy",Version="0.9.1",Author="LPLK; BetBank reference Michael Zauche",Description="Gemeinsame Kontoführung, Bank und nachvollziehbare Buchungen",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Economy",Name="LPLK_Economy",Version="0.11.0",Author="LPLK; BetBank reference Michael Zauche",Description="Gemeinsame Kontoführung, Bank und nachvollziehbare Buchungen",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -22,7 +22,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private bool ready,roundActive,mapBlocked;
     private double roundStarted;
     private long nextStatus,nextReset;
-    private DateTime stamp;
+    private EconomySettingsFile? config;
+    private bool statusWriteFailed;
     private string? failure,reloadError,resetDelay;
     private int errors;
     private readonly HashSet<ulong> dead=[],blocked=[];
@@ -35,14 +36,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     public override void Load(bool hotReload)
     {
         module=new(Core,"LPLK_Economy","Wirtschaft","lplk.economy.admin",OpenAdmin,p=>Core.Permission.PlayerHasPermission(p.SteamID,settings.AdminPermission));
-        settings=module.ReadSettings<EconomySettings>(EconomySettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);module.Active=true;
-        var savedSettings=JsonNode.Parse(File.ReadAllText(module.SettingsPath))!.AsObject();
-        if(!savedSettings.ContainsKey("Lotto")){savedSettings["Lotto"]=JsonSerializer.SerializeToNode(settings.Lotto);AtomicJson.Write(module.SettingsPath,savedSettings);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);}
-        if(!savedSettings.ContainsKey("BankRobbery")){savedSettings["BankRobbery"]=JsonSerializer.SerializeToNode(settings.BankRobbery);AtomicJson.Write(module.SettingsPath,savedSettings);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);}
-        foreach(var section in new[]{"WebBank","MenuAutoCloseSeconds","AdminAddButtons","AdminRemoveButtons","AdminSetButtons","TitleSystem","InterestSystem","LuxuryTax","LottoAbilityBonus","KillReward","AllowToggleKillReward","Bounty","BountyMarker","BountyAmountButtons"})if(!savedSettings.ContainsKey(section))savedSettings[section]=JsonSerializer.SerializeToNode(settings.GetType().GetProperty(section)!.GetValue(settings));
-        AtomicJson.Write(module.SettingsPath,savedSettings);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);
-        var savedLotto=savedSettings["Lotto"]!.AsObject();var lottoDefaults=JsonSerializer.SerializeToNode(settings.Lotto)!.AsObject();foreach(var key in new[]{"PermanentTicketUpgradeDiscountEnabled","PermanentTicketUpgradeDiscountChanceBasisPoints","PermanentTicketUpgradeDiscountMinPercent","PermanentTicketUpgradeDiscountMaxPercent","PermanentTicketUpgradeDiscountAnnounce","CashToSuperpot"})if(!savedLotto.ContainsKey(key))savedLotto[key]=lottoDefaults[key]!.DeepClone();AtomicJson.Write(module.SettingsPath,savedSettings);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);
-        try{bank=new(Path.Combine(Core.PluginDataDirectory,"economy.sqlite3"),settings);bank.RecoverBetRounds();bank.ResumeLottery(true);bank.ResumeRobbery(RobNow);DeliverBetClaims(false);try{bank.CheckReset(settings,ResetNow);}catch(BankRejected e){resetDelay=e.Message;}}
+        config=new(module.SettingsPath);settings=config.Current;module.Active=true;
+        try{bank=NetworkStorage.Open(Core.PluginDataDirectory,settings);bank.RecoverBetRounds();bank.ResumeLottery(true);bank.ResumeRobbery(RobNow);DeliverBetClaims(false);try{bank.CheckReset(settings,ResetNow);}catch(BankRejected e){resetDelay=e.Message;}}
         catch(Exception e){Fail(e);}
         titlePioneers=bank?.PioneerOwners()??[];titleAnnouncementPeriod=bank?.Period??0;ready=hotReload;
         Core.GameEvent.HookPost<EventRoundStart>(_=>{robberyRoundEnded=false;roundActive=false;dead.Clear();cashThrottle.Clear();if(ready)CheckMapCash();BettingWork(()=>bank!.CheckReset(settings,ResetNow));BettingWork(BeginBonusRound);BettingWork(BeginBountyRound);BettingWork(BeginTitleRound);BeginBettingRound();BeginLotteryRound();return HookResult.Continue;});
@@ -52,11 +47,14 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p&&Human(p))dead.Add(p.SteamID);BettingWork(()=>BonusDeath(e.UserIdPlayer,e.AttackerPlayer));BettingWork(()=>KillRewardDeath(e.UserIdPlayer,e.AttackerPlayer));BettingWork(()=>BountyDeath(e.UserIdPlayer,e.AttackerPlayer));return HookResult.Continue;});
         Core.GameEvent.HookPre<EventPlayerDisconnect>(e=>{BettingWork(()=>BountyDisconnected(e.UserIdPlayer));return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p&&Human(p))bountyLives[p.SteamID]=bountyLives.GetValueOrDefault(p.SteamID)+1;return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_Economy 0.9.1 geladen; profil={Profile}; bereit={Healthy}",settings.Profile,failure is null);
+        amountChatHook=Core.Command.HookClientChat(AmountChat);
+        WriteStatus();Core.Logger.LogInformation("LPLK_Economy 0.11.0 geladen; profil={Profile}; bereit={Healthy}",settings.Profile,failure is null);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
         module.ConfigureSharedInterface(manager);
+        manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.AdminSections.Economy.v1",
+            new(){["lotto"]=(Action<IPlayer>)(p=>{RefreshSettings();if(Human(p)&&module.CanAdmin(p))LottoAdmin(p);})});
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Target.LPLK_Economy.v1",new(){["actions"]=(Func<IPlayer,IPlayer,IReadOnlyDictionary<string,Action<IPlayer>>>)TargetActions});
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Player.Economy.v1",new(){["allowed"]=(Func<IPlayer,string,bool>)((p,c)=>CanUse(p)&&(c=="sw_bank"&&settings.BankEnabled||c=="sw_bet"&&settings.Betting.Enabled||c=="sw_lotto"&&settings.Lotto.Enabled||c=="sw_bankraub"&&settings.BankEnabled&&settings.BankRobbery.Enabled||c=="sw_titel"&&settings.BankEnabled&&settings.TitleSystem.Enabled||c=="sw_kopfgeld"&&settings.BankEnabled&&settings.Bounty.Enabled))});
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Economy.v1",new()
@@ -67,21 +65,16 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
             ["balance"]=(Func<string,long>)(id=>Active&&BankPolicy.Steam(id)?bank!.Balance(id):throw new InvalidOperationException("Bank nicht bereit / ungültiges Konto."))
         });
     }
-    public override void Unload(){BettingWork(()=>EndLotteryRound(-1));BettingWork(()=>EndBettingRound(0,false));module.Active=false;ready=false;bank?.Dispose();}
+    public override void Unload(){amountRequests.Clear();if(amountChatHook!=Guid.Empty)Core.Command.UnhookClientChat(amountChatHook);amountChatHook=Guid.Empty;BettingWork(()=>EndLotteryRound(-1));BettingWork(()=>EndBettingRound(0,false));module.Active=false;ready=false;bank?.Dispose();}
     [EventListener<EventDelegates.OnMapLoad>]
     public void MapLoad(IOnMapLoadEvent e){titleMapEpoch++;bountyLives.Clear();killDeaths.Clear();bountyRound=null;bountyRoundEnded=true;titleRound=null;titleRoundEnded=true;bonusRound=null;bonusRoundEnded=true;cashCollectionMapBlocked=false;deathCash.Clear();collectionReports.Clear();ready=true;roundActive=false;mapBlocked=false;dead.Clear();blocked.Clear();cashThrottle.Clear();}
     [EventListener<EventDelegates.OnMapUnload>]
-    public void MapUnload(IOnMapUnloadEvent e){BettingWork(()=>EndLotteryRound(-1));BettingWork(()=>EndBettingRound(0,false));ready=false;roundActive=false;}
+    public void MapUnload(IOnMapUnloadEvent e){amountRequests.Clear();BettingWork(()=>EndLotteryRound(-1));BettingWork(()=>EndBettingRound(0,false));ready=false;roundActive=false;}
     [EventListener<EventDelegates.OnTick>]
     public void Tick()
     {
         if(!module.Active||Environment.TickCount64<nextStatus)return;nextStatus=Environment.TickCount64+2000;
-        try
-        {
-            var current=File.GetLastWriteTimeUtc(module.SettingsPath);
-            if(current!=stamp){var s=JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(module.SettingsPath))??throw new InvalidDataException();EconomySettings.Validate(s);bank?.Configure(s);settings=s;stamp=current;reloadError=null;}
-        }
-        catch(Exception e){if(reloadError is null)Core.Logger.LogWarning(e,"LPLK_Economy: letzter gültiger Einstellungsstand bleibt aktiv");reloadError="Ungültige Änderung; letzter gültiger Stand aktiv.";}
+        RefreshSettings();
         BettingWork(()=>DeliverBetClaims(false));BettingWork(()=>bank!.ResumeLottery());BettingWork(ResumeRobbery);BettingWork(DeliverKillRewards);BettingWork(DeliverBountyClaims);BettingWork(TitleAnnouncements);
         if(Active&&Environment.TickCount64>=nextReset)
         {
@@ -93,7 +86,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void Fail(Exception e){errors++;failure="Bank gesperrt; Daten und Journal prüfen.";Core.Logger.LogError(e,"LPLK_Economy: Kontodaten bleiben erhalten, keine weiteren Buchungen");}
     private void Guard(IPlayer p,Action action)
     {
-        try{action();}catch(BankRejected e){p.SendChat("[LPLK Bank] "+e.Message);}catch(Exception e){Fail(e);p.SendChat("[LPLK Bank] "+failure);}
+        try{RefreshSettings();action();}catch(BankRejected e){p.SendChat("[LPLK Bank] "+e.Message);}catch(Exception e){Fail(e);p.SendChat("[LPLK Bank] "+failure);}
     }
     private void Require(IPlayer p,bool bankFeature=true)
     {
@@ -162,7 +155,19 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         long value=BankPolicy.Amount(amount,max,settings.MinTransfer,max);var receipt=bank.Transfer(id,period,Id(p),target,value);
         p.SendChat($"[LPLK Bank] {(receipt.Duplicate?"Bereits überwiesen":"Überwiesen")}: {value:N0} $ an {Ledger.SafeName(online?.Name??target)}.");
     }
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.9.1",settings,ready,effective=Active,healthy=failure is null,period=bank?.Period,accounts=bank?.AccountCount,transactions=bank?.TransactionCount,pending=bank?.PendingCount,profile=settings.Profile,mapBlocked,blockedPlayers=blocked.Count,errors,failure,reloadError,resetDelay,web=new{settings.WebBank.ExportEnabled,settings.WebBank.AdminChangesEnabled,error=webError},betting=new{activeRound=betActive,openRounds=bank?.OpenBetRounds,claims=bank?.BetClaims},lottery=new{activeRound=lotRound is not null,openRounds=bank?.OpenLotteryRounds,superpot=bank?.Superpot,refunds=bank?.LotteryRefunds,abilities=settings.LottoAbilityBonus.Enabled,upgradeDiscounts=settings.Lotto.PermanentTicketUpgradeDiscountEnabled,cashCollection=settings.Lotto.CashToSuperpot.Enabled},titles=new{enabled=settings.TitleSystem.Enabled,catalog=TitleCatalog.All.Length,interest=settings.InterestSystem.Enabled,tax=settings.LuxuryTax.Enabled,rulerSlots=true,progressPeriod=bank?.Period},robbery=new{openOrders=bank?.RobberyOrders(true,10000).Count(o=>o.Status!="done"),claims=bank?.RobberyClaims},bounty=new{active=bank?.Bounties().Count(o=>o.Status=="active"),pending=bank?.Bounties().Count(o=>o.Status=="pending"),claims=bank?.BountyClaims().Sum(c=>c.Remaining),marker=settings.BountyMarker.Enabled},killReward=new{enabled=settings.KillReward.Enabled,claims=bank?.KillRewardClaims().Sum(c=>(long)c.Remaining)},features=new{killReward=Active&&settings.KillReward.Enabled,bounty=Active&&settings.BankEnabled&&settings.Bounty.Enabled,bank=Active&&settings.BankEnabled,betting=Active&&settings.Betting.Enabled,lottery=Active&&settings.Lotto.Enabled,robbery=Active&&settings.BankEnabled&&settings.BankRobbery.Enabled,titles=Active&&settings.BankEnabled&&settings.TitleSystem.Enabled}});
+    private void WriteStatus()
+    {
+        try{AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.11.0",settings,ready,effective=Active,healthy=failure is null,period=bank?.Period,accounts=bank?.AccountCount,transactions=bank?.TransactionCount,pending=bank?.PendingCount,profile=settings.Profile,mapBlocked,blockedPlayers=blocked.Count,errors,failure,reloadError,resetDelay,web=new{settings.WebBank.ExportEnabled,settings.WebBank.AdminChangesEnabled,error=webError},betting=new{activeRound=betActive,openRounds=bank?.OpenBetRounds,claims=bank?.BetClaims},lottery=new{activeRound=lotRound is not null,openRounds=bank?.OpenLotteryRounds,superpot=bank?.Superpot,refunds=bank?.LotteryRefunds,abilities=settings.LottoAbilityBonus.Enabled,upgradeDiscounts=settings.Lotto.PermanentTicketUpgradeDiscountEnabled,cashCollection=settings.Lotto.CashToSuperpot.Enabled},titles=new{enabled=settings.TitleSystem.Enabled,catalog=TitleCatalog.All.Length,interest=settings.InterestSystem.Enabled,tax=settings.LuxuryTax.Enabled,rulerSlots=true,progressPeriod=bank?.Period},robbery=new{openOrders=bank?.RobberyOrders(true,10000).Count(o=>o.Status!="done"),claims=bank?.RobberyClaims},bounty=new{active=bank?.Bounties().Count(o=>o.Status=="active"),pending=bank?.Bounties().Count(o=>o.Status=="pending"),claims=bank?.BountyClaims().Sum(c=>c.Remaining),marker=settings.BountyMarker.Enabled},killReward=new{enabled=settings.KillReward.Enabled,claims=bank?.KillRewardClaims().Sum(c=>(long)c.Remaining)},features=new{killReward=Active&&settings.KillReward.Enabled,bounty=Active&&settings.BankEnabled&&settings.Bounty.Enabled,bank=Active&&settings.BankEnabled,betting=Active&&settings.Betting.Enabled,lottery=Active&&settings.Lotto.Enabled,robbery=Active&&settings.BankEnabled&&settings.BankRobbery.Enabled,titles=Active&&settings.BankEnabled&&settings.TitleSystem.Enabled}});statusWriteFailed=false;}
+        catch(Exception e)when(e is IOException or UnauthorizedAccessException)
+        {if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Economy: Status nicht schreibbar; Kontoführung bleibt aktiv.");statusWriteFailed=true;}
+    }
+    private void RefreshSettings()
+    {
+        if(config is null)return;
+        config.Reload(s=>bank?.Configure(s));settings=config.Current;
+        if(config.Error is not null&&reloadError!=config.Error)Core.Logger.LogWarning("LPLK_Economy: Letzter gültiger Einstellungsstand bleibt aktiv: {Reason}",config.Error);
+        reloadError=config.Error;
+    }
 }
 
 

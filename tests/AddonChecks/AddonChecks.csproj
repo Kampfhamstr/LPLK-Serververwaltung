@@ -4,6 +4,7 @@
     <Compile Include="../../Addons/LPLK_Parachute/Rohskripte/FallPolicy.cs" Link="FallPolicy.cs" />
     <Compile Include="../../Addons/LPLK_BombWires/Rohskripte/WireRound.cs" Link="WireRound.cs" />
     <Compile Include="../../Addons/LPLK_Maps/Rohskripte/MapPolicy.cs" Link="MapPolicy.cs" />
+    <Compile Include="../../Addons/LPLK_Maps/Rohskripte/MapParityPolicy.cs" Link="MapParityPolicy.cs" />
     <Compile Include="../../Addons/LPLK_Maps/Rohskripte/WorkshopCollections.cs" Link="WorkshopCollections.cs" />
     <Compile Include="../../Addons/LPLK_Maps/Rohskripte/WorkshopDetails.cs" Link="WorkshopDetails.cs" />
     <Compile Include="../../Addons/LPLK_Maps/Rohskripte/VpkMaps.cs" Link="VpkMaps.cs" />

@@ -22,7 +22,7 @@ public sealed record EconomySettings
     public BettingSettings Betting { get; init; } = new();
     public bool BankEnabled { get; init; } = true;
     public bool Enabled { get; init; } = true;
-    public string Profile { get; init; } = "standard-test-11110004";
+    public string Profile { get; init; } = "standard-test-89450e53";
     public long StartBank { get; init; }
     public long MaxBank { get; init; } = -1;
     public long UnlimitedLimit { get; init; } = 9_000_000_000_000_000;

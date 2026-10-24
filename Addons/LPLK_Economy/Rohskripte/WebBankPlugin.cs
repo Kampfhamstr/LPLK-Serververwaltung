@@ -44,7 +44,7 @@ public sealed partial class Plugin
         {
             if(!Active||!settings.BankEnabled||!settings.WebBank.AdminChangesEnabled||!settings.AllowEditPlayerBank||reloadError is not null)throw new BankRejected("Webbank-Änderungen derzeit gesperrt.");
             // This release deliberately cannot accept requests on a production bank.
-            if(settings.Profile!="standard-test-11110004")throw new BankRejected("Webbank noch nicht für dieses Profil freigegeben.");
+            if(settings.Profile!="standard-test-89450e53")throw new BankRejected("Webbank noch nicht für dieses Profil freigegeben.");
             if(new DirectoryInfo(root).LinkTarget is not null||new FileInfo(path).LinkTarget is not null||new FileInfo(path).Length>4096)throw new BankRejected("Ungültige Auftragsdatei.");
             var options=new JsonSerializerOptions{UnmappedMemberHandling=JsonUnmappedMemberHandling.Disallow};
             var request=JsonSerializer.Deserialize<PanelBankRequest>(File.ReadAllText(path),options)??throw new BankRejected("Auftrag fehlt.");

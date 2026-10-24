@@ -8,7 +8,7 @@ public sealed partial class Plugin
 {
     private void RobberyProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-11110004"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy robprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy robprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         string path=Path.Combine(Core.PluginDataDirectory,"robbery-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"robbery-probe.json");
         const string a="76561198000000001",b="76561198000000002";const long now=1_800_000_000;
         try
@@ -17,7 +17,7 @@ public sealed partial class Plugin
             if(legacyCommands.Any(c=>!Core.Command.IsCommandRegistered(c)))throw new InvalidDataException("Legacy console alias missing");
             bool prior=File.Exists(path),armed=false;string seedBoot=boot;
             if(File.Exists(report)){using var j=JsonDocument.Parse(File.ReadAllText(report));seedBoot=j.RootElement.GetProperty("seedBoot").GetString()!;}
-            using var probe=new Ledger(path,settings with{Profile="robbery-probe-11110004",StartBank=0},phase=>{if(armed&&phase=="after-posting")throw new InvalidOperationException("synthetic-interruption");});var rules=new RobberySettings();
+            using var probe=new Ledger(path,settings with{Profile="robbery-probe-89450e53",StartBank=0},phase=>{if(armed&&phase=="after-posting")throw new InvalidOperationException("synthetic-interruption");});var rules=new RobberySettings();
             if(!prior)
             {
                 probe.Open(a,"Prüfkonto A");probe.Open(b,"Prüfkonto B");probe.Adjust("a",1,a,a,5_000_000,"set");probe.Adjust("b",1,a,b,60_000_000,"set");

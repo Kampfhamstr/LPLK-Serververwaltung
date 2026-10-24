@@ -93,7 +93,7 @@ public static partial class ChatGuardPolicy
             .Where(domain => domain.Length > 0)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
         // Preserve word boundaries: compacting the whole sentence turned
-        // "promo code community.example.invalid" into a different, supposedly unapproved host.
+        // "promo code lplk.de" into a different, supposedly unapproved host.
         Match? domainMatch = Regex.Matches(normalized,
                 @"(?:https?://)?(?:www\.)?[a-z0-9][a-z0-9-]{2,}\.(?:com|xyz|cc|net|gg|io|ru|org|de|shop|site|online|pro)(?:/[^\s]*)?",
                 RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)

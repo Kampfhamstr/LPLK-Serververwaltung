@@ -84,7 +84,7 @@ public sealed partial class Ledger
     {
         LotterySettings.Validate(rules);var prior=LotteryPlan(account);
         var request=new Booking(id,period,"lottery",$"Dauerlose {account}: {count}, Revision {revision}",[]);
-        if(Text("SELECT id FROM transactions WHERE id=$p0",id) is not null)return BookInside(request,false);
+        if(Text("SELECT id FROM transactions WHERE id=$p0",TransactionId(id)) is not null)return BookInside(request,false);
         if(!BankPolicy.Steam(account)||!Exists(account)||count<0||count>PermanentLotteryLimit(account,rules,prior.Bought)||prior.Revision!=revision)throw new BankRejected("Dauerlosansicht veraltet oder Limit erreicht.");
         var result=BookInside(request,false);
         if(count>prior.Count)TitleAddInside(account,("PermanentLottoTicketsActivated",count-prior.Count));

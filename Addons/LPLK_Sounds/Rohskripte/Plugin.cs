@@ -13,10 +13,10 @@ using SwiftlyS2.Core.Menus.OptionsBase;
 
 namespace LPLK_Sounds;
 
-[PluginMetadata(Id="LPLK_Sounds",Name="LPLK_Sounds",Version="0.1.7",Author="LPLK",Description="Sounds mit Empfängerwahl, Hörfiltern und !admin",MinimumAPIVersion="1.4.13")]
+[PluginMetadata(Id="LPLK_Sounds",Name="LPLK_Sounds",Version="0.1.9",Author="LPLK",Description="Sounds mit Empfängerwahl, Hörfiltern und !admin",MinimumAPIVersion="1.4.13")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
-    private const string PluginVersion="0.1.7";
+    private const string PluginVersion="0.1.9";
     private ILogger Logger=>Core.Logger;
     private ModuleSupport module=null!;
     private SoundsConfig config=new();
@@ -32,9 +32,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     {
         module=new(Core,"LPLK_Sounds","Sounds","lplk.sounds.admin",OpenAdmin,CanOverrideSound);
         if(!File.Exists(ConfigPath))DataFiles.WriteAtomic(ConfigPath,JsonSerializer.Serialize(config,SoundsConfig.Json));
-        config=JsonSerializer.Deserialize<SoundsConfig>(DataFiles.ReadLimited(ConfigPath),SoundsConfig.Json)??throw new InvalidDataException("Leere Soundkonfiguration.");config.Validate();
-        catalog=AssetCatalog.Read(Path.Combine(Core.PluginPath,"catalog.json"));
-        if(config.AutoCatalogFromAddon){workshopCatalog=new(config.WorkshopIds,Path.Combine(Core.PluginDataDirectory,"workshop-catalog-cache.json"),catalog);catalog=workshopCatalog.Current;}
+        configFile=new(ConfigPath);config=SoundConfigFile.Clone(configFile.Current);
+        localCatalog=AssetCatalog.Read(Path.Combine(Core.PluginPath,"catalog.json"));ActivateCatalogSettings();
         soundPreferences=new(Path.Combine(Core.PluginDataDirectory,"sound-listening.json"));RefreshSoundNumbers();
         module.Active=true;menusEnabled=true;
         Core.Event.OnPrecacheResource+=OnPrecache;Core.Event.OnTick+=OnTick;Core.Event.OnClientConnected+=OnConnected;Core.Event.OnClientDisconnected+=OnDisconnected;Core.Event.OnMapUnload+=OnMapUnload;
@@ -59,6 +58,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     }
     private void OnPrecache(IOnPrecacheResourceEvent e)
     {
+        ReloadConfiguration();if(assetReloadPending)ActivateCatalogSettings();
         precachedSounds.Clear();
         if(!config.Enabled){WriteStatus();return;}
         if(workshopCatalog is not null)
@@ -80,6 +80,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private string? CommonUnavailable()
     {
         if(!config.Enabled)return "Sounds sind deaktiviert.";
+        if(assetReloadPending)return "Soundkatalog geändert; Ressourcen werden beim nächsten Mapstart vorgeladen.";
         if(!config.RequireAddonsManager)return null;
         if(config.WorkshopIds.Length==0)return "Sound-Workshop-ID fehlt.";
         if(Core.PluginManager.GetPluginStatus("AddonsManager")!=PluginStatus.Loaded)return "AddonsManager ist nicht geladen.";
@@ -100,31 +101,23 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     }
     private static bool ConsoleOnly(ICommandContext c){if(!c.IsSentByPlayer)return true;c.Reply("[LPLK Sounds] Serverbefehl; Einstellungen unter !admin > Sounds.");return false;}
     private void CommandAction(ICommandContext c,Action action){try{action();}catch(Exception e){Logger.LogWarning(e,"Soundbefehl fehlgeschlagen");c.Reply("[LPLK Sounds] "+e.Message);}}
-    private void OnTick(){if(!menusEnabled)return;SweepMenus();SweepBroadcast();if(Environment.TickCount64>=nextStatus){nextStatus=Environment.TickCount64+30000;WriteStatus();}}
+    private void OnTick(){if(!menusEnabled)return;if(Environment.TickCount64>=nextConfig){nextConfig=Environment.TickCount64+5000;ReloadConfiguration();}SweepMenus();SweepBroadcast();if(Environment.TickCount64>=nextStatus){nextStatus=Environment.TickCount64+30000;WriteStatus();}}
     private void OnConnected(IOnClientConnectedEvent e)=>Cleanup(e.PlayerId);
     private void OnDisconnected(IOnClientDisconnectedEvent e)=>Cleanup(e.PlayerId);
     private void Cleanup(int slot){CloseOwnedMenu(slot);lastMenuOpen.Remove(slot);RemoveBroadcastListener(slot);StopDirectedSound(slot);}
     private void OnMapUnload(IOnMapUnloadEvent e){CloseAllOwnedMenus();lastMenuOpen.Clear();StopAll();soundRoundLimit.Reset();soundSendLimit.Reset();precachedSounds.Clear();}
     private void StopAll(){StopBroadcast();lastBroadcast=null;}
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version=PluginVersion,enabled=config.Enabled,sounds=catalog.Sounds.Count,precached=precachedSounds.Count,catalogSource=CatalogSource,catalogStatus=CatalogStatus,workshopIds=config.WorkshopIds,unavailable=CommonUnavailable(),cardsEnabled=false,publicLimit=SoundRoundLimit.PerPlayer,privateLimit=1,cooldownSeconds=config.BroadcastCooldownSeconds});
+    private void WriteStatus()
+    {
+        try{AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version=PluginVersion,enabled=config.Enabled,sounds=catalog.Sounds.Count,precached=precachedSounds.Count,catalogSource=CatalogSource,catalogStatus=CatalogStatus,workshopIds=config.WorkshopIds,unavailable=CommonUnavailable(),cardsEnabled=false,publicLimit=SoundRoundLimit.PerPlayer,privateLimit=1,cooldownSeconds=config.BroadcastCooldownSeconds,reloadError,assetReloadPending});statusWriteFailed=false;}
+        catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!statusWriteFailed)Logger.LogWarning(e,"LPLK_Sounds: Status nicht schreibbar.");statusWriteFailed=true;}
+    }
     [Command("lplk_sounds")]
     public void Status(ICommandContext c){if(c.Sender is {} p)OpenAdmin(p);else{WriteStatus();c.Reply($"LPLK_Sounds {PluginVersion}: {precachedSounds.Count}/{catalog.Sounds.Count} vorgeladen; {CatalogSource}; {CommonUnavailable()??"bereit"}; Karten=aus");}}
-    private void Apply(IPlayer p,Action<SoundsConfig> change)
-    {
-        if(!module.CanAdmin(p))return;var next=JsonSerializer.Deserialize<SoundsConfig>(JsonSerializer.Serialize(config),SoundsConfig.Json)!;change(next);next.Validate();DataFiles.WriteAtomic(ConfigPath,JsonSerializer.Serialize(next,SoundsConfig.Json));config=next;StopBroadcast();WriteStatus();SoundAdminSettings(p);
-    }
-    private void OpenAdmin(IPlayer p)=>module.Menu(p,"Sounds",
-        ("Abspielen",a=>ShowSoundMenu(a)),
-        ("Ansagen",a=>{if(RequireSoundOverride(a,a.SendChat))ShowSoundMenu(a,adminOnly:true);}),
-        ("Stoppen",a=>{StopBroadcast();a.SendChat("[LPLK Sounds] Gestoppt; Cooldown und Rundenlimit bleiben erhalten.");}),
-        ("Einstellungen",SoundAdminSettings));
-    private void SoundAdminSettings(IPlayer p)=>module.Menu(p,"Einstellungen",1,
-        ($"Aktiv: {(config.Enabled?"Ja":"Nein")}",a=>Apply(a,c=>c.Enabled=!c.Enabled)),
-        ($"Totenregel: {(config.DeadPlayersOnlyToDead?"Ja":"Nein")}",a=>Apply(a,c=>c.DeadPlayersOnlyToDead=!c.DeadPlayersOnlyToDead)),
-        ($"Soundpause: {config.BroadcastCooldownSeconds}s → +1",a=>Apply(a,c=>c.BroadcastCooldownSeconds=Math.Min(60,c.BroadcastCooldownSeconds+1))),
-        ("Soundpause −1",a=>Apply(a,c=>c.BroadcastCooldownSeconds=Math.Max(1,c.BroadcastCooldownSeconds-1))),
-        ("Katalog",a=>ShowCatalogMenu(a,SoundAdminSettings)),
-        ("Zurück",OpenAdmin));
+    private void OpenAdmin(IPlayer p) => module.Menu(p,"Sounds",((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Sound",SoundAdminSettingsRows(actor)))))(p));
+    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Abspielen",a=>ShowSoundMenu(a)),("Ansagen",a=>{if(RequireSoundOverride(a,a.SendChat))ShowSoundMenu(a,adminOnly:true);}),("Stoppen",a=>{StopBroadcast();a.SendChat("[LPLK Sounds] Gestoppt; Cooldown und Rundenlimit bleiben erhalten.");})}))(p);
+    private void SoundAdminSettings(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> SoundAdminSettingsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Aktiv: {(config.Enabled?"Ja":"Nein")}",a=>Apply(a,c=>c.Enabled=!c.Enabled)),($"Totenregel: {(config.DeadPlayersOnlyToDead?"Ja":"Nein")}",a=>Apply(a,c=>c.DeadPlayersOnlyToDead=!c.DeadPlayersOnlyToDead)),($"Soundpause: {config.BroadcastCooldownSeconds:0.###}s",SoundPauseInput),("Katalog",a=>ShowCatalogMenu(a,SoundAdminSettings))}))(p);
     private void ShowCatalogMenu(IPlayer p,Action<IPlayer> back)
     {
         var owner=new OwnedMenu(p.Slot,p.SteamID);var menu=MenuBuilder("LPLK · Soundkatalog");

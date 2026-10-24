@@ -131,23 +131,23 @@ foreach(var input in new[]{"-100","1e3","1.2","9223372036854775808"," 100","100$
 Check(BankPolicy.Amount("all",9_000_000_000,100,9_000_000_000)==9_000_000_000,"all long amount");
 var world=new MenuWorld{DataDirectory=Path.Combine(root,"menus"),RejectEntityAccess=true};
 var plugin=new Plugin(world.Core);plugin.Load(false);Check(world.EntityAccesses==0,"cold load avoids entity system");
-plugin.BankCommand(world.Context);Check(world.Labels.Count==5,"bank root four functions plus back");
-await world.Click("Bargeld");await world.Click("Einzahlen");
-for(int page=0;page<8;page++){Check(world.Current!.Options.Count<=5,"amount page bounded");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
+plugin.BankCommand(world.Context);Check(world.Labels.Any(l=>l.Contains("Einzahlen"))&&world.Labels.Any(l=>l.Contains("Bankraub")),"Flat bank actions");
+await world.Click("Einzahlen");
+for(int page=0;page<8;page++){Check(world.Current!.Configuration.MaxVisibleItems==5,"amount page bounded");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
 plugin.Administration(world.Context);Check(!world.Labels.Any(x=>x.Contains("Konten")),"ordinary player denied admin");
-world.Permissions.Add("lplk.economy.admin");plugin.Administration(world.Context);Check(world.Labels.Count==4,"admin root reserves parent back row");
-await world.Click("Einstellungen");await world.Click("Bankregeln");var toggle=world.Find("Bank: AN");world.Permissions.Clear();await world.Click(toggle);
+world.Permissions.Add("lplk.economy.admin");plugin.Administration(world.Context);Check(world.Labels.Last().Contains("Zurück"),"admin root includes persistent return");
+var toggle=world.FindExact("Bank: AN");world.Permissions.Clear();await world.Click(toggle);
 var saved=JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(Path.Combine(world.DataDirectory,"settings.json")))!;
 Check(saved.BankEnabled,"revoked admin cannot toggle stale menu");world.Permissions.Add("lplk.economy.admin");await world.Click(toggle);
 saved=JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(Path.Combine(world.DataDirectory,"settings.json")))!;Check(!saved.BankEnabled,"permitted toggle saved");
-plugin.Administration(world.Context);Check(world.Labels.Count==4,"disabled module still administrable");await world.Click("Einstellungen");await world.Click("Bankregeln");await world.Click("Bank: AUS");
-plugin.Administration(world.Context);await world.Click("Bankreset");await world.Click("Zurücksetzen");var confirmation=world.Find("Bestätigen");
+plugin.Administration(world.Context);Check(world.Labels.Any(x=>x.Contains("Bank: AUS")),"disabled module still administrable");await world.Click(world.FindExact("Bank: AUS"));
+plugin.Administration(world.Context);await world.Click("Zurücksetzen");var confirmation=world.Find("Bestätigen");
 world.Permissions.Clear();await world.Click(confirmation);world.Permissions.Add("lplk.economy.admin");
 var ledger=(Ledger)typeof(Plugin).GetField("bank",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(plugin)!;
 Check(ledger.Period==1,"reset confirmation rechecks permissions");await world.Click(confirmation);Check(ledger.Period==2,"confirmed reset");await world.Click(confirmation);Check(ledger.Period==2,"stale reset callback cannot reset twice");
-plugin.Administration(world.Context);await world.Click("Einstellungen");await world.Click("Bankregeln");var staleToggle=world.Find("Bank: AN");world.Session++;await world.Click(staleToggle);
+plugin.Administration(world.Context);var staleToggle=world.FindExact("Bank: AN");world.Session++;await world.Click(staleToggle);
 Check(JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(Path.Combine(world.DataDirectory,"settings.json")))!.BankEnabled,"changed session rejects callback");
-Check(world.AllMenus.All(m=>m.Options.Count<=5),"all Economy menu options fit five rows");plugin.Unload();
+Check(world.AllMenus.All(m=>m.Configuration.MaxVisibleItems==5),"all Economy menu options fit five rows");plugin.Unload();
 var report=new{checkedAt=DateTimeOffset.UtcNow,checks,processCrashVerified=true,sqliteVersion=SQLitePCL.raw.sqlite3_libversion().utf8_to_string(),dataDirectory=root};
 File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("LPLK_BUILD_ROOT")!,"EconomyChecks","result.json"),JsonSerializer.Serialize(report));
 Console.WriteLine(JsonSerializer.Serialize(report));

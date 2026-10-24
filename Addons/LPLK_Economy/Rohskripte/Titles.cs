@@ -61,7 +61,7 @@ public sealed partial class Ledger
     {
         if(!titleRules.TitleSystem.Enabled||period!=Period||!Exists(account)||!BankPolicy.Steam(account))throw new BankRejected("Titelansicht nicht verfügbar oder veraltet.");
         var request=new Booking(id,period,TitleOwner,"Titelwahl "+account+" "+title,[]);
-        if(Text("SELECT id FROM transactions WHERE id=$p0",id)is not null){BookInside(request,false);return 0;}
+        if(Text("SELECT id FROM transactions WHERE id=$p0",TransactionId(id))is not null){BookInside(request,false);return 0;}
         if(title!=""&&!OwnedTitles(account).Any(t=>t.Id==title))throw new BankRejected("Diesen Titel besitzt du aktuell nicht.");
         BookInside(request,false);TitleStateInside("player:"+account,TitlesProgress(account) with{Active=title});return 0;
     });

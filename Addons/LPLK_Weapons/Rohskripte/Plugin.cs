@@ -13,12 +13,13 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Weapons;
 
-[PluginMetadata(Id="LPLK_Weapons",Name="LPLK_Weapons",Version="0.1.1",Author="LPLK",Description="Waffenfreigaben, Teamquoten und gruppierte Waffenauswahl",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Weapons",Name="LPLK_Weapons",Version="0.2.4",Author="LPLK",Description="Waffenfreigaben, Teamquoten und gruppierte Waffenauswahl",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
     private WeaponSettings settings=new();
-    private DateTime stamp;
+    private WatchedSettings<WeaponSettings> config=null!;
+    private bool statusWriteFailed;
     private long nextStatus;
     private string? reloadError;
     private int denied,damageBlocked,given,errors;
@@ -28,12 +29,13 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     public override void Load(bool hotReload)
     {
         module=new(Core,"LPLK_Weapons","Waffen","lplk.weapons.admin",OpenAdmin);
-        settings=module.ReadSettings<WeaponSettings>(WeaponSettings.Validate);stamp=File.GetLastWriteTimeUtc(module.SettingsPath);module.Active=true;
+        config=new(module.SettingsPath,WeaponSettings.Validate);settings=config.Current;module.Active=true;nativeReady=hotReload;
         Core.GameHooks.Items.CanAcquire.Pre+=Acquire;
+        Core.GameEvent.HookPost<EventWeaponFire>(WeaponFire);Core.GameEvent.HookPost<EventItemEquip>(WeaponEquip);
         Core.GameHooks.Entities.TakeDamage.Pre+=Damage;
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)lives[p.PlayerID]=++generation;return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p)lives[p.PlayerID]=++generation;return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_Weapons 0.1.1 geladen: restrictions={Restrictions}; menu={Menu}",settings.RestrictionEnabled,settings.MenuEnabled);
+        WriteStatus();Core.Logger.LogInformation("LPLK_Weapons 0.2.4 geladen: restrictions={Restrictions}; menu={Menu}",settings.RestrictionEnabled,settings.MenuEnabled);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
@@ -43,23 +45,23 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
             ["allowed"]=(Func<IPlayer,string,bool>)((p,command)=>command=="sw_guns"&&PlayerAllowed(p))
         });
     }
-    public override void Unload(){module.Active=false;Core.GameHooks.Items.CanAcquire.Pre-=Acquire;Core.GameHooks.Entities.TakeDamage.Pre-=Damage;alerts.Clear();}
+    public override void Unload(){ResetAmmo();nativeReady=false;module.Active=false;Core.GameHooks.Items.CanAcquire.Pre-=Acquire;Core.GameHooks.Entities.TakeDamage.Pre-=Damage;alerts.Clear();}
     [EventListener<EventDelegates.OnClientDisconnected>]
-    public void Disconnected(IOnClientDisconnectedEvent e){alerts.Remove(e.PlayerId);lives.Remove(e.PlayerId);}
+    public void Disconnected(IOnClientDisconnectedEvent e){alerts.Remove(e.PlayerId);lives.Remove(e.PlayerId);reloadRequests.Remove(e.PlayerId);}
     [EventListener<EventDelegates.OnMapUnload>]
-    public void MapUnload(IOnMapUnloadEvent e){lives.Clear();generation++;}
+    public void MapUnload(IOnMapUnloadEvent e){ResetAmmo();nativeReady=false;lives.Clear();generation++;}
     private string WeaponName(CBasePlayerWeapon w)=>Core.Helpers.GetClassnameByDefinitionIndex(w.AttributeManager.Item.ItemDefinitionIndex)??"weapon_unknown";
     private string? Denial(IPlayer player,string id,bool pickup)
     {
         if(WeaponPolicy.Restricted(settings,id))return "Waffe im aktuellen Modus gesperrt";
         if(!settings.Rules.ContainsKey(id))return null;
-        bool bypass=settings.Rules.TryGetValue(id,out var rule)&&rule.BypassPermission.Length>0&&!player.IsFakeClient&&Core.Permission.PlayerHasPermission(player.SteamID,rule.BypassPermission);
+        bool bypass=settings.Rules.TryGetValue(id,out var rule)&&!player.IsFakeClient&&(rule.BypassPermission.Length>0&&Core.Permission.PlayerHasPermission(player.SteamID,rule.BypassPermission)||rule.BypassPermissions.Length>0&&rule.BypassPermissions.All(flag=>Core.Permission.PlayerHasPermission(player.SteamID,flag)));
         var team=Core.PlayerManager.GetAllValidPlayers().Where(p=>p.Controller.IsValid&&p.Controller.TeamNum==player.Controller.TeamNum).ToArray();
         int owned=0;
         foreach(var p in team)
         {
             if(p.PlayerPawn?.WeaponServices is not {} services)continue;
-            foreach(var handle in services.MyWeapons)if(handle.Value is {IsValid:true} weapon&&WeaponName(weapon)==id)owned++;
+            foreach(var handle in services.MyWeapons)if(handle.Value is {IsValid:true} weapon&&WeaponName(weapon)==id){int slot=WeaponPolicy.GrenadeAmmoSlot(id);owned+=slot<0?1:Math.Max((int)services.Ammo[slot],1);}
         }
         return WeaponPolicy.Denial(settings,id,pickup,bypass,Core.Engine.GlobalVars.MapName,team.Length,owned);
     }
@@ -97,23 +99,31 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     public void Tick()
     {
         if(!module.Active||Environment.TickCount64<nextStatus)return;nextStatus=Environment.TickCount64+2000;
-        try
-        {
-            var changed=File.GetLastWriteTimeUtc(module.SettingsPath);
-            if(changed!=stamp){var next=JsonSerializer.Deserialize<WeaponSettings>(File.ReadAllText(module.SettingsPath))??throw new InvalidDataException();WeaponSettings.Validate(next);settings=next;stamp=changed;reloadError=null;}
-        }
-        catch(Exception e){if(reloadError is null)Core.Logger.LogWarning(e,"LPLK_Weapons: letzter gültiger Stand bleibt aktiv");reloadError="Ungültige Dateiänderung";}
+        RefreshSettings();
         WriteStatus();
     }
-    private void WriteStatus()=>AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.1",settings.Enabled,settings.RestrictionEnabled,settings.ActivePreset,allowed=settings.AllowedWeapons.Length,settings.MenuEnabled,specialRules=settings.Rules.Count,denied,damageBlocked,given,errors,reloadError});
-    private void Save(WeaponSettings next)
+    private static bool Equivalent<T>(T first,T second)=>System.Text.Json.Nodes.JsonNode.DeepEquals(JsonSerializer.SerializeToNode(first),JsonSerializer.SerializeToNode(second));
+    private void RefreshSettings()
     {
-        WeaponSettings.Validate(next);module.SaveSettings(next);settings=next;stamp=File.GetLastWriteTimeUtc(module.SettingsPath);reloadError=null;WriteStatus();
+        if(config is null)return;config.Reload();var next=config.Current;
+        if(!Equivalent(settings,next))ResetAmmo();settings=next;reloadError=config.Error;
+    }
+    private void WriteStatus()
+    {
+        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.2.4",settings.Enabled,settings.RestrictionEnabled,settings.ActivePreset,allowed=settings.AllowedWeapons.Length,settings.MenuEnabled,specialRules=settings.Rules.Count,denied,damageBlocked,given,errors,reloadError}); statusWriteFailed=false; }
+        catch(Exception e)when(e is IOException or UnauthorizedAccessException)
+        {if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_Weapons: Status nicht schreibbar ({Error}); Regeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true;}
+    }
+    private void Save(Func<WeaponSettings,WeaponSettings> edit)
+    {
+        RefreshSettings();if(!module.Active)throw new InvalidOperationException("Modul entladen.");
+        var next=config.Change(current=>edit(JsonSerializer.Deserialize<WeaponSettings>(JsonSerializer.Serialize(current))!));
+        if(!Equivalent(settings,next))ResetAmmo();settings=next;reloadError=null;WriteStatus();
     }
     [Command("lplk_weapons")]
     public void Status(ICommandContext c)
     {
         if(c.Sender is {} p){OpenAdmin(p);return;}
-        WriteStatus();c.Reply($"LPLK_Weapons 0.1.1: enabled={settings.Enabled}; restrictions={settings.RestrictionEnabled}; menu={settings.MenuEnabled}; preset={settings.ActivePreset}; rules={settings.Rules.Count}; errors={errors}; reloadError={reloadError??"none"}");
+        RefreshSettings();if(c.Args is ["ammoprobe"]){AmmoProbe(c);return;}WriteStatus();c.Reply($"LPLK_Weapons 0.2.4: enabled={settings.Enabled}; restrictions={settings.RestrictionEnabled}; menu={settings.MenuEnabled}; preset={settings.ActivePreset}; rules={settings.Rules.Count}; errors={errors}; reloadError={reloadError??"none"}");
     }
 }

@@ -1,7 +1,9 @@
+using System.Text.Json.Serialization;
 using System.Numerics;
 
 namespace LPLK_AntiCamp;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record CampSettings
 {
     public bool PluginEnabled { get; init; } = true;

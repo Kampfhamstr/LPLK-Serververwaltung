@@ -20,6 +20,7 @@ public class Proxy : DispatchProxy
 
 public sealed class MenuWorld
 {
+    public Func<MethodInfo,object?[]?,(bool Handled,object? Value)>? ServiceOverride;
     public List<Exception> Errors=[];
     public HashSet<string> Permissions = [];
     public Dictionary<ulong,HashSet<string>>? PermissionsByPlayer;
@@ -44,7 +45,14 @@ public sealed class MenuWorld
     public IInterfaceManager Interfaces;
     public ICommandContext Context;
     public List<string> Labels => Current!.Options.Select(o => o.Text).ToList();
-    public IMenuOption Find(string text) => Current!.Options.Single(o => o.Text.Contains(text));
+    public IMenuOption Find(string text) => Select(o => o.Text.Contains(text), text);
+    public IMenuOption FindExact(string text) => Select(o => System.Text.RegularExpressions.Regex.Replace(System.Net.WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Replace(o.Text,"<[^>]*>","")),@"^\s*\d+[.)]\s*","").Trim()==text, text);
+    private IMenuOption Select(Func<IMenuOption,bool> match,string text)
+    {
+        var found=Current!.Options.Where(match).ToArray();
+        if(found.Length!=1)throw new InvalidOperationException($"Expected one menu item '{text}', found {found.Length}. Actual: {string.Join(" | ",Labels)}");
+        return found[0];
+    }
     public async Task Click(string label) => await Click(Find(label));
     public async Task Click(IMenuOption option) { await option.OnClickAsync(Player); }
     public MenuWorld()
@@ -58,7 +66,7 @@ public sealed class MenuWorld
         Context = Proxy.Make<ICommandContext>((m, a) => m.Name switch
         { "get_Sender" => Player, "get_IsSentByPlayer" => true, "get_Args" => Array.Empty<string>(), "Reply" => Capture(Messages, (string)a![0]!), _ => Proxy.Empty(m.ReturnType) });
         Interfaces = Proxy.Make<IInterfaceManager>((m, a) =>
-        { if (m.Name == "TryGetSharedInterface") { bool found = modules.TryGetValue((string)a![0]!, out var api); a[1] = api; return found; } return Proxy.Empty(m.ReturnType); });
+        { if (m.Name == "AddSharedInterface") { modules[(string)a![0]!] = (IReadOnlyDictionary<string,Delegate>)a[1]!; return null; } if (m.Name == "TryGetSharedInterface") { bool found = modules.TryGetValue((string)a![0]!, out var api); a[1] = api; return found; } return Proxy.Empty(m.ReturnType); });
         modules["LPLK.Player.Maps.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>MapsEnabled)};
         modules["LPLK.Player.Sounds.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>SoundsEnabled)};
         modules["LPLK.Player.Statistics.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>StatisticsEnabled)};
@@ -78,6 +86,7 @@ public sealed class MenuWorld
     private static object? Capture(List<string> list, string value) { list.Add(value); return null; }
     private object? Service(MethodInfo m, object?[]? a)
     {
+        if(ServiceOverride?.Invoke(m,a) is {Handled:true} result)return result.Value;
         switch (m.Name)
         {
             case "GetGameRules": EntityAccesses++;if(RejectEntityAccess)throw new InvalidOperationException("Entity system not ready");return null;
@@ -87,6 +96,8 @@ public sealed class MenuWorld
             case "PlayerHasPermission": return PermissionsByPlayer is null?Permissions.Contains((string)a![1]!):PermissionsByPlayer.GetValueOrDefault((ulong)a![0]!)?.Contains((string)a[1]!)==true;
             case "GetPlayerPermissions": return Permissions.ToList();
             case "IsCommandRegistered": return true;
+            case "GetAllCommandsInfo":
+            case "GetCommandsByPlugin": return new List<SwiftlyS2.Shared.Commands.CommandInfo>();
             case "GetPlayer": return Player;
             case "GetAllPlayers": case "GetAllValidPlayers": return OnlinePlayers??new List<IPlayer>();
             case "NextWorldUpdate": ((Action)a![0]!)(); return Proxy.Empty(m.ReturnType);
@@ -113,17 +124,18 @@ public sealed class MenuWorld
     }
     private IMenuBuilderAPI Builder()
     {
-        var options = new List<IMenuOption>(); var config = new MenuConfiguration();
+        var options = new List<IMenuOption>(); var config = new MenuConfiguration();var scroll=MenuOptionScrollStyle.CenterFixed;
         IMenuBuilderAPI builder = null!;
         var menu = Proxy.Make<IMenuAPI>((m, a) => m.Name switch
         {
-            "get_Options" => options, "get_Configuration" => config,
+            "get_Options" => options, "get_Configuration" => config,"get_OptionScrollStyle"=>scroll,
             "AddOption" => Add(options, (IMenuOption)a![0]!), _ => Proxy.Empty(m.ReturnType)
         });
         var design = Proxy.Make<IMenuDesignAPI>((m, a) =>
         {
             if (m.Name == "SetMenuTitle") config.Title = (string)a![0]!;
             if (m.Name == "SetMaxVisibleItems") config.MaxVisibleItems = (int)a![0]!;
+            if (m.Name == "SetGlobalScrollStyle") scroll=(MenuOptionScrollStyle)a![0]!;
             return builder;
         });
         builder = Proxy.Make<IMenuBuilderAPI>((m, a) =>

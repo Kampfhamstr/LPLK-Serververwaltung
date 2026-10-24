@@ -76,7 +76,7 @@ public sealed partial class Ledger
         if(!robberyRules.HighRollerProtectionBypassResetWhenTargetBelowThreshold||!BankPolicy.Steam(account)||Balance(account)>=robberyRules.HighRollerProtectionBypassTargetBankThreshold)return;
         var state=State(RobOwner,"security:"+account);if(state.Json is null)return;
         var sec=JsonSerializer.Deserialize<RobberySecurity>(state.Json)!;if(sec.Bypasses==0)return;
-        Exec("UPDATE module_state SET revision=revision+1,json=$p3 WHERE period=$p0 AND owner=$p1 AND key=$p2",Period,RobOwner,"security:"+account,JsonSerializer.Serialize(sec with{Bypasses=0}));
+        Exec("UPDATE "+StateTable(RobOwner,"security:"+account)+" SET revision=revision+1,json=$p3 WHERE period=$p0 AND owner=$p1 AND key=$p2",Period,RobOwner,"security:"+account,JsonSerializer.Serialize(sec with{Bypasses=0}));
     }
     private T RobState<T>(string key) where T:new()=>State(RobOwner,key).Json is {} json?JsonSerializer.Deserialize<T>(json)??throw new InvalidDataException("Ungültiger Bankraubstand."):new();
     private StateChange RobChange(string key,object value)=>new(key,State(RobOwner,key).Revision,JsonSerializer.Serialize(value,value.GetType()));
@@ -107,7 +107,7 @@ public sealed partial class Ledger
         {
             RobEnabled(s);RobAccount(sponsor);RobAccount(target);if(sponsor==target)throw new BankRejected("Eigenes Konto ist kein Raubziel.");
             if(Balance(target)<s.MinTargetBank)throw new BankRejected($"Ziel benötigt mindestens {s.MinTargetBank:N0} $ Bank.");
-            var pending=RobberyOrders(true,10000).Where(o=>o.Status!="done").ToArray();
+            var pending=NetworkPendingRobberies().Where(o=>o.Status!="done").ToArray();
             if(pending.Count(o=>o.Sponsor==sponsor)>=s.MaxActiveOrdersPerSponsor||pending.Count(o=>o.Target==target)>=s.MaxActiveOrdersPerTarget)throw new BankRejected("Bereits genügend offene Aufträge für Auftraggeber oder Ziel.");
             long cooldown=RobState<long>("pair:"+sponsor+":"+target);if(cooldown>now)throw new BankRejected("Erneuter Angriff auf dieses Ziel noch gesperrt.");
             var sec=Security(target,s,now);bool bypass=sec.ProtectedUntil>now;long extra=0;
@@ -156,7 +156,7 @@ public sealed partial class Ledger
         {
             RobEnabled(s);RobAccount(account);if(period!=Period)throw new BankRejected("Bankperiode gewechselt.");
             string reason=$"Ausbau {account} {kind} {level} {price}";
-            if(Text("SELECT reason FROM transactions WHERE id=$p0",id) is {} old){if(old!=reason)throw new BankRejected("Abweichende Ausbauwiederholung.");return 0;}
+            if(Text("SELECT reason FROM transactions WHERE id=$p0",TransactionId(id)) is {} old){if(old!=reason)throw new BankRejected("Abweichende Ausbauwiederholung.");return 0;}
             if(UpgradePrice(account,kind,level,s,now)!=price)throw new BankRejected("Ausbaupreis geändert.");
             long basePrice=UpgradeBasePrice(account,kind,level,s,now);
             var sec=Security(account,s,now);

@@ -11,15 +11,9 @@ public sealed partial class Plugin
     private int generation;
     private AdminSettings settings=new();
     private string SettingsPath=>Path.Combine(Core.PluginDataDirectory,"settings.json");
-    private void LoadSettings()
-    {
-        var next=File.Exists(SettingsPath)?JsonSerializer.Deserialize<AdminSettings>(File.ReadAllText(SettingsPath))??throw new InvalidDataException("Admin-Konfiguration leer."):settings;
-        if(next.Durations is null||next.Reasons is null||next.Durations.Length is <1 or >20||next.Durations.Any(n=>n<0||n>525600)||next.Reasons.Length is <1 or >30||next.Reasons.Any(r=>string.IsNullOrWhiteSpace(r)||r.Length>150))throw new InvalidDataException("Ungültige Admin-Gründe/Dauern.");
-        if(!File.Exists(SettingsPath))AtomicJson.Write(SettingsPath,next);settings=next;
-    }
     private bool Has(IPlayer p,string permission)=>active&&p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&Core.Permission.PlayerHasPermission(p.SteamID,permission);
     private bool Can(IPlayer p,string action)=>active&&p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&AdminActionPolicy.Allowed(action,s=>Has(p,s));
-    private bool CanManage(IPlayer p)=>Has(p,"admin.menu")||AdminActionPolicy.Permissions.Keys.Any(a=>Can(p,a));
+    private bool CanManage(IPlayer p)=>Has(p,"admin.menu")||Has(p,"admin.map")||AdminActionPolicy.Permissions.Keys.Any(a=>Can(p,a));
     private Func<ulong,string,string,string>? Backend()=>active&&interfaces is not null&&interfaces.TryGetSharedInterface<IReadOnlyDictionary<string,Delegate>>("LPLK.Bridge.Admin.v1",out var api)&&api.TryGetValue("execute",out var call)?call as Func<ulong,string,string,string>:null;
     private IPlayer? Find(ulong id)=>Core.PlayerManager.GetAllPlayers().FirstOrDefault(p=>p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&p.SteamID==id);
     private void Run(IPlayer? actor,string action,string? target,Dictionary<string,object>? payload,Action<string> reply)
@@ -33,7 +27,7 @@ public sealed partial class Plugin
     }
     private void Guard(Action action,Action<string> reply)
     {
-        try{action();}catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Admin: Aktion abgewiesen/fehlgeschlagen");reply("[LPLK] "+e.Message);}
+        try{if(active)action();}catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Admin: Aktion abgewiesen/fehlgeschlagen");reply("[LPLK] "+e.Message);}
     }
     private void Input(IPlayer p, string title, Action<IPlayer, string> accept, Action<IPlayer> back, int length = 150)
     {
@@ -42,11 +36,11 @@ public sealed partial class Plugin
         var input = new InputMenuOption(new MenuNumbers().Next(MenuLayout.Label(title)), maxLength: length,
             validator: v => !string.IsNullOrWhiteSpace(v) && v.Length <= length, hintMessage: "Text in den Chat eingeben.");
         GameThreadMenu.BindInput(Core, input, p, () => active && serial == generation, (a, value) =>
-        { if (CanManage(a)) Guard(() => accept(a, AdminActionPolicy.Text(value, length)), a.SendChat); });
+        { ReloadSettings();if(serial!=generation){a.SendChat("[LPLK] Einstellungen geändert; Menü neu öffnen.");return;} if (CanManage(a)) Guard(() => accept(a, AdminActionPolicy.Text(value, length)), a.SendChat); });
         var cancel = new ButtonMenuOption(MenuColors.Back("Zurück")) { CloseAfterClick = false };
         GameThreadMenu.Bind(Core, cancel, p, () => active && serial == generation, back);
-        Core.MenusAPI.OpenMenuForPlayer(p, Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false)
-            .Design.SetMenuTitle(MenuColors.Heading(MenuLayout.Label(title))).Design.SetMaxVisibleItems(5).AddOption(input).AddOption(cancel).Build());
+        OpenOwnedMenu(p, Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false)
+            .Design.SetMenuTitle(MenuColors.Heading(MenuLayout.Label(title))).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter).AddOption(input).AddOption(cancel).Build());
     }
 
     private void PlayerList(IPlayer p, int page, bool extra = false, int advancedPage = 0) => Menu(p, "LPLK · Spieler auswählen", _ =>
@@ -55,7 +49,7 @@ public sealed partial class Plugin
             {
                 ulong id = t.SteamID; string session = t.SessionId.ToString();
                 return (t.Name, (Action<IPlayer>)(a => PlayerActions(a, id, session, page, extra, advancedPage)));
-            }), extra ? a => AdvancedMenu(a, advancedPage) : OpenAdministration, CanOpenAdmin, page,
+            }), PlayerManagement, CanOpenAdmin, page,
         (a, next) => PlayerList(a, next, extra, advancedPage), scroll: true);
 
     private IPlayer Target(string id, string? session)
@@ -168,6 +162,10 @@ public sealed partial class Plugin
 
 public sealed record AdminSettings
 {
+    public bool LegacyPlayerMenus { get; init; }
+    public Dictionary<string,string> LegacyGameMaps { get; init; } = [];
+    public Dictionary<string,uint> LegacyWorkshopMaps { get; init; } = [];
+    public Dictionary<string,string[]> Commands { get; init; } = [];
     public int[] Durations { get; init; } = [5, 30, 60, 120, 1440, 10080, 0];
     public string[] Reasons { get; init; } = ["Regelverstoß", "Beleidigung", "Spam", "AFK", "Cheating"];
 }

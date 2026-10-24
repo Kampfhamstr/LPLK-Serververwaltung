@@ -1,4 +1,4 @@
-LPLK weapon/combat modules 0.1.0 -- GPL-3.0.
+LPLK weapon module 0.2.0 / companion combat rules -- GPL-3.0.
 New implementation and shared administration: LPLK.
 Functional references reviewed 12 October 2026:
 HeadshotOnly 1.0.18 (owner source, Michael Zauche), live 1.0.17 settings/runtime read separately.

@@ -98,12 +98,12 @@ Check(BettingPolicy.Denied(rules with{Enabled=false},context) is not null,"disab
 Check(BettingPolicy.Denied(rules,context with{Known=false}) is not null,"unknown round never accepts bets");
 Check(BettingPolicy.Denied(rules with{OpenMode="Time"},context with{Seconds=double.NaN}) is not null,"invalid clock rejected");
 var world=new MenuWorld{DataDirectory=Path.Combine(root,"menus"),RejectEntityAccess=true};var plugin=new Plugin(world.Core);plugin.Load(false);Check(world.EntityAccesses==0,"cold load does not inspect native entities");
-plugin.BetCommand(world.Context);Check(world.Labels.Count==5,"bet main four actions and back");await world.Click("Auf T wetten");
-for(int page=0;page<5;page++){Check(world.Labels.Count<=5,"bet amount pages bounded");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
-world.Permissions.Add("lplk.economy.admin");plugin.Administration(world.Context);await world.Click("Einstellungen");await world.Click("Wettregeln");var toggle=world.Find("Wetten: AN");world.Permissions.Clear();await world.Click(toggle);
+plugin.BetCommand(world.Context);Check(world.Labels.Count==5,"bet main four actions and back");await world.Click(world.FindExact("T"));
+for(int page=0;page<5;page++){Check(world.Current!.Configuration.MaxVisibleItems==5,"bet amount pages bounded");if(!world.Labels.Any(x=>x.Contains("Nächste")))break;await world.Click("Nächste");}
+world.Permissions.Add("lplk.economy.admin");plugin.Administration(world.Context);var toggle=world.Find("Wetten: AN");world.Permissions.Clear();await world.Click(toggle);
 Check(JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(Path.Combine(world.DataDirectory,"settings.json")))!.Betting.Enabled,"revoked admin cannot switch betting");world.Permissions.Add("lplk.economy.admin");await world.Click(toggle);
 Check(!JsonSerializer.Deserialize<EconomySettings>(File.ReadAllText(Path.Combine(world.DataDirectory,"settings.json")))!.Betting.Enabled,"betting can be disabled independently");plugin.BankCommand(world.Context);Check(world.Labels.Any(x=>x.Contains("Einzahlen")),"bank remains available when betting off");
-Check(world.AllMenus.All(m=>m.Options.Count<=5),"all Economy pages including settings at most five rows");plugin.Unload();
+Check(world.AllMenus.All(m=>m.Configuration.MaxVisibleItems==5&&(m.Configuration.MaxVisibleItems==5||m.Configuration.Title.Contains("Bank & Bankraub"))),"all Economy pages including settings at most five rows");plugin.Unload();
 var staleWorld=new MenuWorld{DataDirectory=Path.Combine(root,"stale-session")};var stalePlugin=new Plugin(staleWorld.Core);stalePlugin.Load(false);
 var staleBank=(Ledger)typeof(Plugin).GetField("bank",BindingFlags.NonPublic|BindingFlags.Instance)!.GetValue(stalePlugin)!;
 string player=staleWorld.Player.SteamID.ToString();staleBank.Open(player,"Player");staleBank.StartBetRound("stale",rules);var pending=staleBank.PrepareBetStake("stale-cash","stale",player,staleWorld.Session.ToString(),2,1000,100);staleWorld.Session++;

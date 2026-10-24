@@ -11,14 +11,18 @@ using SwiftlyS2.Shared.Misc;
 using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.SchemaDefinitions;
+using Microsoft.Extensions.Logging;
 
 namespace LPLK_BombWires;
 
-[PluginMetadata(Id = "LPLK_BombWires", Name = "LPLK_BombWires", Version = "0.1.4", Author = "LPLK / K4ryuu", Description = "Bombendrähte mit gültigkeitsgeprüften Menüs", MinimumAPIVersion = "1.4.14")]
-public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
+[PluginMetadata(Id = "LPLK_BombWires", Name = "LPLK_BombWires", Version = "0.1.6", Author = "LPLK / K4ryuu", Description = "Bombendrähte mit gültigkeitsgeprüften Menüs", MinimumAPIVersion = "1.4.14")]
+public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ModuleSupport module = null!;
-    private WireSettings settings = new();
+    private WatchedSettings<WireSettings> config = null!;
+    private WireSettings settings => config.Current;
+    private long nextConfigCheck;
+    private bool statusWriteFailed;
     private readonly WireRound round = new();
     private readonly Dictionary<int, (IPlayer Player, IMenuAPI Menu, Guid Token)> menus = new();
     private static readonly string[] Colors = ["Rot", "Blau", "Gelb", "Grün"];
@@ -26,7 +30,7 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
     public override void Load(bool hotReload)
     {
         module = new(Core, "LPLK_BombWires", "Bombendrähte", "lplk.bombwires.admin", OpenAdmin);
-        settings = module.ReadSettings<WireSettings>(WireSettings.Validate); module.Active = true;
+        config = new(module.SettingsPath,WireSettings.Validate); module.Active = true;
         // When loaded mid-round, do not attach a new guess to an already active bomb.
         Core.GameEvent.HookPost<EventRoundPrestart>(_ => { Reset(); return HookResult.Continue; });
         Core.GameEvent.HookPost<EventBombBeginplant>(e => { var p=e.UserIdPlayer; if(settings.Enabled && p is not null) { round.Begin(p.SteamID); Show(p,true); } return HookResult.Continue; });
@@ -37,12 +41,20 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Core.GameEvent.HookPost<EventBombDefused>(_ => { Reset(); return HookResult.Continue; });
         Core.GameEvent.HookPost<EventBombExploded>(_ => { Reset(); return HookResult.Continue; });
         Core.GameEvent.HookPost<EventPlayerDeath>(e => { if(e.UserIdPlayer is {} p) Close(p.PlayerID); return HookResult.Continue; });
+        WriteStatus();
     }
 
     public override void ConfigureSharedInterface(IInterfaceManager manager) => module.ConfigureSharedInterface(manager);
     public override void Unload() { if(module is not null) module.Active=false; Reset(); }
     [EventListener<EventDelegates.OnMapUnload>] public void MapUnload(IOnMapUnloadEvent e) => Reset();
     [EventListener<EventDelegates.OnClientDisconnected>] public void Disconnect(IOnClientDisconnectedEvent e) => Close(e.PlayerId);
+    [EventListener<EventDelegates.OnTick>] public void Tick()
+    {
+        if(module?.Active!=true||Environment.TickCount64<nextConfigCheck)return;
+        nextConfigCheck=Environment.TickCount64+2000;
+        if(config.Reload()){if(!settings.Enabled)Reset();else CloseAll();}
+        WriteStatus();
+    }
 
     private void Reset() { round.Reset(); CloseAll(); }
     private void CloseAll() { foreach(int id in menus.Keys.ToArray()) Close(id); }
@@ -95,11 +107,17 @@ public sealed class Plugin(ISwiftlyCore core) : BasePlugin(core)
     }
 
     [Command("lplk_bombwires",permission:"lplk.bombwires.admin")]
-    public void Command(ICommandContext ctx) { if(ctx.Sender is {} p) OpenAdmin(p); else ctx.Reply($"LPLK_BombWires: enabled={settings.Enabled}; menuSeconds={settings.MenuSeconds}; planted={round.Planted}"); }
-    private void Apply(WireSettings next,IPlayer player) { WireSettings.Validate(next); module.SaveSettings(next); settings=next; if(!next.Enabled) Reset(); OpenAdmin(player); }
-    private void OpenAdmin(IPlayer player) => module.Menu(player,"LPLK · Bombendrähte",
-        ($"Aktiv: {(settings.Enabled?"Ja":"Nein")}",p=>Apply(settings with {Enabled=!settings.Enabled},p)),
-        ($"Menüzeit: {settings.MenuSeconds}s → +1",p=>Apply(settings with {MenuSeconds=Math.Min(10,settings.MenuSeconds+1)},p)),
-        ("Menüzeit −1",p=>Apply(settings with {MenuSeconds=Math.Max(1,settings.MenuSeconds-1)},p)),
-        ($"Reihenfolge mischen: {(settings.RandomizeOrder?"Ja":"Nein")}",p=>Apply(settings with {RandomizeOrder=!settings.RandomizeOrder},p)));
+    public void Command(ICommandContext ctx) { if(ctx.Sender is {} p) OpenAdmin(p); else ctx.Reply($"LPLK_BombWires 0.1.6: enabled={settings.Enabled}; menuSeconds={settings.MenuSeconds}; randomize={settings.RandomizeOrder}; planted={round.Planted}; reloadError={config.Error??"none"}"); }
+    private void WriteStatus()
+    {
+        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.6",settings.Enabled,settings.MenuSeconds,settings.RandomizeOrder,round.Planting,round.Planted,round.Resolved,activeMenus=menus.Count,reloadError=config.Error}); statusWriteFailed=false; }
+        catch(Exception e) when(e is IOException or UnauthorizedAccessException)
+        { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_BombWires: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
+    }
+    private void Apply(Func<WireSettings,WireSettings> edit,IPlayer player)
+    {
+        WireSettings? before=null;config.Change(s=>{before=s;return edit(s);});
+        if(!settings.Enabled)Reset();else CloseAll();WriteStatus();
+        Core.Logger.LogInformation("LPLK_BombWires: Admin {Actor}; vorher={Before}; nachher={After}",player.SteamID,System.Text.Json.JsonSerializer.Serialize(before),System.Text.Json.JsonSerializer.Serialize(settings));
+    }
 }

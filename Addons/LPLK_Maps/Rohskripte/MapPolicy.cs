@@ -35,10 +35,16 @@ public sealed record MapEntry
 
 public sealed record MapLimitProposal(int MinPlayers,int MaxPlayers,int Reserve,string Signature);
 
-public sealed record MapSettings
+public sealed partial record MapSettings
 {
     public bool Enabled { get; init; } = true;
     public bool MeasurementOnly { get; init; } = true;
+    // Zombie waves have asymmetric teams. Preserve explicitly configured human
+    // population limits instead of applying the symmetric PvP spawn formula.
+    public bool UseConfiguredZombieLimits { get; init; }
+    // Explicit migration of an existing map pool preserves its configured
+    // player bounds without claiming a new physical spawn measurement.
+    public bool UseConfiguredMapLimits { get; init; }
     public int RtvPercent { get; init; } = 60;
     public int VoteSeconds { get; init; } = 60;
     public int MapsToShow { get; init; } = 10;
@@ -75,9 +81,10 @@ public sealed record MapSettings
     public string[] ExcludedWorkshopIds { get; init; } = ["3797047889"];
     public static void Validate(MapSettings s)
     {
+        ValidateParity(s);
         if(s.RtvPercent is < 1 or > 100 || s.VoteSeconds is < 5 or > 120 || s.CooldownMaps is < 0 or > 20 ||
             s.RtvDelaySeconds is < 0 or > 3600 || s.AutoVoteMinutes is < 0 or > 240 || s.ChangeDelaySeconds is < 0 or > 60 ||
-            s.MapsToShow is < 1 or > 30 || s.RtvMinPlayers is < 1 or > 128 || s.RtvMinRounds is < 0 or > 100 ||
+            s.MapsToShow is < 1 or > 30 || s.RtvMinPlayers is < 0 or > 128 || s.RtvMinRounds is < 0 or > 100 ||
             s.TriggerRoundsBeforeEnd is < 1 or > 30 || s.MatchEndDelaySeconds is < 0 or > 60 || s.VerifySeconds is < 2 or > 60 ||
             s.MaxAttempts is < 1 or > 10 || s.WorkshopPath is null || s.WorkshopPath.Contains('\0') ||
             s.CollectionId is null || (s.CollectionId.Length>0 && WorkshopId(s.CollectionId) is null) ||
@@ -90,7 +97,7 @@ public sealed record MapSettings
     private static string? WorkshopId(string? value)=>MapPolicy.WorkshopId(value);
 }
 
-public static class MapPolicy
+public static partial class MapPolicy
 {
     public static MapEntry CaptureMeasurement(MapEntry map,int t,int ct,int bombSites,int hostages)
     {
@@ -109,6 +116,7 @@ public static class MapPolicy
         throw new InvalidDataException("Mehrere Bombenvolumen ohne eindeutige A/B-Zuordnung; erneute Prüfung nötig.");
     }
     public static bool LimitsApproved(MapEntry map)=>Measured(map)&&map.LimitProposal is {} p&&map.ApprovedLimitSignature==p.Signature&&map.MinPlayers==p.MinPlayers&&map.MaxPlayers==p.MaxPlayers;
+    public static bool LimitsUsable(MapEntry map,MapSettings settings)=>LimitsApproved(map)||(settings.UseConfiguredZombieLimits||settings.UseConfiguredMapLimits)&&map.ConfiguredMaxPlayers is >=1 and <=128&&map.MinPlayers>=0&&map.MaxPlayers==map.ConfiguredMaxPlayers&&map.MinPlayers<=map.MaxPlayers;
     public static MapEntry ApproveLimits(MapEntry map,string displayedSignature)
     {
         if(!Measured(map)||map.LimitProposal is not {} p||p.Signature!=displayedSignature)throw new InvalidDataException("Messwerte inzwischen geändert; Übersicht erneut öffnen.");

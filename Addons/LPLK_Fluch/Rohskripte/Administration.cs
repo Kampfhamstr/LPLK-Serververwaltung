@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using LPLK.Common;
 using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared.Commands;
@@ -37,11 +39,9 @@ public sealed partial class Plugin
         }
         Status(ctx);
     }
-    private void Status(ICommandContext ctx){WriteStatus();ctx.Reply($"LPLK_Fluch 0.1.1: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; chickens={settings.ChickenCount}; duration={settings.OrbitDurationSeconds}; damage={settings.TotalDamage}; active={curses.Count}; errors={errors}; reloadError={reloadError??"none"}");}
-    private void OpenAdmin(IPlayer p)=>module.Menu(p,"LPLK · Hühnerfluch",
-        ("Spieler",a=>Targets(a,0)),
-        ($"Beenden ({curses.Count})",a=>{if(ready)curses.Clear();OpenAdmin(a);}),
-        ("Einstellungen",SettingsMenu));
+    private void Status(ICommandContext ctx){WriteStatus();ctx.Reply($"LPLK_Fluch 0.1.3: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; chickens={settings.ChickenCount}; duration={settings.OrbitDurationSeconds}; damage={settings.TotalDamage}; active={curses.Count}; errors={errors}; reloadError={reloadError??"none"}");}
+    private void OpenAdmin(IPlayer p) => module.Menu(p,"LPLK · Hühnerfluch",((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Wirkung",EffectMenuRows(actor)),("Kreisbahn",OrbitMenuRows(actor)),("Bewegung",WaveMenuRows(actor)),("Meldung",MessageMenuRows(actor)),("Bildschirm",CenterMenuRows(actor)),("Anzeigezeit",MessageTimesRows(actor)))))(p));
+    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Spieler",a=>Targets(a,0)),($"Beenden ({curses.Count})",a=>{if(ready)curses.Clear();OpenAdmin(a);})}))(p);
     private void Targets(IPlayer p,int page)
     {
         if(!module.CanAdmin(p))return;
@@ -64,7 +64,7 @@ public sealed partial class Plugin
         if(layout.Index+1<layout.Pages)actions.Add(("Nächste Seite",a=>Targets(a,layout.Index+1)));
         actions.Add(("Zurück",OpenAdmin));
         var menu=Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).SetAutoCloseDelay(settings.MenuAutoCloseSeconds)
-            .Design.SetMenuTitle(MenuColors.Heading(targets.Length==0?"Fluch · Kein lebender Zielspieler":$"Fluch · Ziele {layout.Index+1}/{layout.Pages}")).Design.SetMaxVisibleItems(5);
+            .Design.SetMenuTitle(MenuColors.Heading(targets.Length==0?"Fluch · Kein lebender Zielspieler":$"Fluch · Ziele {layout.Index+1}/{layout.Pages}")).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter);
         var numbers=new MenuNumbers();int index=0;
         foreach(var (label,action) in actions)
         {
@@ -74,45 +74,42 @@ public sealed partial class Plugin
         Core.MenusAPI.OpenMenuForPlayer(p,menu.Build());
     }
     public static string SafeLabel(string name)=>name.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;");
-    private void SettingsMenu(IPlayer p)=>module.Menu(p,"Fluch · Einstellungen",1,
-        ($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,settings with{Enabled=!settings.Enabled});SettingsMenu(a);}),
-        ("Wirkung",EffectMenu),
-        ("Kreisbahn",OrbitMenu),
-        ("Hinweise",MessageMenu),
-        ("Zurück",OpenAdmin));
-    private void EffectMenu(IPlayer p)=>module.Menu(p,"Fluch · Wirkung",1,
-        ($"Hühner: {settings.ChickenCount}",a=>{Apply(a,settings with{ChickenCount=(int)Next(settings.ChickenCount,[5,10,20,32,64])});EffectMenu(a);}),
-        ($"Dauer: {settings.OrbitDurationSeconds:0.#} s",a=>{Apply(a,settings with{OrbitDurationSeconds=Next(settings.OrbitDurationSeconds,[3,5,10,15,30,60])});EffectMenu(a);}),
-        ($"Hühnerschaden: {settings.ChickenExplosionDamagePerChicken:0.#} (gesamt {settings.TotalDamage:0.#})",a=>{Apply(a,settings with{ChickenExplosionDamagePerChicken=Next(settings.ChickenExplosionDamagePerChicken,[0,1,2,5,10])});EffectMenu(a);}),
-        ($"Gleichzeitige Flüche: {settings.MaxActiveCurses}",a=>{Apply(a,settings with{MaxActiveCurses=settings.MaxActiveCurses%4+1});EffectMenu(a);}),
-        ("Zurück",SettingsMenu));
-    private void OrbitMenu(IPlayer p)=>module.Menu(p,"Fluch · Kreisbahn",1,
-        ($"Höhe: {settings.HeadOrbitHeight:0}",a=>{Apply(a,settings with{HeadOrbitHeight=Next(settings.HeadOrbitHeight,[40,60,76,100,150])});OrbitMenu(a);}),
-        ($"Radius: {settings.HeadOrbitRadius:0}",a=>{Apply(a,settings with{HeadOrbitRadius=Next(settings.HeadOrbitRadius,[30,40,58,80,120])});OrbitMenu(a);}),
-        ($"Geschwindigkeit: {settings.OrbitSpeed:0.0}",a=>{Apply(a,settings with{OrbitSpeed=Next(settings.OrbitSpeed,[1,2,2.7f,4,6])});OrbitMenu(a);}),
-        ("Bewegung",WaveMenu),
-        ("Zurück",SettingsMenu));
-    private void WaveMenu(IPlayer p)=>module.Menu(p,"Fluch · Bewegung",1,
-        ($"Wellenhöhe: {settings.OrbitWaveHeight:0}",a=>{Apply(a,settings with{OrbitWaveHeight=Next(settings.OrbitWaveHeight,[0,5,9,15,30])});WaveMenu(a);}),
-        ($"Wellenfrequenz: {settings.OrbitWaveSpeed:0.0}",a=>{Apply(a,settings with{OrbitWaveSpeed=Next(settings.OrbitWaveSpeed,[0,1,2,3,4])});WaveMenu(a);}),
-        ($"Aktualisierung: {settings.OrbitTickSeconds:0.00} s",a=>{Apply(a,settings with{OrbitTickSeconds=Next(settings.OrbitTickSeconds,[.03f,.05f,.08f,.1f,.2f])});WaveMenu(a);}),
-        ("Zurück",OrbitMenu));
-    private void MessageMenu(IPlayer p)=>module.Menu(p,"Fluch · Ziele & Hinweise",1,
-        ($"Selbstverfluchen: {(settings.AllowSelfTarget?"AN":"AUS")}",a=>{Apply(a,settings with{AllowSelfTarget=!settings.AllowSelfTarget});MessageMenu(a);}),
-        ($"Startchat: {(settings.NotifyTargetInChat?"AN":"AUS")}",a=>{Apply(a,settings with{NotifyTargetInChat=!settings.NotifyTargetInChat});MessageMenu(a);}),
-        ("Bildschirmhinweise",CenterMenu),
-        ("Zurück",SettingsMenu));
-    private void CenterMenu(IPlayer p)=>module.Menu(p,"Fluch · Bildschirmhinweise",1,
-        ($"Start: {(settings.ShowStartCenterMessage?"AN":"AUS")}",a=>{Apply(a,settings with{ShowStartCenterMessage=!settings.ShowStartCenterMessage});CenterMenu(a);}),
-        ($"Ende: {(settings.ShowExplosionCenterMessage?"AN":"AUS")}",a=>{Apply(a,settings with{ShowExplosionCenterMessage=!settings.ShowExplosionCenterMessage});CenterMenu(a);}),
-        ($"Countdown: {(settings.ShowOrbitProgressMessage?"AN":"AUS")}",a=>{Apply(a,settings with{ShowOrbitProgressMessage=!settings.ShowOrbitProgressMessage});CenterMenu(a);}),
-        ("Zurück",MessageMenu));
-    private static float Next(float v,float[] values)=>values.FirstOrDefault(x=>x>v+.001f,values[0]);
-    private void Apply(IPlayer actor,FluchSettings next)
+    private void SettingsMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,s=>s with{Enabled=!s.Enabled});SettingsMenu(a);})}))(p);
+    private void EffectMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> EffectMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Hühner: {settings.ChickenCount}",a=>NumberInput(a,nameof(FluchSettings.ChickenCount),"Hühner",1,64,EffectMenu)),($"Dauer: {settings.OrbitDurationSeconds:0.#} s",a=>NumberInput(a,nameof(FluchSettings.OrbitDurationSeconds),"Dauer (Sekunden)",1,60,EffectMenu)),($"Hühnerschaden: {settings.ChickenExplosionDamagePerChicken:0.#} (gesamt {settings.TotalDamage:0.#})",a=>NumberInput(a,nameof(FluchSettings.ChickenExplosionDamagePerChicken),"Schaden je Huhn",0,100,EffectMenu)),($"Gleichzeitige Flüche: {settings.MaxActiveCurses}",a=>NumberInput(a,nameof(FluchSettings.MaxActiveCurses),"Gleichzeitige Flüche",1,4,EffectMenu))}))(p);
+    private void OrbitMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> OrbitMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Höhe: {settings.HeadOrbitHeight:0}",a=>NumberInput(a,nameof(FluchSettings.HeadOrbitHeight),"Höhe",0,250,OrbitMenu)),($"Radius: {settings.HeadOrbitRadius:0}",a=>NumberInput(a,nameof(FluchSettings.HeadOrbitRadius),"Radius",10,250,OrbitMenu)),($"Geschwindigkeit: {settings.OrbitSpeed:0.0}",a=>NumberInput(a,nameof(FluchSettings.OrbitSpeed),"Geschwindigkeit",0,20,OrbitMenu))}))(p);
+    private void WaveMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> WaveMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Wellenhöhe: {settings.OrbitWaveHeight:0}",a=>NumberInput(a,nameof(FluchSettings.OrbitWaveHeight),"Wellenhöhe",0,100,WaveMenu)),($"Wellenfrequenz: {settings.OrbitWaveSpeed:0.0}",a=>NumberInput(a,nameof(FluchSettings.OrbitWaveSpeed),"Wellenfrequenz",0,20,WaveMenu)),($"Aktualisierung: {settings.OrbitTickSeconds:0.00} s",a=>NumberInput(a,nameof(FluchSettings.OrbitTickSeconds),"Aktualisierung (Sekunden)",0.03,1,WaveMenu))}))(p);
+    private void MessageMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> MessageMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Selbstverfluchen: {(settings.AllowSelfTarget?"AN":"AUS")}",a=>{Apply(a,s=>s with{AllowSelfTarget=!s.AllowSelfTarget});MessageMenu(a);}),($"Startchat: {(settings.NotifyTargetInChat?"AN":"AUS")}",a=>{Apply(a,s=>s with{NotifyTargetInChat=!s.NotifyTargetInChat});MessageMenu(a);}),($"Menüdauer: {settings.MenuAutoCloseSeconds:0.##} s",a=>NumberInput(a,nameof(FluchSettings.MenuAutoCloseSeconds),"Menüdauer (Sekunden)",5,120,MessageMenu))}))(p);
+    private void CenterMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> CenterMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Start: {(settings.ShowStartCenterMessage?"AN":"AUS")}",a=>{Apply(a,s=>s with{ShowStartCenterMessage=!s.ShowStartCenterMessage});CenterMenu(a);}),($"Ende: {(settings.ShowExplosionCenterMessage?"AN":"AUS")}",a=>{Apply(a,s=>s with{ShowExplosionCenterMessage=!s.ShowExplosionCenterMessage});CenterMenu(a);}),($"Countdown: {(settings.ShowOrbitProgressMessage?"AN":"AUS")}",a=>{Apply(a,s=>s with{ShowOrbitProgressMessage=!s.ShowOrbitProgressMessage});CenterMenu(a);})}))(p);
+    private void MessageTimes(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> MessageTimesRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Start: {settings.StartCenterMessageMs} ms",a=>NumberInput(a,nameof(FluchSettings.StartCenterMessageMs),"Startanzeige (Millisekunden)",100,10000,MessageTimes)),($"Ende: {settings.ExplosionCenterMessageMs} ms",a=>NumberInput(a,nameof(FluchSettings.ExplosionCenterMessageMs),"Endanzeige (Millisekunden)",100,10000,MessageTimes)),($"Fortschritt: {settings.OrbitProgressMessageMs} ms",a=>NumberInput(a,nameof(FluchSettings.OrbitProgressMessageMs),"Fortschritt (Millisekunden)",100,2000,MessageTimes))}))(p);
+    private void NumberInput(IPlayer p,string propertyName,string title,double min,double max,Action<IPlayer> back)
+    {
+        if(!module.CanAdmin(p))return;
+        var property=typeof(FluchSettings).GetProperty(propertyName)!;
+        bool Parse(string text,out double value)=>double.TryParse(text.Replace(',','.'),NumberStyles.Float,CultureInfo.InvariantCulture,out value)&&double.IsFinite(value)&&value>=min&&value<=max&&(property.PropertyType!=typeof(int)||value==Math.Truncate(value));
+        var input=new InputMenuOption(new MenuNumbers().Next("Wert eingeben"),maxLength:16,validator:t=>Parse(t,out _),defaultValue:Convert.ToString(property.GetValue(settings),CultureInfo.InvariantCulture)??"",hintMessage:$"{min} bis {max} eingeben."){CloseAfterClick=false};
+        GameThreadMenu.BindInput(Core,input,p,()=>module.Active,(a,text)=>
+        {
+            if(!module.CanAdmin(a)||!Parse(text,out double number))return;
+            Apply(a,s=>{var next=s with{};object value=property.PropertyType==typeof(int)?(object)(int)number:property.PropertyType==typeof(float)?(object)(float)number:number;property.SetValue(next,value);return next;});back(a);
+        });
+        var returnButton=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};
+        GameThreadMenu.Bind(Core,returnButton,p,()=>module.Active,a=>{if(module.CanAdmin(a))back(a);});
+        Core.MenusAPI.OpenMenuForPlayer(p,Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).SetAutoCloseDelay(settings.MenuAutoCloseSeconds).Design.SetMenuTitle(MenuColors.Heading(title)).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter).AddOption(input).AddOption(returnButton).Build());
+    }
+    private void Apply(IPlayer actor,Func<FluchSettings,FluchSettings> edit)
     {
         if(!module.CanAdmin(actor))return;
-        FluchSettings.Validate(next);module.SaveSettings(next);settings=next;stamp=File.GetLastWriteTimeUtc(module.SettingsPath);reloadError=null;
-        if(!settings.Enabled&&ready)curses.Clear();WriteStatus();
+        try{config.Change(edit);reloadError=null;}
+        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
+        {reloadError=config.Error??e.GetType().Name;actor.SendChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
+        SyncSettings();WriteStatus();
     }
 }
 public static class TargetPages

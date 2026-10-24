@@ -133,8 +133,8 @@ public sealed partial class Ledger
     }
     public CashIntent? PayBetClaim(string id,string round,string account,string session,int before,int toCash,long toBank)=>Atomic(()=>
     {
-        if(Intent(id) is {} old){if(old.Account!=account||old.Session!=session||old.Before!=before||old.After!=before+toCash||Text("SELECT round FROM bet_cash WHERE id=$p0",id)!=round||Text("SELECT kind FROM bet_cash WHERE id=$p0",id)!="payout"||Number("SELECT coalesce(sum(delta),0) FROM entries WHERE tx=$p0 AND account=$p1",id+":pay",account)!=toBank)throw new BankRejected("Abweichende Wettauszahlung.");return old;}
-        if(Text("SELECT id FROM transactions WHERE id=$p0",id+":pay") is not null)throw new BankRejected("Auszahlung bereits verbucht.");
+        if(Intent(id) is {} old){if(old.Account!=account||old.Session!=session||old.Before!=before||old.After!=before+toCash||Text("SELECT round FROM bet_cash WHERE id=$p0",id)!=round||Text("SELECT kind FROM bet_cash WHERE id=$p0",id)!="payout"||Number("SELECT coalesce(sum(delta),0) FROM entries WHERE tx=$p0 AND account=$p1",TransactionId(id+":pay"),account)!=toBank)throw new BankRejected("Abweichende Wettauszahlung.");return old;}
+        if(Text("SELECT id FROM transactions WHERE id=$p0",TransactionId(id+":pay")) is not null)throw new BankRejected("Auszahlung bereits verbucht.");
         var r=BettingRound(round)??throw new BankRejected("Wettrunde fehlt.");var t=BetTickets(round).SingleOrDefault(x=>x.Account==account)??throw new BankRejected("Wette fehlt.");
         if(!Key(id,110)||r.Period!=Period||r.Status!="settled"||Blocked(account)||before is <0 or >16000||toCash is <0 or >16000||before+toCash>16000||toBank<0||toBank>t.Claim||toCash+toBank<=0||toCash+toBank>t.Claim||toCash>0&&session.Length is <1 or >128)throw new BankRejected("Auszahlung nicht freigegeben.");
         var posts=new List<Posting>{new("system:betpool",-(toCash+toBank))};if(toBank>0)posts.Add(new(account,toBank));if(toCash>0)posts.Add(new("system:escrow",toCash));

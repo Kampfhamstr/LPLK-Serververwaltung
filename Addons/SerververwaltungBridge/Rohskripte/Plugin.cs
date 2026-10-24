@@ -27,7 +27,7 @@ namespace SerververwaltungBridge;
 
 [PluginMetadata(
     Id = "lplk.serververwaltung.bridge",
-    Version = "1.6.5",
+    Version = "1.7.0",
     Name = "Serververwaltung Bridge",
     Author = "LPLK",
     Description = "Lokale Bridge zwischen LPLK Serververwaltung und SwiftlyS2")]
@@ -125,7 +125,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     {
         "cs2commends.com", "jaegerservice.xyz", "sinlyxe.cc", "clash.gg"
     };
-    private readonly HashSet<string> _antiAdAllowedDomains = new(StringComparer.OrdinalIgnoreCase) { "community.example.invalid" };
+    private readonly HashSet<string> _antiAdAllowedDomains = new(StringComparer.OrdinalIgnoreCase) { "lplk.de" };
     private readonly HashSet<string> _antiAdMarketingKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
         "free commends", "free commend", "free cs2", "cs2 commends", "commends",
@@ -230,7 +230,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         // marshal the actual bridge work back to the game thread.
         _tickTimer = new Timer(_ => QueueTickOnGameThread(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         TryWriteStatus();
-        Core.Logger.LogInformation("SerververwaltungBridge v1.6.4 geladen. Datenpfad: {Path}", _root);
+        Core.Logger.LogInformation("SerververwaltungBridge v1.7.0 geladen. Datenpfad: {Path}", _root);
     }
 
     public override void Unload()
@@ -535,7 +535,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         }
     }
 
-    private void Execute(BridgeCommand command)
+    private void ExecuteCore(BridgeCommand command)
     {
         var p = command.Payload ?? new Dictionary<string, JsonElement>();
 
@@ -3759,6 +3759,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
                 players.Add(new StatusPlayer
                 {
+                    Session = isBot ? "" : player.SessionId.ToString(),
                     SteamId64 = isBot ? string.Empty : player.SteamID.ToString(),
                     Name = player.Name,
                     Team = team,
@@ -3828,7 +3829,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
             var status = new BridgeStatus
             {
-                Version = "1.6.5",
+                Version = "1.7.0",
                 UpdatedAt = DateTimeOffset.UtcNow,
                 Map = _currentMapName,
                 CtScore = ctScore,
@@ -4002,6 +4003,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
     private void ProcessFastLiveCommands()
     {
+        DeliverFleetResults();
         int processed = 0;
         while (processed < 25 && _fastLiveCommands.TryDequeue(out BridgeCommand? command))
         {
@@ -4045,7 +4047,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         lock (_fastLiveResultSync) resultSnapshot = _pendingFastLiveResults.ToList();
         AntiAdOutboxBatch antiAdBatch = ReadAntiAdvertisementOutbox(100);
         string body;
-        try { body = JsonSerializer.Serialize(new FastLiveExchangeRequest { Status = status, Results = resultSnapshot, AntiAdvertisementEvents = antiAdBatch.Events }, _json); }
+        try { body = JsonSerializer.Serialize(new FastLiveExchangeRequest { Status = status, Results = resultSnapshot, AntiAdvertisementEvents = antiAdBatch.Events, FleetRequests=SafeFleetRequests() }, _json); }
         catch { Interlocked.Exchange(ref _fastLiveInFlight, 0); return; }
 
         _ = Task.Run(async () =>
@@ -4080,6 +4082,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                 ApplyGlobalBanSnapshot(data.GlobalBans ?? []);
                 ApplyGlobalCommunicationSnapshot(data.GlobalCommSanctions ?? []);
                 ApplyGlobalAntiAdvertisementSnapshot(data.GlobalAntiAdvertisement);
+                try{ApplyFleetSnapshot(data.Fleet,data.FleetResults);}catch(Exception e){Core.Logger.LogWarning(e,"Verbundantwort nicht übernommen; zentrale Sperren und andere Befehle bleiben aktiv.");}
                 AckAntiAdvertisementOutbox(antiAdBatch.Files);
 
                 foreach (var command in data.Commands ?? [])
@@ -4764,6 +4767,7 @@ public sealed class WorkshopMetadata
 
 public sealed class BridgeCommand
 {
+    public FleetAuthorization? Fleet { get; set; }
     public string Id { get; set; } = "";
     public string Action { get; set; } = "";
     public string? TargetSteamid { get; set; }
@@ -4816,6 +4820,7 @@ public sealed class NicknameEntry
 
 public sealed class BridgeStatus
 {
+    public int FleetProtocol { get; set; }=1;
     public string Version { get; set; } = "1.5.6";
     public DateTimeOffset UpdatedAt { get; set; }
     public string Map { get; set; } = "";
@@ -4945,6 +4950,7 @@ public sealed class FastLiveResult
 
 public sealed class FastLiveExchangeRequest
 {
+    public List<FleetRequest> FleetRequests { get; set; }=[];
     public BridgeStatus Status { get; set; } = new();
     public List<FastLiveResult> Results { get; set; } = [];
     public List<AntiAdvertisementEventPayload> AntiAdvertisementEvents { get; set; } = [];
@@ -4952,6 +4958,8 @@ public sealed class FastLiveExchangeRequest
 
 public sealed class FastLiveExchangeResponse
 {
+    public Dictionary<string,List<FleetServer>> Fleet { get; set; }=[];
+    public List<FleetResult> FleetResults { get; set; }=[];
     public bool Ok { get; set; }
     public string? Error { get; set; }
     public List<BridgeCommand> Commands { get; set; } = [];
@@ -5048,6 +5056,7 @@ public sealed class StatusComm
 
 public sealed class StatusPlayer
 {
+    public string Session { get; set; }="";
     public string SteamId64 { get; set; } = "";
     public string Name { get; set; } = "";
     public string Team { get; set; } = "";

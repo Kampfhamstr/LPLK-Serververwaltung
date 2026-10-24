@@ -45,33 +45,13 @@ public sealed partial class Plugin
     {
         if (DateTimeOffset.UtcNow - _lastConfigCheck < TimeSpan.FromSeconds(3)) return;
         _lastConfigCheck = DateTimeOffset.UtcNow;
-        try
-        {
-            DateTime stamp = File.GetLastWriteTimeUtc(_configPath);
-            if (stamp != _configLastWriteUtc) LoadConfig();
-        }
-        catch { }
+        if(_settingsStore.Reload()){_config=_settingsStore.Current;_nameChecked.Clear();}
+        _configError=_settingsStore.Error;
     }
 
     private void LoadConfig()
     {
-        try
-        {
-            var loaded = JsonSerializer.Deserialize<AntiAdConfig>(File.ReadAllText(_configPath), _json);
-            if(loaded is null)throw new InvalidDataException("Leere Konfiguration.");
-            ChatGuardPolicy.Validate(loaded);_config=loaded;_configError=null;
-            _config.BlockedDomains ??= [];
-            _config.AllowedDomains ??= [];
-            _config.MarketingKeywords ??= [];
-            _configLastWriteUtc = File.GetLastWriteTimeUtc(_configPath);
-            _nameChecked.Clear();
-        }
-        catch (Exception ex)
-        {
-            _configError="Ungültige Änderung; letzter gültiger Stand bleibt aktiv.";
-            if(!_active)throw;
-            Core.Logger.LogWarning(ex, "LPLK_ChatGuard: Konfiguration nicht übernommen.");
-        }
+        _settingsStore=new(_configPath,_json);_config=_settingsStore.Current;_configError=null;_nameChecked.Clear();
     }
 
     private void WriteEvent(string type, ulong steamId, string playerName, string match, string action, string? text = null)

@@ -17,7 +17,7 @@ using SwiftlyS2.Shared.ProtobufDefinitions;
 
 namespace LPLK_ChatGuard;
 
-[PluginMetadata(Id="LPLK_ChatGuard",Name="LPLK_ChatGuard",Version="0.1.1",Author="LPLK",Description="Chat-, Namen- und Werbeschutz mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_ChatGuard",Name="LPLK_ChatGuard",Version="0.1.4",Author="LPLK",Description="Chat-, Namen- und Werbeschutz mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private readonly JsonSerializerOptions _json = new()
@@ -66,11 +66,19 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private string _permissionsPath = string.Empty;
     private DateTime _permissionsLastWriteUtc = DateTime.MinValue;
     private DateTimeOffset _lastConfigCheck = DateTimeOffset.MinValue;
-    private DateTime _configLastWriteUtc = DateTime.MinValue;
+    private SettingsStore _settingsStore=null!;
 
     public override void Load(bool hotReload)
     {
         _root = Core.PluginDataDirectory;
+        // Production Bridge and the web sync use this established directory.
+        // The explicit migration marker preserves their shared outbox and rules.
+        if (File.Exists(Path.Combine(_root,"legacy-bridge-storage")))
+        {
+            string legacy=Path.Combine(Core.GameFilesDirectory,"addons","swiftlys2","data","serververwaltung_antiadvertisement");
+            if(!Directory.Exists(legacy)||new DirectoryInfo(legacy).LinkTarget is not null||!File.Exists(Path.Combine(legacy,"config.json")))throw new InvalidDataException("Bestehender Bridge-Werbeschutzspeicher fehlt.");
+            _root=legacy;
+        }
         _configPath = Path.Combine(_root, "config.json");
         _eventsLog = Path.Combine(_root, "events.log");
 
@@ -111,7 +119,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         _serverNetMessageHookGuids.Add(Core.NetMessage.HookServerMessage<CCSUsrMsg_KeyHintText>(OnCsKeyHintText));
         _serverNetMessageHookGuids.Add(Core.NetMessage.HookServerMessage<CCSUsrMsg_RadioText>(OnCsRadioText));
         _active=true;_module.Active=true;WriteStatus();
-        Core.Logger.LogInformation("LPLK_ChatGuard 0.1.1 geladen. Config: {Path}", _configPath);
+        Core.Logger.LogInformation("LPLK_ChatGuard 0.1.4 geladen. Config: {Path}", _configPath);
     }
 
     public override void Unload()

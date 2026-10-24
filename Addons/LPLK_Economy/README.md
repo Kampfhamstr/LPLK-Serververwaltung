@@ -1,8 +1,14 @@
 # LPLK_Economy – Bank, Wetten, Lotto und weitere Wirtschaftsfunktionen
 
-**Download:** [LPLK_Economy.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Economy.zip) · [Ausgabe, Prüfsummen und Teststatus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Diese Ausgabe ist als Teststand gekennzeichnet.
+**Ausgabe 24.10.2026: 0.11.0.** [LPLK_Economy.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.24-gameplay/LPLK_Economy.zip) · [Serverprofile, Migration und Prüfgrenzen](../../docs/FLEET-20261024.md). Die folgenden älteren Versionsnachweise sind historisch. Die echte Client- und Mehrspielerabnahme steht aus.
 
-Quellstand **0.9.1**, SwiftlyS2-API **1.4.14**. [Alle Addons](../../docs/ADDONS.md).
+**Menüstand 23.10.2026: 0.10.0, auf Testserver 89450e53 installiert.** [Aktuelles Paket](Build/LPLK_Economy.zip) · [Aktuelle Bedienung und Prüfgrenzen](../../docs/MENUE-UEBERARBEITUNG-2026-10-23.md). Frühere Versions- und Prüfabschnitte unten sind historische Nachweise; bestehende GitHub-Downloads sind ältere Pakete.
+
+**Aktueller lokaler Teststand:** [LPLK_Economy0.9.2](Build/LPLK_Economy.zip) · [Manifest](Build/build-manifest.json). Nur Testserver89450e53; noch keine Veröffentlichung.
+
+**Ältere veröffentlichte Ausgabe:** [LPLK_Economy.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/LPLK_Economy.zip) · [Ausgabe, Prüfsummen und Teststatus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Diese Ausgabe ist als Teststand gekennzeichnet.
+
+Quellstand **0.9.2**, SwiftlyS2-API **1.4.14**. [Alle Addons](../../docs/ADDONS.md).
 
 ## Was macht es?
 
@@ -55,3 +61,18 @@ Webexport und Web-Adminänderungen müssen ausdrücklich eingerichtet sein. Die 
 Eine gemeinsame Bank aller Produktionsserver ist **noch nicht aktiviert**. Planung und ein Übernahmeplaner sind kein fertiger zentraler Buchungsdienst. Keine Datenbanken zwischen laufenden Servern teilen, Bestände zusammenkopieren oder Pending-Einträge löschen.
 
 Nach Installation Ein-/Auszahlung, Überweisung, eingeschaltete Spiele, Rechte und Neustartwiederaufnahme mit isolierten Testkonten prüfen. Trotz umfangreicher lokaler und nativer Buchungsprüfungen bleiben die reale Mehrspielerabnahme und die Migration produktiver Bestände eigene Aufgaben.
+
+
+## Einstellungen sicher ändern – Teststand 0.9.2
+
+Die bestehenden Einstellungen bleiben unter `data/LPLK_Economy/settings.json`. Über `!admin` ist die Wirtschaftsverwaltung mit dem bereits eingestellten Recht `betbank.admin` erreichbar. Wetten, Lotto, Bankraub, Boni, Titel, Kopfgeld und Kill-Belohnungen bleiben Bestandteil derselben Kontoführung. Alte Befehle und Binds sind erhalten.
+
+Externe gültige Änderungen werden inhaltlich erkannt, auch bei unverändertem Dateizeitstempel. Eine Menüaktion liest die aktuellen Regeln und Rechte erneut, ändert nur die gewünschte Eigenschaft und erhält unbekannte Zusatzfelder. Ungültige oder fehlende Dateien werden beim Betrieb nicht überschrieben; der letzte gültige Stand bleibt aktiv und `reloadError` erklärt das Problem. Fehlende bekannte Erweiterungsfelder werden beim Start weiterhin ergänzt. Die bisher impliziten Felder `Betting` und `BankEnabled` lösen allein kein Umschreiben aus.
+
+Ein abgewiesener Speichervorgang verändert weder aktive Einstellungen noch das Banklimit. Bei offenen Cashvorgängen bleibt das Senken des Limits gesperrt. Neue Einstellungen ändern keine bereits gespeicherten Regeln einer laufenden Wett- oder Lottorunde. Ein Fehler beim Schreiben der Statusdatei sperrt keine gültige Kontoführung.
+
+Der Inhaltsvergleich vor dem atomaren Dateiersatz erkennt zwischenzeitliche Änderungen; er ist keine systemweite Schreibsperre gegen beliebige externe Editoren. Einstellungen daher nicht gleichzeitig in mehreren Programmen speichern.
+
+63 neue Datei-/Menü-/SQLiteprüfungen und die bestehenden Wirtschaftssuiten bestanden; beide APIs und native Status-/36 Webbefehle geprüft. Alle14 Datenbanktabellen samt Schema, vorhandene Einstellungen und24 andere DLLs sind vor/nach der Wartung identisch. Eine während der Erstprüfung erkannte Ergänzung impliziter Defaults wurde korrigiert, die ursprüngliche Einstellungsdatei exakt wiederhergestellt. Nachweis: `../../state/economy-config-verification.json`.
+
+Auf dem Testserver liegen der vorherige Pluginstand0.9.1 in `.lplk-rollback/LPLK_Economy.previous.zip` und die erforderliche Daten-/Konfigurationskopie in `LPLK_Economy.data-before-maintenance.zip`. Eine Datenbankrückfallkopie niemals über inzwischen erfolgte echte Buchungen schreiben. Sichtbare Client-/Cash-/Mehrspielerprüfung folgt später; Produktion und produktive Nutzerdaten wurden nicht migriert.

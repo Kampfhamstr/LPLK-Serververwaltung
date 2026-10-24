@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks><AssemblyName>LPLK_Parachute</AssemblyName><Version>0.1.4</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks><AssemblyName>LPLK_Parachute</AssemblyName><Version>0.1.6</Version>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup>
@@ -20,4 +20,6 @@
     <None Include="LPLK_Parachute.csproj" Link="source/LPLK_Parachute/Rohskripte/LPLK_Parachute.csproj" CopyToPublishDirectory="PreserveNewest" />
     <None Update="packages.lock.json" Link="source/LPLK_Parachute/Rohskripte/packages.lock.json" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup><Compile Include="../../_Gemeinsam/CompactMenu.cs" Link="Shared/CompactMenu.cs" /><Compile Include="../../_Gemeinsam/WatchedSettings.cs" Link="Shared/WatchedSettings.cs" /></ItemGroup>
+  <ItemGroup><None Include="../../_Gemeinsam/CompactMenu.cs" Link="source/_Gemeinsam/CompactMenu.cs" CopyToPublishDirectory="PreserveNewest" /><None Include="../../_Gemeinsam/WatchedSettings.cs" Link="source/_Gemeinsam/WatchedSettings.cs" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
 </Project>

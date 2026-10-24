@@ -48,7 +48,7 @@ public sealed record StatisticsSettings
   if(s.TopCount is <1 or >100 || s.MinShots<1||s.MinKills<1||s.MinBotShots<1||s.MinBotKills<1||s.FullHeadshots<1||
     s.InspectCooldownMs is <100 or >10000||s.HudDurationMs is <250 or >10000||s.InfernoSeconds is <1 or >120||s.UnknownInferno is not ("molotov" or "incgrenade" or "inferno"))throw new InvalidDataException("Ungültige Statistikgrenzen");
   double[] values=[s.HeadshotWeight,s.KillEfficiencyWeight,s.HeadshotEfficiencyWeight,s.VolumeWeight,s.FullKillEfficiency,s.FullHeadshotEfficiency];
-  if(values.Any(x=>!double.IsFinite(x)||x<0)||s.FullKillEfficiency<=0||s.FullHeadshotEfficiency<=0||values.Take(4).Sum()<=0)throw new InvalidDataException("Ungültige Gewichtung");
+  if(values.Any(x=>!double.IsFinite(x)||x<0)||s.FullKillEfficiency<=0||s.FullHeadshotEfficiency<=0||!double.IsFinite(values.Take(4).Sum())||values.Take(4).Sum()<=0)throw new InvalidDataException("Ungültige Gewichtung");
  }
 }
 public sealed class Counters
@@ -104,8 +104,10 @@ public static class StatPolicy
  {
   string s=(value??"").Trim().ToLowerInvariant();if(s.StartsWith("weapon_"))s=s[7..];if(s.EndsWith("_projectile"))s=s[..^11];
   s=s switch{"incendiary" or "incendiarygrenade"=>"incgrenade","decoygrenade"=>"decoy","he"=>"hegrenade","planted_c4"=>"c4",_=>s};
+  // Historic StatTrak removed underscores and kept silencer-off aliases.
+  s=s switch{"m4a1silencer" or "m4a1silenceroff"=>"m4a1_silencer","uspsilencer" or "uspsilenceroff"=>"usp_silencer",_=>s};
   if(s.StartsWith("knife")||s=="bayonet")return "knife";
-  return WeaponCatalog.Find("weapon_"+s)is not null||Grenades.Contains(s)||s is "taser" or "c4"?s:null;
+  return WeaponCatalog.Find("weapon_"+s)is not null||Grenades.Contains(s)||s is "taser" or "c4" or "envexplosion" or "propphysicsmultiplayer" or "worldent"?s:null;
  }
  public static double Ratio(long n,long d)=>d>0?(double)n/d:0;
  public static bool Eligible(Counters c,int shots,int kills)=>c.Shots>=shots&&c.Kills>=kills;
@@ -114,7 +116,7 @@ public static class StatPolicy
   if(!Eligible(c,s.MinShots,s.MinKills))return 0;
   double score=Math.Clamp(Ratio(c.Headshots,c.Kills),0,1)*s.HeadshotWeight+Math.Clamp(Ratio(c.Kills,c.Shots)/s.FullKillEfficiency,0,1)*s.KillEfficiencyWeight+
    Math.Clamp(Ratio(c.Headshots,c.Shots)/s.FullHeadshotEfficiency,0,1)*s.HeadshotEfficiencyWeight+Math.Clamp(Math.Log10(1+(double)c.Headshots)/Math.Log10(1+(double)s.FullHeadshots),0,1)*s.VolumeWeight;
-  return 100*score/(s.HeadshotWeight+s.KillEfficiencyWeight+s.HeadshotEfficiencyWeight+s.VolumeWeight);
+  return 100*(score/(s.HeadshotWeight+s.KillEfficiencyWeight+s.HeadshotEfficiencyWeight+s.VolumeWeight));
  }
 }
 // Per connection/life, not slot: one hit/head-hit per firearm shot; grenade/old-life damage cannot inflate accuracy.

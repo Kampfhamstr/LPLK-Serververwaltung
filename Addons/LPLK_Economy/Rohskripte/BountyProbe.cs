@@ -7,14 +7,14 @@ public sealed partial class Plugin
 {
     private void BountyProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-11110004"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy bountyprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy bountyprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         const string a="76561198000000001",b="76561198000000002",c="76561198000000003";
         string path=Path.Combine(Core.PluginDataDirectory,"bounty-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"bounty-probe.json");
         try
         {
             bool prior=File.Exists(path),completed=false;string seedBoot=boot;
             if(File.Exists(report)){using var j=JsonDocument.Parse(File.ReadAllText(report));seedBoot=j.RootElement.GetProperty("seedBoot").GetString()!;completed=j.RootElement.GetProperty("restarted").GetBoolean();}
-            var rules=settings with{Profile="bounty-probe-11110004",StartBank=0,ResetMode="Never"};using var probe=new Ledger(path,rules);
+            var rules=settings with{Profile="bounty-probe-89450e53",StartBank=0,ResetMode="Never"};using var probe=new Ledger(path,rules);
             if(!prior)
             {
                 foreach(string account in new[]{a,b,c}){probe.Open(account,"Prüfkonto "+account[^1]);probe.Adjust("seed:"+account,1,a,account,100000,"set");}

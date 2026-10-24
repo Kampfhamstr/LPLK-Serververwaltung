@@ -1,4 +1,4 @@
-LPLK_AntiTeamFlash 0.1.0
+LPLK_AntiTeamFlash 0.1.2
 Behavioral reference: St1nixx / AntiTeamFlash 1.0.0, MIT license.
 https://github.com/st1nixxx/AntiTeamFlash
 Commit: 489e2029eb6a01887b0789430bcbae9e59c259ce

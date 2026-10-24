@@ -14,35 +14,51 @@ public sealed partial class Plugin
     private long nextPoolRefresh,emptySince;
     private string? probeId,probeOrigin;
     private string poolMessage="Workshop-Abgleich ausstehend";
-    private DateTime configStamp;
+    private MapSettingsFile? configuration;
+    private string? reloadError;
+    private bool statusWriteFailed;
     private long nextConfigCheck;
     private string ConfigPath=>Path.Combine(Core.GameFilesDirectory,"addons","swiftlys2","configs","plugins","LPLK_Maps","config.jsonc");
     private string CollectionPath=>Path.Combine(Core.PluginDataDirectory,"workshop-cache.json");
     private string WorkshopRoot=>settings.WorkshopPath.Length>0?settings.WorkshopPath:Path.GetFullPath(Path.Combine(Core.GameFilesDirectory,"..","bin","linuxsteamrt64","steamapps","workshop","content","730"));
     private bool Available(MapEntry m)=>m.IsMap&&!m.Removed&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&
         (installed.Contains(m.Id)||(!settings.RequireVpkFile&&m.RemoteMapVerified));
-    private bool Votable(MapEntry m)=>Available(m)&&MapPolicy.LimitsApproved(m);
+    private bool Votable(MapEntry m)=>Available(m)&&MapPolicy.LimitsUsable(m,settings);
     private bool AnyHuman()=>Core.PlayerManager.GetAllPlayers().Any(p=>p.IsValid&&!p.IsFakeClient);
     private MapSettings ReadConfiguration()
     {
-        if(!File.Exists(ConfigPath))
+        configuration=new(ConfigPath,()=>
         {
             string seed=Path.Combine(Core.PluginPath,"resources","settings.seed.json");
-            var initial=File.Exists(seed)?JsonSerializer.Deserialize<MapSettings>(File.ReadAllText(seed))??new():new MapSettings();
-            MapSettings.Validate(initial);AtomicJson.Write(ConfigPath,new {LPLK_Maps=initial});
-        }
-        using var json=JsonDocument.Parse(File.ReadAllText(ConfigPath),new(){CommentHandling=JsonCommentHandling.Skip,AllowTrailingCommas=true});
-        var value=(json.RootElement.TryGetProperty("LPLK_Maps",out var section)?section:json.RootElement).Deserialize<MapSettings>()??throw new InvalidDataException("Map-Konfiguration leer.");
-        MapSettings.Validate(value);configStamp=File.GetLastWriteTimeUtc(ConfigPath);return value;
+            return File.Exists(seed)?JsonSerializer.Deserialize<MapSettings>(File.ReadAllText(seed))??new():new MapSettings();
+        });
+        return configuration.Current;
+    }
+    private void ActivateConfiguration(MapSettings next,bool resetVotes)
+    {
+        if(MapSettingsFile.Equivalent(settings,next)){settings=next;return;}
+        settings=next;
+        if(resetVotes){CancelVote();rtv.Clear();extendVotes.Clear();directVotes.Clear();endVoteStarted=nextMap is not null;nextPoolRefresh=0;Scan();}
+    }
+    private void RefreshSettings()
+    {
+        if(module?.Active!=true||configuration is null)return;
+        string? previous=reloadError;
+        if(configuration.Reload())ActivateConfiguration(configuration.Current,true);
+        reloadError=configuration.Error;
+        if(reloadError is not null&&reloadError!=previous)Core.Logger.LogWarning("LPLK_Maps: ungültige Konfiguration; bisherige Regeln bleiben aktiv: {Error}",reloadError);
+    }
+    private void ChangeConfiguration(Func<MapSettings,MapSettings> edit,bool resetVotes,Func<MapSettings,bool>? allowed=null)
+    {
+        if(module?.Active!=true||configuration is null)throw new InvalidOperationException("Mapmodul nicht aktiv.");
+        RefreshSettings();
+        if(allowed is not null&&!allowed(settings))throw new InvalidDataException("Keine aktuelle Berechtigung.");
+        var next=configuration.Change(edit);ActivateConfiguration(next,resetVotes);reloadError=null;WriteStatus();
     }
     private void CheckConfiguration(long now)
     {
         if(now<nextConfigCheck)return;nextConfigCheck=now+5000;
-        if(File.Exists(ConfigPath)&&File.GetLastWriteTimeUtc(ConfigPath)!=configStamp)
-        {
-            try{settings=ReadConfiguration();CancelVote();rtv.Clear();nextPoolRefresh=0;Scan();Core.Logger.LogInformation("LPLK_Maps: Konfiguration neu eingelesen.");}
-            catch(Exception e){configStamp=File.GetLastWriteTimeUtc(ConfigPath);Core.Logger.LogWarning(e,"LPLK_Maps: ungültige Konfiguration; bisherige Regeln bleiben aktiv.");}
-        }
+        RefreshSettings();
         if(now>=nextPoolRefresh&&!collectionLoading)RefreshCollection();
     }
     private void LoadCollectionCache()

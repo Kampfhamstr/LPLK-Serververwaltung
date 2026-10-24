@@ -54,7 +54,7 @@ public sealed partial class Ledger
     }
     public object WebRanking(DateTimeOffset now)
     {
-        lock(gate)return new{schema=1,profile=Profile,generatedAt=now,period=Period,scope="server",totalAccounts=AccountCount,
+        lock(gate)return new{schema=1,profile=Profile,generatedAt=now,period=Period,scope=Networked?"network":"server",databaseIdentity=NetworkIdentity,totalAccounts=AccountCount,
             rows=Accounts(100).Select(a=>new{steamId=a.Id,name=a.Name,balance=a.Balance}).ToArray()};
     }
 }

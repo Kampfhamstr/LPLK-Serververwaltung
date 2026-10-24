@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text.Json;
 using LPLK.Common;
 using SwiftlyS2.Core.Menus.OptionsBase;
 using SwiftlyS2.Shared.Commands;
@@ -28,11 +30,11 @@ public sealed partial class Plugin
             finally{if(fade!=uint.MaxValue)world.Destroy(fade);WriteStatus();}
             return;
         }
-        WriteStatus();ctx.Reply($"LPLK_NadeEffects 0.1.1: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; selected={effects.Selected}; pending={effects.PendingCount}; fades={effects.FadeCount}; cooldown={settings.TriggerCooldownSeconds}; remove={settings.RemoveNades}; errors={errors}; reloadError={reloadError??"none"}");
+        WriteStatus();ctx.Reply($"LPLK_NadeEffects 0.1.3: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; selected={effects.Selected}; pending={effects.PendingCount}; fades={effects.FadeCount}; cooldown={settings.TriggerCooldownSeconds}; remove={settings.RemoveNades}; errors={errors}; reloadError={reloadError??"none"}");
     }
     private IMenuBuilderAPI Builder(string title)=>Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).SetAutoCloseDelay(0)
         .SetSelectButton(Enum.Parse<KeyBind>(settings.SelectButton)).SetMoveForwardButton(Enum.Parse<KeyBind>(settings.MoveUpButton)).SetMoveBackwardButton(Enum.Parse<KeyBind>(settings.MoveDownButton)).SetExitButton(Enum.Parse<KeyBind>(settings.ExitButton))
-        .Design.SetMenuTitle(MenuColors.Heading(title)).Design.SetMaxVisibleItems(5);
+        .Design.SetMenuTitle(MenuColors.Heading(title)).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter);
     private void Menu(IPlayer player,string title,int back,params (string Label,Action<IPlayer> Action)[] rows)
     {
         if(!module.CanAdmin(player))return;var builder=Builder(title);var numbers=new MenuNumbers();int index=0;
@@ -43,10 +45,8 @@ public sealed partial class Plugin
         }
         Core.MenusAPI.OpenMenuForPlayer(player,builder.Build());
     }
-    private void OpenAdmin(IPlayer p)=>Menu(p,"LPLK · Granateneffekte",0,
-        ($"Spieler ({effects.Selected})",a=>Targets(a,0)),
-        ("Zurücksetzen",a=>{if(ready)effects.Clear();WriteStatus();OpenAdmin(a);}),
-        ("Einstellungen",SettingsMenu));
+    private void OpenAdmin(IPlayer p) => Menu(p,"LPLK · Granateneffekte",0,((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Auslöser",TriggerMenuRows(actor)),("Bildschirm",FadeMenuRows(actor)),("Darstellung",AppearanceMenuRows(actor)),("Meldung",MessageMenuRows(actor)),("Warnung",WarningMenuRows(actor)),("Darstellung",MenuAppearanceRows(actor)),("Adminhinweis",AdminNoticesRows(actor)))))(p));
+    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Spieler ({effects.Selected})",a=>Targets(a,0)),("Zurücksetzen",a=>{if(ready)effects.Clear();WriteStatus();OpenAdmin(a);})}))(p);
     private void Targets(IPlayer p,int requested)
     {
         if(!module.CanAdmin(p))return;if(!ready){p.SendChat("[LPLK] Die Map ist noch nicht bereit.");return;}
@@ -71,50 +71,62 @@ public sealed partial class Plugin
         if(page.Index>0)Navigation("Vorherige Seite",a=>Targets(a,page.Index-1));if(page.Index+1<page.Pages)Navigation("Nächste Seite",a=>Targets(a,page.Index+1));Navigation("Zurück",OpenAdmin,true);
         Core.MenusAPI.OpenMenuForPlayer(p,builder.Build());
     }
-    private void SettingsMenu(IPlayer p)=>Menu(p,"Granateneffekte · Einstellungen",1,
-        ($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,settings with{Enabled=!settings.Enabled});SettingsMenu(a);}),("Auslöser",TriggerMenu),("Bildschirm-Fade",FadeMenu),("Hinweise",MessageMenu),("Zurück",OpenAdmin));
-    private void TriggerMenu(IPlayer p)=>Menu(p,"Granateneffekte · Auslöser",1,
-        ("Granatentypen",a=>Grenades(a,0)),
-        ($"Auslösesperre: {settings.TriggerCooldownSeconds:0.##} s",a=>{Apply(a,settings with{TriggerCooldownSeconds=Next(settings.TriggerCooldownSeconds,[.5,1.25,2.5,5,10])});TriggerMenu(a);}),
-        ($"Granaten entfernen: {(settings.RemoveNades?"AN":"AUS")}",a=>{Apply(a,settings with{RemoveNades=!settings.RemoveNades});TriggerMenu(a);}),
-        ($"Danach Messer: {(settings.SwitchToKnifeAfterRemove?"AN":"AUS")}",a=>{Apply(a,settings with{SwitchToKnifeAfterRemove=!settings.SwitchToKnifeAfterRemove});TriggerMenu(a);}),
-        ("Zurück",SettingsMenu));
+    private void SettingsMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,s=>s with{Enabled=!s.Enabled});SettingsMenu(a);})}))(p);
+    private void TriggerMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> TriggerMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Granatentypen",a=>Grenades(a,0)),($"Auslösesperre: {settings.TriggerCooldownSeconds:0.##} s",a=>NumberInput(a,nameof(NadeSettings.TriggerCooldownSeconds),"Auslösesperre (Sekunden)",0.1,60,TriggerMenu)),($"Granaten entfernen: {(settings.RemoveNades?"AN":"AUS")}",a=>{Apply(a,s=>s with{RemoveNades=!s.RemoveNades});TriggerMenu(a);}),($"Danach Messer: {(settings.SwitchToKnifeAfterRemove?"AN":"AUS")}",a=>{Apply(a,s=>s with{SwitchToKnifeAfterRemove=!s.SwitchToKnifeAfterRemove});TriggerMenu(a);})}))(p);
     private static readonly (string Property,string Label)[] GrenadeRows=[(nameof(NadeSettings.EnableFlashbang),"Flashbang"),(nameof(NadeSettings.EnableHEGrenade),"HE-Granate"),(nameof(NadeSettings.EnableSmoke),"Smoke"),(nameof(NadeSettings.EnableMolotov),"Molotov"),(nameof(NadeSettings.EnableIncendiary),"Incendiary"),(nameof(NadeSettings.EnableDecoy),"Decoy"),(nameof(NadeSettings.EnableTAGrenade),"TA-Granate")];
     private void Grenades(IPlayer p,int requested)
     {
-        var page=NadePolicy.Page(GrenadeRows.Length,requested);var rows=new List<(string,Action<IPlayer>)>();
-        foreach(var (name,label) in GrenadeRows.Skip(page.Offset).Take(page.Size))
-        {var prop=typeof(NadeSettings).GetProperty(name)!;rows.Add(($"{label}: {((bool)prop.GetValue(settings)!?"AN":"AUS")}",a=>{var next=settings with{};prop.SetValue(next,!(bool)prop.GetValue(settings)!);Apply(a,next);Grenades(a,page.Index);}));}
-        if(page.Index>0)rows.Add(("Vorherige Seite",a=>Grenades(a,page.Index-1)));if(page.Index+1<page.Pages)rows.Add(("Nächste Seite",a=>Grenades(a,page.Index+1)));rows.Add(("Zurück",TriggerMenu));Menu(p,$"Granaten · {page.Index+1}/{page.Pages}",1,rows.ToArray());
+        var rows=new List<(string,Action<IPlayer>)>();
+        foreach(var (name,label) in GrenadeRows)
+        {var prop=typeof(NadeSettings).GetProperty(name)!;rows.Add(($"{label}: {((bool)prop.GetValue(settings)!?"AN":"AUS")}",a=>{Apply(a,s=>{var next=s with{};prop.SetValue(next,!(bool)prop.GetValue(s)!);return next;});Grenades(a,0);}));}
+        rows.Add(("Zurück",TriggerMenu));Menu(p,"Granaten",1,rows.ToArray());
     }
-    private void FadeMenu(IPlayer p)=>Menu(p,"Granateneffekte · Bildschirm",1,
-        ($"Fade: {(settings.UseEnvFade?"AN":"AUS")}",a=>{Apply(a,settings with{UseEnvFade=!settings.UseEnvFade});FadeMenu(a);}),
-        ($"Dauer: {settings.FadeDuration:0.##} s",a=>{Apply(a,settings with{FadeDuration=Next(settings.FadeDuration,[.15,.3,.5,1,2])});FadeMenu(a);}),
-        ($"Haltezeit: {settings.FadeHoldTime:0.##} s",a=>{Apply(a,settings with{FadeHoldTime=Next(settings.FadeHoldTime,[0,1,2.4,3,5])});FadeMenu(a);}),
-        ("Darstellung",AppearanceMenu),("Zurück",SettingsMenu));
-    private void AppearanceMenu(IPlayer p)=>Menu(p,"Granateneffekte · Darstellung",1,
-        ($"Farbe: {settings.FadeColor}",a=>{string[] colors=["255 255 255","255 100 100","100 100 255","0 0 0"];Apply(a,settings with{FadeColor=colors[(Array.IndexOf(colors,settings.FadeColor)+1)%colors.Length]});AppearanceMenu(a);}),
-        ($"Deckkraft: {settings.FadeAlpha}",a=>{Apply(a,settings with{FadeAlpha=(int)Next(settings.FadeAlpha,[64,128,192,255])});AppearanceMenu(a);}),
-        ($"Lebensdauer: {settings.FadeEntityRemoveDelaySeconds:0.#} s",a=>{Apply(a,settings with{FadeEntityRemoveDelaySeconds=(float)Next(settings.FadeEntityRemoveDelaySeconds,[1,3,5,10])});AppearanceMenu(a);}),
-        ("Zurück",FadeMenu));
-    private void MessageMenu(IPlayer p)=>Menu(p,"Granateneffekte · Hinweise",1,
-        ("Warntext ändern",WarnInput),
-        ($"Bildschirmhinweis: {(settings.UseCenterWarning?"AN":"AUS")}",a=>{Apply(a,settings with{UseCenterWarning=!settings.UseCenterWarning});MessageMenu(a);}),
-        ($"Hinweisdauer: {settings.CenterWarningDurationMs} ms",a=>{Apply(a,settings with{CenterWarningDurationMs=(int)Next(settings.CenterWarningDurationMs,[1000,2000,3000,5000])});MessageMenu(a);}),
-        ("Adminhinweise",AdminNotices),("Zurück",SettingsMenu));
-    private void AdminNotices(IPlayer p)=>Menu(p,"Granateneffekte · Adminhinweise",1,
-        ($"Bei Markierung: {(settings.NotifyAdminsOnToggle?"AN":"AUS")}",a=>{Apply(a,settings with{NotifyAdminsOnToggle=!settings.NotifyAdminsOnToggle});AdminNotices(a);}),
-        ($"Bei Auslösung: {(settings.NotifyAdminsOnTrigger?"AN":"AUS")}",a=>{Apply(a,settings with{NotifyAdminsOnTrigger=!settings.NotifyAdminsOnTrigger});AdminNotices(a);}),
-        ("Zurück",MessageMenu));
-    private void WarnInput(IPlayer p)
+    private void FadeMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> FadeMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Fade: {(settings.UseEnvFade?"AN":"AUS")}",a=>{Apply(a,s=>s with{UseEnvFade=!s.UseEnvFade});FadeMenu(a);}),($"Dauer: {settings.FadeDuration:0.##} s",a=>NumberInput(a,nameof(NadeSettings.FadeDuration),"Fade-Dauer (Sekunden)",0,10,FadeMenu)),($"Haltezeit: {settings.FadeHoldTime:0.##} s",a=>NumberInput(a,nameof(NadeSettings.FadeHoldTime),"Haltezeit (Sekunden)",0,10,FadeMenu))}))(p);
+    private void AppearanceMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> AppearanceMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Farbe: {settings.FadeColor}",ColorInput),($"Deckkraft: {settings.FadeAlpha}",a=>NumberInput(a,nameof(NadeSettings.FadeAlpha),"Deckkraft",0,255,AppearanceMenu)),($"Lebensdauer: {settings.FadeEntityRemoveDelaySeconds:0.#} s",a=>NumberInput(a,nameof(NadeSettings.FadeEntityRemoveDelaySeconds),"Lebensdauer (Sekunden)",0.1,30,AppearanceMenu))}))(p);
+    private void MessageMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> MessageMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{}))(p);
+    private void WarningMenu(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> WarningMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Warntext ändern",WarnInput),($"Bildschirmhinweis: {(settings.UseCenterWarning?"AN":"AUS")}",a=>{Apply(a,s=>s with{UseCenterWarning=!s.UseCenterWarning});WarningMenu(a);}),($"Hinweisdauer: {settings.CenterWarningDurationMs} ms",a=>NumberInput(a,nameof(NadeSettings.CenterWarningDurationMs),"Hinweisdauer (Millisekunden)",100,10000,WarningMenu))}))(p);
+    private void MenuAppearance(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> MenuAppearanceRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Namenslänge: {settings.MenuNameMaxLength}",a=>NumberInput(a,nameof(NadeSettings.MenuNameMaxLength),"Namenslänge",5,64,MenuAppearance)),("Tastenbelegung",a=>{a.SendChat($"[LPLK] Auswahl: {settings.SelectButton}; aufwärts: {settings.MoveUpButton}; abwärts: {settings.MoveDownButton}; schließen: {settings.ExitButton}. Änderung in settings.json; vier unterschiedliche Tasten erforderlich.");MenuAppearance(a);})}))(p);
+    private void AdminNotices(IPlayer p) => OpenAdmin(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> AdminNoticesRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Bei Markierung: {(settings.NotifyAdminsOnToggle?"AN":"AUS")}",a=>{Apply(a,s=>s with{NotifyAdminsOnToggle=!s.NotifyAdminsOnToggle});AdminNotices(a);}),($"Bei Auslösung: {(settings.NotifyAdminsOnTrigger?"AN":"AUS")}",a=>{Apply(a,s=>s with{NotifyAdminsOnTrigger=!s.NotifyAdminsOnTrigger});AdminNotices(a);})}))(p);
+    private void WarnInput(IPlayer p)=>TextInput(p,"Granateneffekte · Warntext",settings.WarnMessage,160,NadeSettings.TextValid,(s,v)=>s with{WarnMessage=v},WarningMenu);
+    private void ColorInput(IPlayer p)=>TextInput(p,"Farbe: Rot Grün Blau",settings.FadeColor,11,NadeSettings.ColorValid,(s,v)=>s with{FadeColor=v},AppearanceMenu);
+    private void TextInput(IPlayer p,string title,string initial,int length,Func<string,bool> validate,Func<NadeSettings,string,NadeSettings> edit,Action<IPlayer> back)
     {
-        if(!module.CanAdmin(p))return;var input=new InputMenuOption(new MenuNumbers().Next("Warntext eingeben"),maxLength:160,validator:NadeSettings.TextValid,defaultValue:settings.WarnMessage,hintMessage:"Bis zu 160 Zeichen"){CloseAfterClick=false};
-        GameThreadMenu.BindInput(Core,input,p,()=>module.Active,(a,v)=>{if(module.CanAdmin(a)){Apply(a,settings with{WarnMessage=v});MessageMenu(a);}});
-        var back=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};GameThreadMenu.Bind(Core,back,p,()=>module.Active,MessageMenu);Core.MenusAPI.OpenMenuForPlayer(p,Builder("Granateneffekte · Warntext").AddOption(input).AddOption(back).Build());
+        if(!module.CanAdmin(p))return;
+        var input=new InputMenuOption(new MenuNumbers().Next("Wert eingeben"),maxLength:length,validator:validate,defaultValue:initial,hintMessage:title){CloseAfterClick=false};
+        GameThreadMenu.BindInput(Core,input,p,()=>module.Active,(a,v)=>{if(module.CanAdmin(a)&&validate(v)){Apply(a,s=>edit(s,v));back(a);}});
+        var returnButton=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};
+        GameThreadMenu.Bind(Core,returnButton,p,()=>module.Active,a=>{if(module.CanAdmin(a))back(a);});
+        Core.MenusAPI.OpenMenuForPlayer(p,Builder(title).AddOption(input).AddOption(returnButton).Build());
     }
-    private static double Next(double v,double[] values)=>values.FirstOrDefault(x=>x>v+.001,values[0]);
-    private void Apply(IPlayer actor,NadeSettings next)
+    private void NumberInput(IPlayer p,string propertyName,string title,double min,double max,Action<IPlayer> back)
     {
-        if(!module.CanAdmin(actor))return;NadeSettings.Validate(next);module.SaveSettings(next);if(ready)effects.CancelEffects();settings=next;stamp=File.GetLastWriteTimeUtc(module.SettingsPath);reloadError=null;WriteStatus();
+        if(!module.CanAdmin(p))return;
+        var property=typeof(NadeSettings).GetProperty(propertyName)!;
+        bool Parse(string text,out double value)=>double.TryParse(text.Replace(',','.'),NumberStyles.Float,CultureInfo.InvariantCulture,out value)&&double.IsFinite(value)&&value>=min&&value<=max&&(property.PropertyType!=typeof(int)||value==Math.Truncate(value));
+        var input=new InputMenuOption(new MenuNumbers().Next("Wert eingeben"),maxLength:16,validator:t=>Parse(t,out _),defaultValue:Convert.ToString(property.GetValue(settings),CultureInfo.InvariantCulture)??"",hintMessage:$"{min} bis {max} eingeben."){CloseAfterClick=false};
+        GameThreadMenu.BindInput(Core,input,p,()=>module.Active,(a,text)=>
+        {
+            if(!module.CanAdmin(a)||!Parse(text,out double number))return;
+            Apply(a,s=>{var next=s with{};object value=property.PropertyType==typeof(int)?(object)(int)number:property.PropertyType==typeof(float)?(object)(float)number:number;property.SetValue(next,value);return next;});back(a);
+        });
+        var returnButton=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};
+        GameThreadMenu.Bind(Core,returnButton,p,()=>module.Active,a=>{if(module.CanAdmin(a))back(a);});
+        Core.MenusAPI.OpenMenuForPlayer(p,Builder(title).AddOption(input).AddOption(returnButton).Build());
+    }
+    private void Apply(IPlayer actor,Func<NadeSettings,NadeSettings> edit)
+    {
+        if(!module.CanAdmin(actor))return;
+        try{config.Change(edit);reloadError=null;}
+        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
+        {reloadError=config.Error??e.GetType().Name;actor.SendChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
+        SyncSettings();WriteStatus();
     }
 }
