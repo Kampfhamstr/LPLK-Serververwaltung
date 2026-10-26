@@ -61,23 +61,23 @@ public sealed partial class Plugin
         var targets=Targets(c,c.Args[0],timed||action is "unban" or "unmute" or "ungag" or "unsilence");
         // Validate every immunity before a grouped action so it cannot partly affect protected players.
         if(c.Sender is {} a)foreach(var id in targets)if(!AdminActionPolicy.CanTarget(a.SteamID,ulong.Parse(id),AdminActionPolicy.Rank(p=>Has(a,p)),AdminActionPolicy.Rank(p=>Core.Permission.PlayerHasPermission(ulong.Parse(id),p))))throw new InvalidOperationException("Mindestens ein Ziel hat gleiche/höhere Adminrechte.");
-        foreach(var id in targets)Run(c.Sender,action,id,payload,c.Reply);
-    },c.Reply);
+        foreach(var id in targets)Run(c.Sender,action,id,payload,c.ReplyLplk);
+    },c.ReplyLplk);
 
     [Command("rr")][CommandAlias("restart")]
-    public void Restart(ICommandContext c)=>Guard(()=>Run(c.Sender,"round_restart",null,new(){["countdown_seconds"]=LegacyAdminTargets.RestartDelay(c.Args)},c.Reply),c.Reply);
+    public void Restart(ICommandContext c)=>Guard(()=>Run(c.Sender,"round_restart",null,new(){["countdown_seconds"]=LegacyAdminTargets.RestartDelay(c.Args)},c.ReplyLplk),c.ReplyLplk);
     [Command("say")] public void Say(ICommandContext c)=>Broadcast(c,"chat");
     [Command("csay")] public void Csay(ICommandContext c)=>Broadcast(c,"center");
     [Command("hsay")] public void Hsay(ICommandContext c)=>Broadcast(c,"hint");
-    private void Broadcast(ICommandContext c,string type)=>Guard(()=>Run(c.Sender,"broadcast",null,new(){["message"]=AdminActionPolicy.Text(string.Join(' ',c.Args)),["type"]=type},c.Reply),c.Reply);
+    private void Broadcast(ICommandContext c,string type)=>Guard(()=>Run(c.Sender,"broadcast",null,new(){["message"]=AdminActionPolicy.Text(string.Join(' ',c.Args)),["type"]=type},c.ReplyLplk),c.ReplyLplk);
     [Command("asay")]
-    public void Asay(ICommandContext c)=>Guard(()=>{if(c.Sender is {} sender&&!Can(sender,"broadcast"))throw new InvalidOperationException("Keine Berechtigung.");string text=AdminActionPolicy.Text(string.Join(' ',c.Args));foreach(var p in Core.PlayerManager.GetAllPlayers().Where(CanManage))p.SendChat("[LPLK Admin] "+(c.Sender?.Controller.PlayerName??"Konsole")+": "+text);c.Reply("[LPLK] Adminnachricht versendet.");},c.Reply);
+    public void Asay(ICommandContext c)=>Guard(()=>{if(c.Sender is {} sender&&!Can(sender,"broadcast"))throw new InvalidOperationException("Keine Berechtigung.");string text=AdminActionPolicy.Text(string.Join(' ',c.Args));foreach(var p in Core.PlayerManager.GetAllPlayers().Where(CanManage))p.SendLplkChat("[LPLK Admin] "+(c.Sender?.Controller.PlayerName??"Konsole")+": "+text);c.ReplyLplk("[LPLK] Adminnachricht versendet.");},c.ReplyLplk);
     [Command("rcon")]
-    public void Rcon(ICommandContext c)=>Guard(()=>Run(c.Sender,"server_command",null,new(){["command"]=AdminActionPolicy.Text(string.Join(' ',c.Args),500)},c.Reply),c.Reply);
+    public void Rcon(ICommandContext c)=>Guard(()=>Run(c.Sender,"server_command",null,new(){["command"]=AdminActionPolicy.Text(string.Join(' ',c.Args),500)},c.ReplyLplk),c.ReplyLplk);
     [Command("cvar")]
-    public void Cvar(ICommandContext c)=>Guard(()=>{if(c.Args.Length!=2)throw new ArgumentException("cvar <Name> <Wert>");Run(c.Sender,"cvar_set",null,new(){["name"]=c.Args[0],["value"]=c.Args[1]},c.Reply);},c.Reply);
+    public void Cvar(ICommandContext c)=>Guard(()=>{if(c.Args.Length!=2)throw new ArgumentException("cvar <Name> <Wert>");Run(c.Sender,"cvar_set",null,new(){["name"]=c.Args[0],["value"]=c.Args[1]},c.ReplyLplk);},c.ReplyLplk);
     [Command("players")][CommandAlias("list")]
-    public void Players(ICommandContext c)=>Guard(()=>{if(c.Sender is {} p&&!CanManage(p))throw new InvalidOperationException("Keine Berechtigung.");foreach(var t in Core.PlayerManager.GetAllPlayers().Where(t=>t.IsValid&&!t.IsFakeClient))c.Reply($"#{t.PlayerID} {t.Controller.PlayerName} | {t.SteamID} | Team {t.Controller.TeamNum}");},c.Reply);
+    public void Players(ICommandContext c)=>Guard(()=>{if(c.Sender is {} p&&!CanManage(p))throw new InvalidOperationException("Keine Berechtigung.");foreach(var t in Core.PlayerManager.GetAllPlayers().Where(t=>t.IsValid&&!t.IsFakeClient))c.ReplyLplk($"#{t.PlayerID} {t.Controller.PlayerName} | {t.SteamID} | Team {t.Controller.TeamNum}");},c.ReplyLplk);
     [Command("who")]
-    public void Who(ICommandContext c)=>Guard(()=>{if(c.Sender is {} p&&!CanManage(p))throw new InvalidOperationException("Keine Berechtigung.");if(c.Args.Length!=1)throw new ArgumentException("who <Spieler>");foreach(var id in Targets(c,c.Args[0],false)){var t=Target(id,null);c.Reply($"{t.Controller.PlayerName} | {id} | Rechte: "+string.Join(", ",Core.Permission.GetPlayerPermissions(t.SteamID)));}},c.Reply);
+    public void Who(ICommandContext c)=>Guard(()=>{if(c.Sender is {} p&&!CanManage(p))throw new InvalidOperationException("Keine Berechtigung.");if(c.Args.Length!=1)throw new ArgumentException("who <Spieler>");foreach(var id in Targets(c,c.Args[0],false)){var t=Target(id,null);c.ReplyLplk($"{t.Controller.PlayerName} | {id} | Rechte: "+string.Join(", ",Core.Permission.GetPlayerPermissions(t.SteamID)));}},c.ReplyLplk);
 }

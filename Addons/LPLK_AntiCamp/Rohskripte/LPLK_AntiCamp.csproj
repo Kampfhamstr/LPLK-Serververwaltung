@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AllowUnsafeBlocks>true</AllowUnsafeBlocks><AssemblyName>LPLK_AntiCamp</AssemblyName><Version>0.1.6</Version><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AllowUnsafeBlocks>true</AllowUnsafeBlocks><AssemblyName>LPLK_AntiCamp</AssemblyName><Version>0.1.12</Version><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
   <ItemGroup><PackageReference Include="SwiftlyS2.CS2" Version="1.4.14" ExcludeAssets="runtime" PrivateAssets="all"/><Compile Include="../../_Gemeinsam/ModuleSupport.cs" Link="Shared/ModuleSupport.cs"/></ItemGroup>
   <Target Name="CreateZip" AfterTargets="Publish"><ZipDirectory SourceDirectory="$(PublishDir)../" DestinationFile="$(OutputPath)../$(AssemblyName).zip" Overwrite="true"/></Target>
 <ItemGroup><Compile Include="../../_Gemeinsam/CompactMenu.cs" Link="Shared/CompactMenu.cs"/><Compile Include="../../_Gemeinsam/WatchedSettings.cs" Link="Shared/WatchedSettings.cs"/></ItemGroup>

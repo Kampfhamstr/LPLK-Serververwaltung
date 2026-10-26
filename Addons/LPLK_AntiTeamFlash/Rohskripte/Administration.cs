@@ -13,17 +13,17 @@ public sealed partial class Plugin
     {
         if(context.Sender is {} player){OpenAdmin(player);return;}
         WriteStatus();
-        context.Reply($"LPLK_AntiTeamFlash 0.1.3: enabled={settings.Enabled}; flashOwner={settings.FlashOwner}; permission={settings.AccessPermission}; ready={ready}; cleared={cleared}; preserved={preserved}; errors={errors}; reloadError={reloadError??"none"}");
+        context.ReplyLplk($"LPLK_AntiTeamFlash 0.1.9: enabled={settings.Enabled}; flashOwner={settings.FlashOwner}; permission={settings.AccessPermission}; ready={ready}; cleared={cleared}; preserved={preserved}; errors={errors}; reloadError={reloadError??"none"}");
     }
     private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,title,()=>module.Active,module.CanAdmin,rows,back);
     private void OpenAdmin(IPlayer p) => Page(p,"LPLK · Teamflash-Schutz",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Berechtigung",PermissionMenuRows(actor))));
-    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{("Status",a=>a.SendChat($"[LPLK] Teamflash: {(settings.Enabled?"AN":"AUS")}; bereit={ready}; verhindert={cleared}; Überschneidungen erhalten={preserved}; Fehler={errors}; Konfiguration={reloadError??"gültig"}.")),("Erklärung",a=>a.SendChat("[LPLK] Gegnerblendung bleibt wirksam. Bei überlappenden Blendungen bleibt die erlaubte Blendung erhalten; dabei kann auch die Teamflash wirksam bleiben. FFA behandelt Mitspieler als Gegner."))}))(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{("Status",a=>a.SendLplkChat($"[LPLK] Teamflash: {(settings.Enabled?"AN":"AUS")}; bereit={ready}; verhindert={cleared}; Überschneidungen erhalten={preserved}; Fehler={errors}; Konfiguration={reloadError??"gültig"}.")),("Erklärung",a=>a.SendLplkChat("[LPLK] Gegnerblendung bleibt wirksam. Bei überlappenden Blendungen bleibt die erlaubte Blendung erhalten; dabei kann auch die Teamflash wirksam bleiben. FFA behandelt Mitspieler als Gegner."))}))(p);
     private void SettingsMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
         ($"Aktiv: {settings.Enabled}",a=>Apply(a,s=>s with{Enabled=!s.Enabled})),        ($"Eigenblendung: {settings.FlashOwner}",a=>Apply(a,s=>s with{FlashOwner=!s.FlashOwner}))}))(p);
     private void PermissionMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> PermissionMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
-        ("Anzeigen",a=>a.SendChat("[LPLK] Schutzrecht: "+(settings.AccessPermission.Length==0?"alle Spieler":settings.AccessPermission))),        ("Alle schützen",a=>Apply(a,s=>s with{AccessPermission=""})),("Berechtigung",InputPermission)}))(p);
+        ("Anzeigen",a=>a.SendLplkChat("[LPLK] Schutzrecht: "+(settings.AccessPermission.Length==0?"alle Spieler":settings.AccessPermission))),        ("Alle schützen",a=>Apply(a,s=>s with{AccessPermission=""})),("Berechtigung",InputPermission)}))(p);
     private void InputPermission(IPlayer p)
     {
         if(!module.CanAdmin(p))return;

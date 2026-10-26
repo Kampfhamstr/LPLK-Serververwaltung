@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -58,7 +62,7 @@ public sealed partial class Plugin
     }
     private void EnsureRuleSeed()
     {
-        string seed=Path.Combine(Core.PluginPath,"resources","rules.seed.json");
+        string seed=Path.Combine(LPLK.Common.RoundFileStore.PluginPath(Core),"resources","rules.seed.json");
         if(File.Exists(_globalProtectionPath)||!File.Exists(seed))return;
         var rules=JsonSerializer.Deserialize<GlobalProtectionSnapshot>(File.ReadAllText(seed),_json)??throw new InvalidDataException("Leere Startregeln.");
         if(rules.Version!=2||rules.BlockedSteamIds.Count!=0)throw new InvalidDataException("Testregeln müssen ohne produktive Spieleridentitäten vorliegen.");
@@ -70,7 +74,7 @@ public sealed partial class Plugin
     }
     private void WriteStatus()
     {
-        try{AtomicJson.Write(Path.Combine(_root,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.4",enabled=_config.Enabled,bridgePresent=BridgePresent,filterReady=_active,bridgeFilterReady=BridgeFilterReady(),localData=true,centralExport=false,
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(_root,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.11",enabled=_config.Enabled,bridgePresent=BridgePresent,filterReady=_active,bridgeFilterReady=BridgeFilterReady(),localData=true,centralExport=false,
             trackedDisconnects=_advertisingDisconnects.Count,activeGags=_gagUntil.Count,localDomains=_config.BlockedDomains.Count,allowedDomains=_config.AllowedDomains.Count,
             globalDomains=_globalBlockedDomains.Count,globalPhrases=_globalBlockedPhrases.Count,importedBlockedIdentities=_globalBlockedSteamIds.Count,configError=_configError});_statusWriteFailed=false;}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!_statusWriteFailed)Core.Logger.LogWarning(e,"ChatGuard-Status konnte nicht geschrieben werden.");_statusWriteFailed=true;}

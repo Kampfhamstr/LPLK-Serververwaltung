@@ -14,9 +14,9 @@ public sealed partial class Plugin
                 yield return(label,a=>
                 {
                     var current=Target(steam.ToString(),session);
-                    if(!Loaded(id)||!ModuleAllowed(a,id)){a.SendChat("[LPLK] Funktion nicht mehr verfügbar.");return;}
+                    if(!Loaded(id)||!ModuleAllowed(a,id)){a.SendLplkChat("[LPLK] Funktion nicht mehr verfügbar.");return;}
                     if(factory(a,current).TryGetValue(label,out var action))action(a);
-                    else a.SendChat("[LPLK] Funktion für diesen Spieler nicht mehr verfügbar.");
+                    else a.SendLplkChat("[LPLK] Funktion für diesen Spieler nicht mehr verfügbar.");
                 });
         }
     }

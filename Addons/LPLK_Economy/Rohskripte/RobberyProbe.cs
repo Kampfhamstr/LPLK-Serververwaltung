@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -8,8 +12,8 @@ public sealed partial class Plugin
 {
     private void RobberyProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy robprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
-        string path=Path.Combine(Core.PluginDataDirectory,"robbery-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"robbery-probe.json");
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.ReplyLplk("LPLK_Economy robprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        string path=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"robbery-probe.sqlite3"),report=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"robbery-probe.json");
         const string a="76561198000000001",b="76561198000000002";const long now=1_800_000_000;
         try
         {
@@ -31,8 +35,8 @@ public sealed partial class Plugin
             if(o.Status!=(restarted?"done":"rolled")||probe.Security(b,rules,now).Vault!=3||probe.Balance(a)!=(restarted?10_750_000:4_900_000)||probe.Balance(b)!=(restarted?52_650_000:58_500_000))throw new InvalidDataException("Robbery probe inconsistent");
             long count=probe.TransactionCount;if(restarted)probe.ResumeRobbery(now);if(count!=probe.TransactionCount)throw new InvalidDataException("Duplicate robbery settlement");probe.Verify();
             AtomicJson.Write(report,new{updatedAt=DateTimeOffset.UtcNow,boot,seedBoot,phase=restarted?"restart-verified":"seed-verified",sqliteVersion=SQLitePCL.raw.sqlite3_libversion().utf8_to_string(),restarted,savedOutcomePreserved=true,upgradePreserved=true,settledOnce=restarted,legacyConsoleCommands=legacyCommands,playerDataChanged=false,productionChanged=false});
-            ctx.Reply($"LPLK_Economy robprobe: savedOutcomePreserved=True; upgradePreserved=True; settledOnce={restarted}; restarted={restarted}; Spielerkonten unverändert.");
+            ctx.ReplyLplk($"LPLK_Economy robprobe: savedOutcomePreserved=True; upgradePreserved=True; settledOnce={restarted}; restarted={restarted}; Spielerkonten unverändert.");
         }
-        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy robprobe fehlgeschlagen");ctx.Reply("LPLK_Economy robprobe: fehlgeschlagen");}
+        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy robprobe fehlgeschlagen");ctx.ReplyLplk("LPLK_Economy robprobe: fehlgeschlagen");}
     }
 }

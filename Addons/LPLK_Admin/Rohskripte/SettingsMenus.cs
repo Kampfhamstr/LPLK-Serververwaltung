@@ -20,7 +20,7 @@ public sealed partial class Plugin
     private bool CanConfigure(IPlayer p)=>Has(p,"lplk.admin")||Has(p,"admin.root");
     private void LoadSettings(){settingsFile=new(SettingsPath);settings=AdminSettingsFile.Copy(settingsFile.Current);}
     private static bool SettingsFailure(Exception e)=>e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException;
-    private void OpenOwnedMenu(IPlayer p,IMenuAPI menu){moduleReturns.Remove(p.PlayerID);ownedMenus.Add(menu,new object());MenuPresentation.Apply(menu);Core.MenusAPI.OpenMenuForPlayer(p,menu);}
+    private void OpenOwnedMenu(IPlayer p,IMenuAPI menu){moduleReturns.Remove(p.PlayerID);ownedMenus.Add(menu,new object());MenuPresentation.Apply(menu);ApplyMenuVisuals(menu);Core.MenusAPI.OpenMenuForPlayer(p,menu);}
     private void InvalidateMenus()
     {
         generation++;
@@ -52,16 +52,16 @@ public sealed partial class Plugin
     }
     private void WriteSettingsStatus()
     {
-        try{AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.10.5",reasons=settings.Reasons.Length,durations=settings.Durations.Length,reloadError=settingsError,commands=aliasRegistrations.Count,commandError});settingsStatusFailed=false;}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.11.5",reasons=settings.Reasons.Length,durations=settings.Durations.Length,reloadError=settingsError,commands=aliasRegistrations.Count,commandError});settingsStatusFailed=false;}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!settingsStatusFailed)Core.Logger.LogWarning(e,"LPLK_Admin: Status nicht schreibbar.");settingsStatusFailed=true;}
     }
     private void SettingsMenu(IPlayer p)=>Menu(p,"Admin · Einstellungen",_=>new (string,Action<IPlayer>)[]{
-        ("Gründe",a=>ReasonsSettings(a,0)),("Dauern",a=>DurationsSettings(a,0)),("Befehle",a=>CommandGroupsMenu(a,0)),("Status",a=>a.SendChat("[LPLK] Konfiguration: "+(settingsError??"gültig")+"; Befehle: "+(commandError??"bereit")))},ServerManagement,CanConfigure);
+        ("Gründe",a=>ReasonsSettings(a,0)),("Dauern",a=>DurationsSettings(a,0)),("Befehle",a=>CommandGroupsMenu(a,0)),("Status",a=>a.SendLplkChat("[LPLK] Konfiguration: "+(settingsError??"gültig")+"; Befehle: "+(commandError??"bereit")))},ServerManagement,CanConfigure);
     private void ChangeSettings(IPlayer p,Func<AdminSettings,AdminSettings> edit,Action<IPlayer> back)
     {
         if(!CanConfigure(p))return;
-        try{settingsFile.Change(edit);SyncSettings();p.SendChat("[LPLK] Einstellung gespeichert.");}
-        catch(Exception e)when(SettingsFailure(e)){Core.Logger.LogWarning(e,"LPLK_Admin: Einstellung nicht gespeichert.");p.SendChat("[LPLK] Nicht gespeichert. Konfiguration und Auswahl prüfen.");ReloadSettings();}
+        try{settingsFile.Change(edit);SyncSettings();p.SendLplkChat("[LPLK] Einstellung gespeichert.");}
+        catch(Exception e)when(SettingsFailure(e)){Core.Logger.LogWarning(e,"LPLK_Admin: Einstellung nicht gespeichert.");p.SendLplkChat("[LPLK] Nicht gespeichert. Konfiguration und Auswahl prüfen.");ReloadSettings();}
         WriteSettingsStatus();back(p);
     }
     private void SettingInput(IPlayer p,string title,int length,Func<string,bool> validate,Action<IPlayer,string> change,Action<IPlayer> back,string initial="")

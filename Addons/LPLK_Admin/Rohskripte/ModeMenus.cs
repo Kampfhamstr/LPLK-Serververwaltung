@@ -13,7 +13,7 @@ public sealed partial class Plugin
     }
     private void OpenMode(IPlayer player,string mode,string page)
     {
-        if(ModeApi(player,mode,page) is not {} api){player.SendChat("[LPLK] Spielmodus derzeit nicht verfügbar.");return;}
+        if(ModeApi(player,mode,page) is not {} api){player.SendLplkChat("[LPLK] Spielmodus derzeit nicht verfügbar.");return;}
         ((Action<IPlayer,string>)api["open"])(player,page);
     }
 }

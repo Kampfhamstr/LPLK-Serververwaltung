@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
@@ -29,10 +33,12 @@ public sealed partial class Plugin
     }
     private string FleetRoster(ulong actor)
     {
+        if(LocalAdministrationOnly)return "[]";
         lock(fleetGate)return JsonSerializer.Serialize(!_unloading&&(DateTimeOffset.UtcNow-fleetAt).TotalSeconds<=12&&fleet.TryGetValue(actor.ToString(),out var rows)?rows:[]);
     }
     private string QueueFleetRequest(ulong actor,string json)
     {
+        if(LocalAdministrationOnly)throw new InvalidOperationException("Verwaltung gilt nur auf diesem Server.");
         if(_unloading||json.Length>8192)throw new InvalidOperationException("Verbund nicht bereit.");
         var p=Core.PlayerManager.GetAllPlayers().FirstOrDefault(x=>x.IsValid&&x.IsAuthorized&&!x.IsFakeClient&&x.SteamID==actor)??throw new InvalidOperationException("Adminverbindung nicht mehr gültig.");
         var r=JsonSerializer.Deserialize<FleetRequest>(json)??throw new InvalidDataException("Ungültiger Verbundauftrag.");
@@ -50,7 +56,7 @@ public sealed partial class Plugin
     private static void WriteNewFleet(string path,string text)
     {
         byte[] bytes=Encoding.UTF8.GetBytes(text);
-        using var file=new FileStream(path,FileMode.CreateNew,FileAccess.Write,FileShare.Read);file.Write(bytes);file.Flush(true);
+        using var file=LPLK.Common.RamFile.Open(path,FileMode.CreateNew,FileAccess.Write,FileShare.Read);file.Write(bytes);file.Flush();
     }
     private List<FleetRequest> ReadFleetRequests()
     {
@@ -96,7 +102,7 @@ public sealed partial class Plugin
         while(fleetMessages.TryDequeue(out var result))
         {
             var actor=Core.PlayerManager.GetAllPlayers().FirstOrDefault(p=>p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&p.SteamID.ToString()==result.ActorSteamid&&p.SessionId.ToString()==result.ActorSession);
-            actor?.SendChat("[LPLK Verbund] "+(result.Success?"Erfolgreich: ":"Abgewiesen: ")+Limit(result.Message,180));
+            actor?.SendLplkChat("[LPLK Verbund] "+(result.Success?"Erfolgreich: ":"Abgewiesen: ")+Limit(result.Message,180));
         }
     }
     // Durable at-most-once execution. A crash after claiming but before recording
@@ -104,6 +110,7 @@ public sealed partial class Plugin
     private void Execute(BridgeCommand command)
     {
         if(command.Fleet is not {} auth){ExecuteCore(command);return;}
+        if(LocalAdministrationOnly)throw new InvalidOperationException("Serverübergreifende Aufträge sind abgeschaltet.");
         if(!command.Id.StartsWith("fleet_",StringComparison.Ordinal)||command.Id.Length>80||command.Id.Any(c=>!char.IsAsciiLetterOrDigit(c)&&c!='_'))throw new InvalidDataException("Ungültige Verbund-ID.");
         string path=Path.Combine(FleetDirectory("receipts"),command.Id+".json");
         string hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(command,_json))));

@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -18,10 +22,10 @@ public sealed partial class Plugin
     private string? reloadError;
     private bool statusWriteFailed;
     private long nextConfigCheck;
-    private string ConfigPath=>Path.Combine(Core.GameFilesDirectory,"addons","swiftlys2","configs","plugins","LPLK_Maps","config.jsonc");
-    private string CollectionPath=>Path.Combine(Core.PluginDataDirectory,"workshop-cache.json");
-    private string WorkshopRoot=>settings.WorkshopPath.Length>0?settings.WorkshopPath:Path.GetFullPath(Path.Combine(Core.GameFilesDirectory,"..","bin","linuxsteamrt64","steamapps","workshop","content","730"));
-    private bool Available(MapEntry m)=>m.IsMap&&!m.Removed&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&
+    private string ConfigPath=>Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"addons","swiftlys2","configs","plugins","LPLK_Maps","config.jsonc");
+    private string CollectionPath=>Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"workshop-cache.json");
+    private string WorkshopRoot=>settings.WorkshopPath.Length>0?settings.WorkshopPath:Path.GetFullPath(Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"..","bin","linuxsteamrt64","steamapps","workshop","content","730"));
+    private bool Available(MapEntry m)=>m.IsMap&&!m.Removed&&(!settings.BuiltinMapsOnly||!m.Workshop)&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&
         (installed.Contains(m.Id)||(!settings.RequireVpkFile&&m.RemoteMapVerified));
     private bool Votable(MapEntry m)=>Available(m)&&MapPolicy.LimitsUsable(m,settings);
     private bool AnyHuman()=>Core.PlayerManager.GetAllPlayers().Any(p=>p.IsValid&&!p.IsFakeClient);
@@ -29,7 +33,7 @@ public sealed partial class Plugin
     {
         configuration=new(ConfigPath,()=>
         {
-            string seed=Path.Combine(Core.PluginPath,"resources","settings.seed.json");
+            string seed=Path.Combine(LPLK.Common.RoundFileStore.PluginPath(Core),"resources","settings.seed.json");
             return File.Exists(seed)?JsonSerializer.Deserialize<MapSettings>(File.ReadAllText(seed))??new():new MapSettings();
         });
         return configuration.Current;
@@ -69,10 +73,11 @@ public sealed partial class Plugin
     }
     private void RefreshCollection()
     {
+        if(settings.BuiltinMapsOnly){nextPoolRefresh=Environment.TickCount64+settings.PoolRefreshMinutes*60000L;poolMessage="Nur Standardmaps; Workshop-Sammlung abgeschaltet";return;}
         if(collectionLoading)return;
         nextPoolRefresh=Environment.TickCount64+settings.PoolRefreshMinutes*60000L;
         string collection=settings.CollectionId;
-        if(collection.Length==0)collection=WorkshopCollections.ReadStartupCollection()??"";
+        if(collection.Length==0)collection=startupCollection;
         var explicitIds=settings.WorkshopIds.ToArray();
         // The migrated seed is also resolved once: it supplies authoritative titles and map/asset type.
         if(collection.Length==0&&explicitIds.Length==0)explicitIds=maps.Where(m=>m.Workshop&&m.InPool).Select(m=>m.Id).ToArray();
@@ -100,50 +105,19 @@ public sealed partial class Plugin
                 {
                     var next=WorkshopDetails.Merge(maps,items);
                     if(keepBuiltin)next=next.Select(m=>!m.Workshop?m with{InPool=true}:m).ToList();
-                    MapPolicy.Validate(next);AtomicJson.Write(MapsPath,next);maps=next;AtomicJson.Write(CollectionPath,items);
+                    SaveCatalog(next);LPLK.Common.DeferredJson.Queue(CollectionPath,items);
                     poolMessage=$"Workshop-Abgleich erfolgreich: {items.Count} Einträge";Core.Logger.LogInformation("LPLK_Maps: {Message}",poolMessage);Scan();WriteStatus();
                 }
                 catch(Exception e){poolMessage="Workshop-Abgleich konnte nicht vollständig gespeichert werden";Core.Logger.LogWarning(e,"LPLK_Maps: {Message}",poolMessage);}
             });
         });
     }
-    private void Scan()
-    {
-        try
-        {
-            HashSet<string> ready=[];var next=maps.ToDictionary(m=>m.Id);bool changed=false;
-            foreach(var map in maps.Where(m=>!m.Workshop))
-                if(File.Exists(Path.Combine(Core.GameFilesDirectory,"maps",map.Id+".vpk")))ready.Add(map.Id);
-            if(Directory.Exists(WorkshopRoot))
-            foreach(var dir in new DirectoryInfo(WorkshopRoot).EnumerateDirectories())
-            {
-                string? id=MapPolicy.WorkshopId(dir.Name);if(id is null||(dir.Attributes&FileAttributes.ReparsePoint)!=0||settings.ExcludedWorkshopIds.Contains(id))continue;
-                HashSet<string> names=[];
-                foreach(var vpk in dir.EnumerateFiles("*.vpk"))
-                {
-                    if((vpk.Attributes&FileAttributes.ReparsePoint)!=0)continue;
-                    try{using var stream=vpk.OpenRead();names.UnionWith(VpkMaps.Read(stream));}catch(InvalidDataException){}catch(EndOfStreamException){}
-                }
-                if(names.Count==0)continue;ready.Add(id);
-                if(!next.TryGetValue(id,out var map))map=new(){Id=id,Name=names.Order().First(),InPool=false,MaxPlayers=128};
-                string source=names.Contains(map.SourceFolder)?map.SourceFolder:names.Order().First();
-                var publish=new FileInfo(Path.Combine(dir.FullName,"publish_data.txt"));
-                if(publish.Exists&&publish.Length<1024*1024&&(publish.Attributes&FileAttributes.ReparsePoint)==0)
-                {
-                    var match=System.Text.RegularExpressions.Regex.Match(File.ReadAllText(publish.FullName),"\"source_folder\"\\s*\"([^\"]+)\"");
-                    if(match.Success&&MapPolicy.SafeMapToken(match.Groups[1].Value))source=match.Groups[1].Value;
-                }
-                var updated=map with{IsMap=true,SourceFolder=source};
-                if(updated!=map||!next.ContainsKey(id)){next[id]=updated;changed=true;}
-            }
-            if(changed){var list=next.Values.ToList();MapPolicy.Validate(list);AtomicJson.Write(MapsPath,list);maps=list;}
-            installed=ready;
-        }
-        catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Maps: Workshop-Scan fehlgeschlagen; letzter Katalog bleibt erhalten.");}
-    }
-    private void MeasureCurrent(IPlayer? admin,int attempt=0)
+    private void MeasureCurrent(IPlayer? admin,int attempt=0,bool force=false)
     {
         var map=maps.FirstOrDefault(m=>MapPolicy.Confirmed(m,CurrentMap,Workshop));if(map is null)return;
+        // Successful measurements persist across map loads and plugin reloads.
+        // Workshop revisions and explicit rechecks already invalidate their cache.
+        if(admin is null&&!force&&MapPolicy.Measured(map)){WriteStatus();return;}
         try
         {
             int t=Core.EntitySystem.GetAllEntitiesByDesignerName<SpawnPoint>("info_player_terrorist").Count(x=>x.IsValid&&x.Enabled);
@@ -163,21 +137,21 @@ public sealed partial class Plugin
             var measured=MapPolicy.CaptureMeasurement(map,t,ct,bomb,hostages) with{BombVolumes=targets.Count,ObjectiveEvidence=$"Volumes={targets.Count}; Designations={designations}; EngineGoals={goalSites?.ToString()??"unbekannt"}"};var limits=measured.LimitProposal!;
             ReplaceMap(measured);
             Core.Logger.LogInformation("LPLK_Maps: {Id} gemessen: T={T}, CT={CT}, Bomb={Bomb}, Geiseln={Hostages}; Vorschlag {Min}–{Max} Spieler, Freigabe={Approved}",map.Id,t,ct,bomb,hostages,limits.MinPlayers,limits.MaxPlayers,MapPolicy.LimitsApproved(measured));
-            admin?.SendChat($"[LPLK] {map.Name}: Vorschlag {limits.MinPlayers}–{limits.MaxPlayers} Spieler; {limits.Reserve} Plätze Reserve. Bisherige Grenzen bleiben bis zur Freigabe erhalten.");
+            admin?.SendLplkChat($"[LPLK] {map.Name}: Vorschlag {limits.MinPlayers}–{limits.MaxPlayers} Spieler; {limits.Reserve} Plätze Reserve. Bisherige Grenzen bleiben bis zur Freigabe erhalten.");
         }
         catch(Exception e)
         {
             if(attempt<3)
             {
-                int serial=generation;Core.Scheduler.DelayBySeconds(3,()=>{if(module.Active&&serial==generation&&MapPolicy.Confirmed(map,CurrentMap,Workshop))MeasureCurrent(null,attempt+1);});
+                int serial=generation;bool requested=force||admin is not null;Core.Scheduler.DelayBySeconds(3,()=>{if(module.Active&&serial==generation&&MapPolicy.Confirmed(map,CurrentMap,Workshop))MeasureCurrent(null,attempt+1,requested);});
                 return;
             }
             ReplaceMap(map with{MeasuredAt=null,TSpawns=null,CtSpawns=null,BombSites=null,Hostages=null,ProbeError=e is InvalidDataException?e.Message:"Messung fehlgeschlagen",LastProbeAt=DateTimeOffset.UtcNow});
-            Core.Logger.LogWarning(e,"LPLK_Maps: Messung nicht bestätigt: {Id}; aus normalen Votes ausgeschlossen.",map.Id);admin?.SendChat("[LPLK] Messung fehlgeschlagen; keine Freigabe für Votes.");
+            Core.Logger.LogWarning(e,"LPLK_Maps: Messung nicht bestätigt: {Id}; aus normalen Votes ausgeschlossen.",map.Id);admin?.SendLplkChat("[LPLK] Messung fehlgeschlagen; keine Freigabe für Votes.");
         }
         WriteStatus();
     }
-    private void ReplaceMap(MapEntry value){var next=maps.Select(m=>m.Id==value.Id?value:m).ToList();MapPolicy.Validate(next);AtomicJson.Write(MapsPath,next);maps=next;}
+    private void ReplaceMap(MapEntry value){var next=maps.Select(m=>m.Id==value.Id?value:m).ToList();SaveCatalog(next);}
     private void AutoProbe(long now)
     {
         if(AnyHuman()){emptySince=0;return;}
@@ -206,15 +180,18 @@ public sealed partial class Plugin
         probeId=candidate.Id;ReplaceMap(candidate with{LastProbeAt=DateTimeOffset.UtcNow,ProbeError=null});
         Schedule(candidate,3,true);
     }
+    private Task<(long Used,long Free)>? diskReserve;private long diskReserveAt;
+    private static (long Used,long Free) ReadWorkshopSpace(string root,string drive,bool bounded){long used=bounded&&System.IO.Directory.Exists(root)?new System.IO.DirectoryInfo(root).EnumerateFiles("*",new EnumerationOptions{RecurseSubdirectories=true,AttributesToSkip=FileAttributes.ReparsePoint,IgnoreInaccessible=false}).Sum(f=>f.Length):0;return(used,new DriveInfo(drive).AvailableFreeSpace);}
     private bool EnoughDisk(MapEntry candidate)
     {
         if(installed.Contains(candidate.Id))return true;
         try
         {
-            long size=Directory.Exists(WorkshopRoot)?new DirectoryInfo(WorkshopRoot).EnumerateFiles("*",new EnumerationOptions{RecurseSubdirectories=true,AttributesToSkip=FileAttributes.ReparsePoint,IgnoreInaccessible=false}).Sum(f=>f.Length):0;
-            var drive=new DriveInfo(Path.GetPathRoot(Core.GameFilesDirectory)!);long bytes=Math.Max(candidate.DownloadBytes,512L*1024*1024);
-            if(size+bytes>settings.MaxWorkshopGiB*1024L*1024*1024||drive.AvailableFreeSpace-bytes<settings.MinimumFreeDiskGiB*1024L*1024*1024)
-            {poolMessage="Automatische Mapprüfung wartet: Speicherreserve erreicht";emptySince=Environment.TickCount64;return false;}
+            if(diskReserve is null||Environment.TickCount64-diskReserveAt>5000){bool bounded=settings.MaxWorkshopGiB>0;string root=WorkshopRoot,drive=Path.GetPathRoot(LPLK.Common.RoundFileStore.GamePath(Core))!;diskReserveAt=Environment.TickCount64;diskReserve=LPLK.Common.RoundFileStore.RunAfterRound(()=>ReadWorkshopSpace(root,drive,bounded));}
+            if(!diskReserve.IsCompleted)return false;
+            var space=diskReserve.GetAwaiter().GetResult();long bytes=Math.Max(candidate.DownloadBytes,512L*1024*1024);
+            if(settings.MaxWorkshopGiB>0&&space.Used+bytes>settings.MaxWorkshopGiB*1024L*1024*1024||space.Free-bytes<settings.MinimumFreeDiskGiB*1024L*1024*1024)
+            {poolMessage=$"Download pausiert: Workshop-Limit {(settings.MaxWorkshopGiB==0?"unbegrenzt":settings.MaxWorkshopGiB+" GiB")}, freie Festplattenreserve {settings.MinimumFreeDiskGiB} GiB.";emptySince=Environment.TickCount64;return false;}
             return true;
         }
         catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Maps: Speicherreserve nicht prüfbar; automatische Downloads pausieren.");emptySince=Environment.TickCount64;return false;}

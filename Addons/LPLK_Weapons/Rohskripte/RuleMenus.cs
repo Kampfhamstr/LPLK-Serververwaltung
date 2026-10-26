@@ -16,7 +16,7 @@ public sealed partial class Plugin
     private void RuleMenu(IPlayer p,string id)=>AdminPage(p,"Regeln · "+id,_=>new (string,Action<IPlayer>)[]
     {
         ("Munition",a=>AmmoMenu(a,id)),("Zugriff",a=>AccessMenu(a,id)),
-        ("Grundquote",a=>{a.SendChat("[LPLK] Grundquote nach Teamgröße. Vorhandene Mapquoten haben Vorrang und bleiben in settings.json konfiguriert.");QuotaMenu(a,id);}),("Zurücksetzen",a=>ConfirmRemove(a,id))
+        ("Grundquote",a=>{a.SendLplkChat("[LPLK] Grundquote nach Teamgröße. Vorhandene Mapquoten haben Vorrang und bleiben in settings.json konfiguriert.");QuotaMenu(a,id);}),("Zurücksetzen",a=>ConfirmRemove(a,id))
     },SpecialRules);
     private void ConfirmRemove(IPlayer p,string id)
     {
@@ -45,7 +45,7 @@ public sealed partial class Plugin
         ($"Gesperrt: {Rule(id).BlockUsing}",a=>{ChangeRule(id,r=>r with{BlockUsing=!r.BlockUsing});AccessMenu(a,id);}),
         ($"Aufheben erlaubt: {Rule(id).AllowPickupWhenBlocked}",a=>{ChangeRule(id,r=>r with{AllowPickupWhenBlocked=!r.AllowPickupWhenBlocked});AccessMenu(a,id);}),
         ($"Quoten-Ausnahme: {Rule(id).BypassQuota}",a=>{ChangeRule(id,r=>r with{BypassQuota=!r.BypassQuota});AccessMenu(a,id);}),
-        ("Rechte",a=>a.SendChat("[LPLK] Ausnahme benötigt: "+(Rule(id).BypassPermission.Length>0?Rule(id).BypassPermission:"kein Einzelrecht")+"; alternativ alle: "+string.Join(", ",Rule(id).BypassPermissions)+". Rechte bleiben in settings.json konfiguriert."))
+        ("Rechte",a=>a.SendLplkChat("[LPLK] Ausnahme benötigt: "+(Rule(id).BypassPermission.Length>0?Rule(id).BypassPermission:"kein Einzelrecht")+"; alternativ alle: "+string.Join(", ",Rule(id).BypassPermissions)+". Rechte bleiben in settings.json konfiguriert."))
     },a=>RuleMenu(a,id));
     private void QuotaMenu(IPlayer p,string id)=>AdminPage(p,"Quote · "+id,_=>
         Rule(id).TeamQuota.Keys.Concat(new[]{0,2,4,6,8,10,12,16,20,32,64}).Distinct().Order()

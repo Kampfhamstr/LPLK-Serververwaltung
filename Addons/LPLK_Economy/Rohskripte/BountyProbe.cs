@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -7,9 +11,9 @@ public sealed partial class Plugin
 {
     private void BountyProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy bountyprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.ReplyLplk("LPLK_Economy bountyprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         const string a="76561198000000001",b="76561198000000002",c="76561198000000003";
-        string path=Path.Combine(Core.PluginDataDirectory,"bounty-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"bounty-probe.json");
+        string path=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"bounty-probe.sqlite3"),report=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"bounty-probe.json");
         try
         {
             bool prior=File.Exists(path),completed=false;string seedBoot=boot;
@@ -34,8 +38,8 @@ public sealed partial class Plugin
             }
             probe.Verify();AtomicJson.Write(report,new{updatedAt=DateTimeOffset.UtcNow,boot,seedBoot,phase=restarted?"restart-verified":"seed-verified",restarted,activeBountyPreserved=true,pendingRefundPreserved=true,rewardClaimPreserved=true,titlesVerified=restarted,settledOnce=restarted,sqliteVersion=SQLitePCL.raw.sqlite3_libversion().utf8_to_string(),playerDataChanged=false,productionChanged=false});
             string[] commands=["kopfgeld","sw_kopfgeld","bounty","sw_bounty"];
-            ctx.Reply($"LPLK_Economy bountyprobe: active=True; pendingRefund=True; rewardClaim=True; settledOnce={restarted}; restarted={restarted}; commands={commands.Count(Core.Command.IsCommandRegistered)}/4; Spielerkonten unverändert.");
+            ctx.ReplyLplk($"LPLK_Economy bountyprobe: active=True; pendingRefund=True; rewardClaim=True; settledOnce={restarted}; restarted={restarted}; commands={commands.Count(Core.Command.IsCommandRegistered)}/4; Spielerkonten unverändert.");
         }
-        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy bountyprobe fehlgeschlagen");ctx.Reply("LPLK_Economy bountyprobe: fehlgeschlagen");}
+        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy bountyprobe fehlgeschlagen");ctx.ReplyLplk("LPLK_Economy bountyprobe: fehlgeschlagen");}
     }
 }

@@ -23,6 +23,8 @@ public sealed partial class Plugin
                 route.SteamId == p.SteamID && route.Session == p.SessionId.ToString() &&
                 route.Title == args.Menu.Configuration.Title && ModuleAllowed(p, route.Id))
                 AddModuleReturn(p, args.Menu, route.Back);
+            ApplyMenuVisuals(args.Menu);
+            RestoreMenuCursor(p,args.Menu);
         });
     }
 

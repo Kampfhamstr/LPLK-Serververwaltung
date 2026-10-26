@@ -12,7 +12,7 @@ public sealed record NetworkStorage(string Server,string Profile,string Database
         if(!File.Exists(config))
         {
             if(File.Exists(binding))throw new InvalidDataException("Bankverbund-Konfiguration fehlt; lokaler Rückfall gesperrt.");
-            return new Ledger(Path.Combine(dataDirectory,"economy.sqlite3"),settings);
+            return new Ledger(Path.Combine(dataDirectory,"economy.sqlite3"),settings,roundMemory:true);
         }
         var info=new FileInfo(config);
         if(info.LinkTarget is not null||info.Length>4096)throw new InvalidDataException("Ungültige Bankverbund-Konfiguration.");

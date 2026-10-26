@@ -14,7 +14,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_AntiCamp;
 
-[PluginMetadata(Id="LPLK_AntiCamp",Name="LPLK_AntiCamp",Version="0.1.6",Author="LPLK",Description="AntiCamp mit echten Zeitabständen und zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_AntiCamp",Name="LPLK_AntiCamp",Version="0.1.12",Author="LPLK",Description="AntiCamp mit echten Zeitabständen und zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -31,6 +31,12 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 
     public override void Load(bool hotReload)
     {
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_AntiCamp",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         module=new(Core,"LPLK_AntiCamp","AntiCamp","lplk.anticamp.admin",OpenAdmin);
         config=new(module.SettingsPath,CampSettings.Validate);module.Active=true;
         Core.GameEvent.HookPost<EventRoundPrestart>(_=>{Reset();return HookResult.Continue;});
@@ -41,10 +47,15 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventBombPickup>(_=>{dropped=false;return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)states.Remove(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p)states.Remove(p.PlayerID);return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_AntiCamp 0.1.6 geladen: CampTime={Time}, Radius={Radius}, Warnung={Warning}s; beim Hotload erst ab nächster Runde aktiv.",settings.CampTime,settings.CampCheckRadius,settings.WarningSeconds);
+        WriteStatus();Core.Logger.LogInformation("LPLK_AntiCamp 0.1.12 geladen: CampTime={Time}, Radius={Radius}, Warnung={Warning}s; beim Hotload erst ab nächster Runde aktiv.",settings.CampTime,settings.CampCheckRadius,settings.WarningSeconds);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
-    public override void Unload(){if(module is not null)module.Active=false;Reset();}
+    public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore(){if(module is not null)module.Active=false;Reset(); LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnMapUnload>] public void MapUnload(IOnMapUnloadEvent e)=>Reset();
     [EventListener<EventDelegates.OnClientDisconnected>] public void Disconnect(IOnClientDisconnectedEvent e)=>states.Remove(e.PlayerId);
     private void Reset(){states.Clear();running=planted=dropped=false;bombMap=hostageMap=false;}
@@ -73,8 +84,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
                 states[id]=new(p.SessionId,(int)pawn.Index,team,new(position,angles));continue;
             }
             var decision=entry.Clock.Step(now,position,angles,settings);
-            if(decision.Announce&&!settings.DisableChatMessages)Core.PlayerManager.SendChat($"[LPLK] AntiCamp: {p.Name} campt – Position verlassen!");
-            if(decision.Warn){warnings++;string text=$"ANTI-CAMP: Bewege dich! Strafe in {settings.WarningSeconds} Sekunden!";p.SendCenter(text);p.SendAlert(text);p.SendChat("[LPLK] "+text);p.ExecuteCommand("play sounds/tools/sfm/beep.vsnd_c");}
+            if(decision.Announce&&!settings.DisableChatMessages)Core.PlayerManager.SendLplkChat($"[LPLK] AntiCamp: {p.Name} campt – Position verlassen!");
+            if(decision.Warn){warnings++;string text=$"ANTI-CAMP: Bewege dich! Strafe in {settings.WarningSeconds} Sekunden!";p.SendCenter(text);p.SendAlert(text);p.SendLplkChat("[LPLK] "+text);p.ExecuteCommand("play sounds/tools/sfm/beep.vsnd_c");}
             if(decision.Punish)Punish(p,pawn);
         }
         foreach(int id in states.Keys.Where(id=>!seen.Contains(id)).ToArray())states.Remove(id);
@@ -95,11 +106,11 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void Reload(){if(config.Reload())states.Clear();}
     private void WriteStatus()
     {
-        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.6",settings,running,bombMap,hostageMap,tracked=states.Count,warnings,punishments,reloadError}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.12",settings,running,bombMap,hostageMap,tracked=states.Count,warnings,punishments,reloadError}); statusWriteFailed=false; }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException)
         { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_AntiCamp: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }
-    [Command("lplk_anticamp",permission:"lplk.anticamp.admin")]public void Command(ICommandContext c){if(c.Sender is {} p)OpenAdmin(p);else c.Reply($"LPLK_AntiCamp 0.1.6: enabled={settings.PluginEnabled}; campTime={settings.CampTime}; warningSeconds={settings.WarningSeconds}; radius={settings.CampCheckRadius}; damage={settings.SlapDamage}; reserve={settings.MinHealthReserve}; tracked={states.Count}; reloadError={reloadError??"none"}");}
+    [Command("lplk_anticamp",permission:"lplk.anticamp.admin")]public void Command(ICommandContext c){if(c.Sender is {} p)OpenAdmin(p);else c.ReplyLplk($"LPLK_AntiCamp 0.1.12: enabled={settings.PluginEnabled}; campTime={settings.CampTime}; warningSeconds={settings.WarningSeconds}; radius={settings.CampCheckRadius}; damage={settings.SlapDamage}; reserve={settings.MinHealthReserve}; tracked={states.Count}; reloadError={reloadError??"none"}");}
     private void Apply(Func<CampSettings,CampSettings> edit,IPlayer p)
     {
         CampSettings? before=null;config.Change(s=>{before=s;return edit(s);});states.Clear();WriteStatus();

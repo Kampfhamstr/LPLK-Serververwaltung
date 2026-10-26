@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -39,7 +43,7 @@ public sealed partial class Plugin
     }
     private void LoadConfig()
     {
-        string path=Core.Configuration.GetConfigPath(ConfigFile);
+        string path=LPLK.Common.RoundFileStore.ConfigPath(Core,ConfigFile);
         if(!File.Exists(path)){Directory.CreateDirectory(Path.GetDirectoryName(path)!);File.WriteAllText(path,DefaultConfig);}
         _config=SurfConfiguration.Read(File.ReadAllText(path));
         _configSignature=JsonSerializer.Serialize(_config,Json);
@@ -48,7 +52,7 @@ public sealed partial class Plugin
     {
         try
         {
-            Config candidate=SurfConfiguration.Read(File.ReadAllText(Core.Configuration.GetConfigPath(ConfigFile)));
+            Config candidate=SurfConfiguration.Read(File.ReadAllText(LPLK.Common.RoundFileStore.ConfigPath(Core,ConfigFile)));
             string signature=JsonSerializer.Serialize(candidate,Json);
             if(candidate.Enabled!=_config.Enabled)throw new InvalidDataException("Enabled geändert: kontrollierter Serverneustart erforderlich.");
             if(signature!=_configSignature)
@@ -70,19 +74,19 @@ public sealed partial class Plugin
     [EventListener<EventDelegates.OnWorldUpdate>]
     public void Maintenance()
     {
-        if(!_lifetime.Active||Environment.TickCount64<_nextMaintenance)return;
+        if(!_lifetime.Active)return;CompleteStorage();if(Environment.TickCount64<_nextMaintenance)return;
         _nextMaintenance=Environment.TickCount64+2000;RefreshConfiguration();WriteStatus();
     }
     private void WriteStatus()
     {
-        try{AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new {plugin="LPLK_Surf",version="0.1.0",updated_at=DateTimeOffset.UtcNow,active=_lifetime.Active,enabled=_config.Enabled,map=_map,configuration_error=_configError,zones_error=_zonesError,ready=_zonesValid,workshop_maps=_workshopMaps.Count,native_triggers=_nativeTriggerMode,active_runs=_runs.Values.Count(r=>r.Running),replays=_replayViewers.Count,vote_active=_voteActive,delayed_actions=_delayed.Count,storage_schema="SwiftSurf-2.1.8-compatible"});}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new {plugin="LPLK_Surf",version="0.1.11",updated_at=DateTimeOffset.UtcNow,active=_lifetime.Active,enabled=_config.Enabled,map=_map,configuration_error=_configError,zones_error=_zonesError,ready=_zonesValid,workshop_maps=_workshopMaps.Count,native_triggers=_nativeTriggerMode,active_runs=_runs.Values.Count(r=>r.Running),replays=_replayViewers.Count,vote_active=_voteActive,delayed_actions=_delayed.Count,storage_error=storageError,storage_pending=!storageWork.IsCompleted,storage_schema="SwiftSurf-2.1.8-compatible"});}
         catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Surf: Statusdatei konnte nicht geschrieben werden.");}
     }
     [Command("lplk_surf_status")]
     public void Status(ICommandContext context)
     {
         if(context.Sender is {} p&&!Admin(p))return;
-        context.Reply($"LPLK_Surf 0.1.0; active={_lifetime.Active}; enabled={_config.Enabled}; map={_map}; maps={_workshopMaps.Count}; reloadError={_configError??"none"}");
+        context.ReplyLplk($"LPLK_Surf 0.1.11; active={_lifetime.Active}; enabled={_config.Enabled}; map={_map}; maps={_workshopMaps.Count}; reloadError={_configError??"none"}");
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {

@@ -49,19 +49,18 @@ public sealed partial class Plugin
         if(source=="Cash"&&settings.Bounty.TakeMoneyImmediately)
         {
             if(p.PlayerPawn is not {IsValid:true} live)throw new BankRejected("Eigene Spielfigur fehlt.");
-            long now=Environment.TickCount64;if(cashThrottle.TryGetValue(p.SteamID,out var prior)&&now-prior<750)throw new BankRejected("Bitte kurz warten.");cashThrottle[p.SteamID]=now;
             pawn=Core.EntitySystem.GetRefEHandle(live).Raw;team=p.Controller.TeamNum;
         }
         var order=bank.PlaceBounty(id,period,Id(p),target,value,source,settings.Bounty,percent,actorSession,before);
         if(order.Status=="pending")ExecuteBetCash(p,bank.Intent(id)!,pawn,team,()=>BountyAvailable(p)&&Core.PlayerManager.GetAllValidPlayers().Any(t=>Human(t)&&Id(t)==target&&t.SessionId.ToString()==targetSession&&t.Controller.TeamNum is 2 or 3&&!t.Controller.ControllingBot&&(!settings.Bounty.OnlyAliveTargets||t.IsAlive)&&(!settings.Bounty.OnlyEnemyTeam||t.Controller.TeamNum!=p.Controller.TeamNum))&&(BountyPlacementContext(p,source) with{Seconds=context.Seconds})==context);
-        p.SendChat($"[LPLK Kopfgeld] {value:N0} $ aus {source} auf {Ledger.SafeName(other.Name)} gesetzt; insgesamt {bank.BountyTotal(target):N0} $.");
+        p.SendLplkChat($"[LPLK Kopfgeld] {value:N0} $ aus {source} auf {Ledger.SafeName(other.Name)} gesetzt; insgesamt {bank.BountyTotal(target):N0} $.");
         if(settings.Bounty.AnnounceBountyPlaced)BountyBroadcast($"{Ledger.SafeName(p.Name)} setzt {value:N0} $ auf {Ledger.SafeName(other.Name)}; gesamt {bank.BountyTotal(target):N0} $.");
         if(settings.BountyMarker.ShowCenterMessageOnBountyPlaced)BountyHud(target,Ledger.SafeName(other.Name),bank.BountyTotal(target));
     }
     [Command("kopfgeld")][CommandAlias("bounty")][CommandAlias("kopfgeld",registerRaw:true)][CommandAlias("bounty",registerRaw:true)]
     public void BountyCommand(ICommandContext ctx)
     {
-        if(ctx.Sender is not {} p){WriteStatus();ctx.Reply($"LPLK_Economy Kopfgeld: enabled={Active&&settings.BankEnabled&&settings.Bounty.Enabled}; active={bank?.Bounties().Count(o=>o.Status=="active")}; claims={bank?.BountyClaims().Sum(c=>c.Remaining)}; !kopfgeld Spieler|SteamID64 Betrag|all / Betrag / Spieler.");return;}
+        if(ctx.Sender is not {} p){WriteStatus();ctx.ReplyLplk($"LPLK_Economy Kopfgeld: enabled={Active&&settings.BankEnabled&&settings.Bounty.Enabled}; active={bank?.Bounties().Count(o=>o.Status=="active")}; claims={bank?.BountyClaims().Sum(c=>c.Remaining)}; !kopfgeld Spieler|SteamID64 Betrag|all / Betrag / Spieler.");return;}
         Guard(p,()=>
         {
             RequireBounty(p);if(ctx.Args.Length==0){BountyMenu(p);return;}
@@ -120,26 +119,24 @@ public sealed partial class Plugin
     }
     private void BountyList(IPlayer p)
     {
-        RequireBounty(p);Page(p,"Aktive Kopfgelder",_=>bank!.Bounties().Where(o=>o.Status=="active").GroupBy(o=>o.Target).OrderByDescending(g=>g.Sum(o=>o.Amount)).Select(g=>(g.First().TargetName+" · "+g.Sum(o=>o.Amount).ToString("N0")+" $",(Action<IPlayer>)(a=>a.SendChat($"[LPLK Kopfgeld] {g.First().TargetName}: {g.Sum(o=>o.Amount):N0} $ aus {g.Count()} Aufträgen.")))).ToArray(),BountyMenu);
+        RequireBounty(p);Page(p,"Aktive Kopfgelder",_=>bank!.Bounties().Where(o=>o.Status=="active").GroupBy(o=>o.Target).OrderByDescending(g=>g.Sum(o=>o.Amount)).Select(g=>(g.First().TargetName+" · "+g.Sum(o=>o.Amount).ToString("N0")+" $",(Action<IPlayer>)(a=>a.SendLplkChat($"[LPLK Kopfgeld] {g.First().TargetName}: {g.Sum(o=>o.Amount):N0} $ aus {g.Count()} Aufträgen.")))).ToArray(),BountyMenu);
     }
     private void BountyOwn(IPlayer p)
     {
-        RequireBounty(p);Page(p,"Kopfgeld · Eigene Vorgänge",a=>bank!.Bounties().Where(o=>o.Sponsor==Id(a)).Select(o=>($"{o.TargetName} · {o.Amount:N0} $ · {(o.Status=="pending"?"Cashprüfung":"aktiv")}",(Action<IPlayer>)(b=>b.SendChat($"[LPLK Kopfgeld] Auftrag {o.Id}: {o.Source}, {o.Amount:N0} $, Ziel {o.TargetName}; {o.Status}."))))
-            .Concat(bank.BountyClaims().Where(c=>c.Account==Id(a)).Select(c=>($"{(c.Kind=="refund"?"Erstattung":"Gewinn")} · {c.Remaining:N0} $ offen",(Action<IPlayer>)(b=>b.SendChat("[LPLK Kopfgeld] Anspruch bleibt gespeichert, bis Cashprüfung abgeschlossen bzw. Platz im Konto vorhanden ist."))))).ToArray(),BountyMenu);
+        RequireBounty(p);Page(p,"Kopfgeld · Eigene Vorgänge",a=>bank!.Bounties().Where(o=>o.Sponsor==Id(a)).Select(o=>($"{o.TargetName} · {o.Amount:N0} $ · {(o.Status=="pending"?"Cashprüfung":"aktiv")}",(Action<IPlayer>)(b=>b.SendLplkChat($"[LPLK Kopfgeld] Auftrag {o.Id}: {o.Source}, {o.Amount:N0} $, Ziel {o.TargetName}; {o.Status}."))))
+            .Concat(bank.BountyClaims().Where(c=>c.Account==Id(a)).Select(c=>($"{(c.Kind=="refund"?"Erstattung":"Gewinn")} · {c.Remaining:N0} $ offen",(Action<IPlayer>)(b=>b.SendLplkChat("[LPLK Kopfgeld] Anspruch bleibt gespeichert, bis Cashprüfung abgeschlossen bzw. Platz im Konto vorhanden ist."))))).ToArray(),BountyMenu);
     }
     private void BountyInfo(IPlayer p)
     {
-        RequireBounty(p);p.SendChat($"[LPLK Kopfgeld] Ab {settings.Bounty.MinBounty:N0} $. !kopfgeld / !bounty, auch Spieler Betrag, Betrag zur Zielwahl, k/m/b und all/alles/max. Direkte Befehle bevorzugen {(settings.Bounty.PreferBankForDirectBountyCommands?"Bank":"Cash")}.");
-        p.SendChat($"[LPLK Kopfgeld] Auszahlung: {settings.Bounty.RewardMode}; Teamkills {(settings.Bounty.IgnoreTeamKills?"zählen nicht":"zählen")}; Rundenübernahme {(settings.Bounty.PersistAcrossRounds?"AN":"AUS")}; Erstattung bei Ziel-Disconnect {(settings.Bounty.RefundIfTargetDisconnects?"AN":"AUS")}. Ein Bankreset setzt Titel zurück, bereits finanzierte Kopfgelder bleiben wie bisher bestehen.");
+        RequireBounty(p);p.SendLplkChat($"[LPLK Kopfgeld] Ab {settings.Bounty.MinBounty:N0} $. !kopfgeld / !bounty, auch Spieler Betrag, Betrag zur Zielwahl, k/m/b und all/alles/max. Direkte Befehle bevorzugen {(settings.Bounty.PreferBankForDirectBountyCommands?"Bank":"Cash")}.");
+        p.SendLplkChat($"[LPLK Kopfgeld] Auszahlung: {settings.Bounty.RewardMode}; Teamkills {(settings.Bounty.IgnoreTeamKills?"zählen nicht":"zählen")}; Rundenübernahme {(settings.Bounty.PersistAcrossRounds?"AN":"AUS")}; Erstattung bei Ziel-Disconnect {(settings.Bounty.RefundIfTargetDisconnects?"AN":"AUS")}. Ein Bankreset setzt Titel zurück, bereits finanzierte Kopfgelder bleiben wie bisher bestehen.");
     }
     private void BountyDeath(IPlayer? victim,IPlayer? attacker)
     {
         if(!ready||!Active||!settings.Bounty.Enabled||victim is null||attacker is null||!Human(victim)||!Human(attacker)||victim.SteamID==attacker.SteamID||attacker.Controller.ControllingBot||victim.Controller.ControllingBot||attacker.Controller.TeamNum is not (2 or 3)||victim.Controller.TeamNum is not (2 or 3))return;
-        bank!.Open(Id(attacker),attacker.Name);
         string eventId=$"{boot}:{titleMapEpoch}:{Id(victim)}:{bountyLives.GetValueOrDefault(victim.SteamID)}";
-        long total=bank.ClaimBounty(eventId,Id(attacker),Id(victim),attacker.Controller.TeamNum==victim.Controller.TeamNum);
-        if(total>0){attacker.SendChat($"[LPLK Kopfgeld] {total:N0} $ Anspruch für {Ledger.SafeName(victim.Name)} gesichert.");if(settings.Bounty.AnnounceBountyClaimed)BountyBroadcast($"{Ledger.SafeName(attacker.Name)} kassiert {total:N0} $ Kopfgeld auf {Ledger.SafeName(victim.Name)}.");}
-        DeliverBountyClaims();
+        long total=bank!.DeferBounty(eventId,Id(attacker),attacker.Name,Id(victim),attacker.Controller.TeamNum==victim.Controller.TeamNum);
+        if(total>0){attacker.SendLplkChat($"[LPLK Kopfgeld] {total:N0} $ für {Ledger.SafeName(victim.Name)} vorgemerkt; Auszahlung am Rundenende.");if(settings.Bounty.AnnounceBountyClaimed)BountyBroadcast($"{Ledger.SafeName(attacker.Name)} erhält {total:N0} $ Kopfgeld auf {Ledger.SafeName(victim.Name)} am Rundenende.");}
     }
     private void BountyDisconnected(IPlayer? p)
     {
@@ -182,11 +179,11 @@ public sealed partial class Plugin
             long toBank=Math.Min(claim.Remaining-toCash-discard,Math.Max(0,bank.Limit-bank.Balance(claim.Account)));
             if(toCash+toBank+discard==0)continue;
             var intent=bank.PayBountyClaim(NewId(),claim.Id,claim.Account,session,before,toCash,toBank,discard);
-            if(intent is not null){try{ExecuteBetCash(p!,intent,pawn,team,()=>ready);}catch(BankRejected e){p!.SendChat("[LPLK Kopfgeld] "+e.Message);continue;}}
-            p?.SendChat($"[LPLK Kopfgeld] {(claim.Kind=="refund"?"Erstattet":"Ausgezahlt")}: {toCash:N0} $ Cash, {toBank:N0} $ Bank."+(discard>0?$" {discard:N0} $ gemäß Cash-only-Regel verfallen.":""));
+            if(intent is not null){try{ExecuteBetCash(p!,intent,pawn,team,()=>ready);}catch(BankRejected e){p!.SendLplkChat("[LPLK Kopfgeld] "+e.Message);continue;}}
+            p?.SendLplkChat($"[LPLK Kopfgeld] {(claim.Kind=="refund"?"Erstattet":"Ausgezahlt")}: {toCash:N0} $ Cash, {toBank:N0} $ Bank."+(discard>0?$" {discard:N0} $ gemäß Cash-only-Regel verfallen.":""));
         }
     }
-    private void BountyBroadcast(string message){foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(Human))if(!bank!.Muted(Id(p)))p.SendChat("[LPLK Kopfgeld] "+message);}
+    private void BountyBroadcast(string message){foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(Human))if(!bank!.Muted(Id(p)))p.SendLplkChat("[LPLK Kopfgeld] "+message);}
     private void BountyHud(string target,string name,long amount)
     {
         if(!Active||!settings.Bounty.Enabled||!settings.BountyMarker.Enabled)return;
@@ -194,7 +191,7 @@ public sealed partial class Plugin
         foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(x=>Human(x)&&x.Controller.TeamNum is 2 or 3&&(!settings.BountyMarker.OnlyEnemyTeamCanSeeHud||x.Controller.TeamNum!=other!.Controller.TeamNum)))if(!bank!.Muted(Id(p)))p.SendCenter($"Kopfgeld: {Ledger.SafeName(name)} · {amount:N0} $");
     }
     private void BountyAdmin(IPlayer p) => OpenAdmin(p);
-    private IReadOnlyList<(string,Action<IPlayer>)> BountyAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[("Status",a=>a.SendChat($"[LPLK Kopfgeld] Aktive/offene Aufträge {bank?.Bounties().Length}; Zahlungsansprüche {bank?.BountyClaims().Sum(c=>c.Remaining):N0} $. Mindestbetrag {settings.Bounty.MinBounty:N0} $, große Beträge {(settings.Bounty.LargeBountyAmountsEnabled?"AN":"AUS")}. Erweiterte Werte: settings.json > Bounty, BountyMarker, BountyAmountButtons."))]))(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> BountyAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[("Status",a=>a.SendLplkChat($"[LPLK Kopfgeld] Aktive/offene Aufträge {bank?.Bounties().Length}; Zahlungsansprüche {bank?.BountyClaims().Sum(c=>c.Remaining):N0} $. Mindestbetrag {settings.Bounty.MinBounty:N0} $, große Beträge {(settings.Bounty.LargeBountyAmountsEnabled?"AN":"AUS")}. Erweiterte Werte: settings.json > Bounty, BountyMarker, BountyAmountButtons."))]))(p);
     private void BountyFundingAdmin(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> BountyFundingAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[($"Kopfgeld: {(settings.Bounty.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Bounty=current.Bounty with{Enabled=!current.Bounty.Enabled}});BountyFundingAdmin(a);}),($"Bank: {(settings.Bounty.AllowBankFunding?"AN":"AUS")}",a=>{Save(a,current=>current with{Bounty=current.Bounty with{AllowBankFunding=!current.Bounty.AllowBankFunding}});BountyFundingAdmin(a);}),($"Cash: {(settings.Bounty.AllowCashFunding?"AN":"AUS")}",a=>{Save(a,current=>current with{Bounty=current.Bounty with{AllowCashFunding=!current.Bounty.AllowCashFunding}});BountyFundingAdmin(a);}),($"Warmup: {(settings.Bounty.AllowDuringWarmup?"AN":"AUS")}",a=>{Save(a,current=>current with{Bounty=current.Bounty with{AllowDuringWarmup=!current.Bounty.AllowDuringWarmup}});BountyFundingAdmin(a);})]))(p);
     private void BountyRulesAdmin(IPlayer p) => OpenAdmin(p);

@@ -37,7 +37,7 @@ public sealed partial class Plugin
     }
     private void BetBroadcast(string message)
     {
-        foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(Human))if(!bank!.Muted(Id(p)))p.SendChat("[LPLK Wetten] "+message);
+        foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(Human))if(!bank!.Muted(Id(p)))p.SendLplkChat("[LPLK Wetten] "+message);
     }
     private void PlaceWager(IPlayer p,int side,string amount,string id,string round,long period)
     {
@@ -52,7 +52,7 @@ public sealed partial class Plugin
         int value=BettingPolicy.Amount(amount,before,rules);string session=p.SessionId.ToString();uint pawn=Core.EntitySystem.GetRefEHandle(p.PlayerPawn!).Raw;byte team=p.Controller.TeamNum;
         var intent=bank.PrepareBetStake(id,round,Id(p),session,side,before,value,amount.Equals("all",StringComparison.OrdinalIgnoreCase));
         ExecuteBetCash(p,intent,pawn,team,()=>betActive&&betRound==round&&BetAvailable(p)&&BettingPolicy.Denied(settings.Betting,BettingContext()) is null);
-        p.SendChat($"[LPLK Wetten] {value:N0} $ Cash auf {(side==2?"T":"CT")} gesetzt. Diese Wette ist fest.");
+        p.SendLplkChat($"[LPLK Wetten] {value:N0} $ Cash auf {(side==2?"T":"CT")} gesetzt. Diese Wette ist fest.");
         if(settings.Betting.ShowCenterConfirmation)p.SendCenter($"Wette: {value:N0} $ auf {(side==2?"T":"CT")}");
         if(settings.Betting.AnnouncePlacedBets)BetBroadcast($"{Ledger.SafeName(p.Name)} setzt {value:N0} $ auf {(side==2?"T":"CT")}.");
     }
@@ -90,15 +90,15 @@ public sealed partial class Plugin
             var intent=bank.PayBetClaim(NewId(),t.Round,t.Account,session,before,toCash,toBank);
             if(intent is not null)
             {
-                try{ExecuteBetCash(p!,intent,pawn,team,()=>ready);}catch(BankRejected e){p!.SendChat("[LPLK Wetten] "+e.Message);continue;}
+                try{ExecuteBetCash(p!,intent,pawn,team,()=>ready);}catch(BankRejected e){p!.SendLplkChat("[LPLK Wetten] "+e.Message);continue;}
             }
-            p?.SendChat($"[LPLK Wetten] Auszahlung/Erstattung: {toCash:N0} $ Cash, {toBank:N0} $ Bank.");
+            p?.SendLplkChat($"[LPLK Wetten] Auszahlung/Erstattung: {toCash:N0} $ Cash, {toBank:N0} $ Bank.");
         }
     }
     [Command("bet")][CommandAlias("bt")][CommandAlias("wette")][CommandAlias("wetten")][CommandAlias("bet",registerRaw:true)][CommandAlias("bt",registerRaw:true)][CommandAlias("wette",registerRaw:true)][CommandAlias("wetten",registerRaw:true)]
     public void BetCommand(ICommandContext ctx)
     {
-        if(ctx.Sender is not {} p){ctx.Reply($"LPLK_Economy Wetten: enabled={settings.Betting.Enabled}; openRounds={bank?.OpenBetRounds}; claims={bank?.BetClaims}; Runde={betActive}; !bet t|ct Betrag|all.");return;}
+        if(ctx.Sender is not {} p){ctx.ReplyLplk($"LPLK_Economy Wetten: enabled={settings.Betting.Enabled}; openRounds={bank?.OpenBetRounds}; claims={bank?.BetClaims}; Runde={betActive}; !bet t|ct Betrag|all.");return;}
         Guard(p,()=>
         {
             if(!BetAvailable(p))throw new BankRejected("Wetten nicht verfügbar.");
@@ -109,19 +109,19 @@ public sealed partial class Plugin
         });
     }
     [Command("bets")][CommandAlias("pool")][CommandAlias("wettenstatus")][CommandAlias("wettinfo")][CommandAlias("bets",registerRaw:true)][CommandAlias("pool",registerRaw:true)][CommandAlias("wettenstatus",registerRaw:true)][CommandAlias("wettinfo",registerRaw:true)]
-    public void BetsCommand(ICommandContext ctx){if(ctx.Sender is {} p)Guard(p,()=>ShowBetInfo(p));else ctx.Reply("Wettübersicht im Spiel: !bets.");}
+    public void BetsCommand(ICommandContext ctx){if(ctx.Sender is {} p)Guard(p,()=>ShowBetInfo(p));else ctx.ReplyLplk("Wettübersicht im Spiel: !bets.");}
     private void ShowBetInfo(IPlayer p)
     {
         if(!BetAvailable(p))throw new BankRejected("Wetten nicht verfügbar.");var tickets=betRound is null?[]:bank!.BetTickets(betRound).Where(x=>x.Status=="accepted").ToArray();
-        p.SendChat($"[LPLK Wetten] T-Pool {tickets.Where(x=>x.Side==2).Sum(x=>x.Amount):N0} $ | CT-Pool {tickets.Where(x=>x.Side==3).Sum(x=>x.Amount):N0} $.");
-        var own=tickets.SingleOrDefault(x=>x.Account==Id(p));if(own is not null)p.SendChat($"[LPLK Wetten] Deine feste Wette: {own.Amount:N0} $ auf {(own.Side==2?"T":"CT")}.");
-        if(bank!.PlayerBetClaims(Id(p)) is >0 and var claim)p.SendChat($"[LPLK Wetten] Noch zur Auszahlung vorgemerkt: {claim:N0} $. Banklimit oder offene Cash-Prüfung kann die Gutschrift verzögern.");
-        p.SendChat("[LPLK Wetten] "+(BettingPolicy.Denied(settings.Betting,BettingContext())??"Wetten sind offen."));
+        p.SendLplkChat($"[LPLK Wetten] T-Pool {tickets.Where(x=>x.Side==2).Sum(x=>x.Amount):N0} $ | CT-Pool {tickets.Where(x=>x.Side==3).Sum(x=>x.Amount):N0} $.");
+        var own=tickets.SingleOrDefault(x=>x.Account==Id(p));if(own is not null)p.SendLplkChat($"[LPLK Wetten] Deine feste Wette: {own.Amount:N0} $ auf {(own.Side==2?"T":"CT")}.");
+        if(bank!.PlayerBetClaims(Id(p)) is >0 and var claim)p.SendLplkChat($"[LPLK Wetten] Noch zur Auszahlung vorgemerkt: {claim:N0} $. Banklimit oder offene Cash-Prüfung kann die Gutschrift verzögern.");
+        p.SendLplkChat("[LPLK Wetten] "+(BettingPolicy.Denied(settings.Betting,BettingContext())??"Wetten sind offen."));
     }
     private void OpenBet(IPlayer p)
     {
         if(!BetAvailable(p))throw new BankRejected("Wetten nicht verfügbar.");
-        Page(p,"Wetten · Cash-Einsatz",_=>[("T",a=>BetAmounts(a,2)),("CT",a=>BetAmounts(a,3)),("Wettstatus",ShowBetInfo),("Regeln",a=>a.SendChat("[LPLK Wetten] Eine feste Cash-Wette je Runde. !bet t|ct Betrag|all; all setzt das gesamte Cash auch über dem normalen Höchsteinsatz. Gewinn anteilig aus Gegenwetten; ohne Gegenwette Erstattung. Cash bis Limit, Rest Bank; ungeklärte Vorgänge bleiben gesperrt."))],a=>a.ExecuteCommand("sw_menu"));
+        Page(p,"Wetten · Cash-Einsatz",_=>[("T",a=>BetAmounts(a,2)),("CT",a=>BetAmounts(a,3)),("Wettstatus",ShowBetInfo),("Regeln",a=>a.SendLplkChat("[LPLK Wetten] Eine feste Cash-Wette je Runde. !bet t|ct Betrag|all; all setzt das gesamte Cash auch über dem normalen Höchsteinsatz. Gewinn anteilig aus Gegenwetten; ohne Gegenwette Erstattung. Cash bis Limit, Rest Bank; ungeklärte Vorgänge bleiben gesperrt."))],a=>a.ExecuteCommand("sw_menu"));
     }
     private void BetAmounts(IPlayer p,int side)=>Page(p,$"Wetten · {(side==2?"T":"CT")}",_=>settings.Betting.AmountButtons.Where(x=>x>=settings.Betting.MinBet&&x<=settings.Betting.MaxBet).Select(v=>(v.ToString("N0")+" $ Cash",(Action<IPlayer>)(a=>BetConfirmation(a,side,v.ToString(System.Globalization.CultureInfo.InvariantCulture)))))
         .Prepend(("Eigener Betrag",(Action<IPlayer>)(a=>
@@ -135,11 +135,11 @@ public sealed partial class Plugin
         Confirm(p,$"{amount} Cash auf {(side==2?"T":"CT")}?",a=>PlaceWager(a,side,amount,id,round,period),OpenBet);
     }
     private void BetAdmin(IPlayer p) => OpenAdmin(p);
-    private IReadOnlyList<(string,Action<IPlayer>)> BetAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[($"Wetten: {(settings.Betting.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Betting=current.Betting with{Enabled=!current.Betting.Enabled}});BetAdmin(a);}),("Status",a=>a.SendChat($"[LPLK Wetten] Offene Runden {bank?.OpenBetRounds}; ausstehende Gewinne {bank?.BetClaims:N0} $. Angenommene Wetten werden auch nach Ausschalten abgerechnet; Regeländerungen zur Auszahlung gelten ab nächster Runde."))]))(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> BetAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[($"Wetten: {(settings.Betting.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Betting=current.Betting with{Enabled=!current.Betting.Enabled}});BetAdmin(a);}),("Status",a=>a.SendLplkChat($"[LPLK Wetten] Offene Runden {bank?.OpenBetRounds}; ausstehende Gewinne {bank?.BetClaims:N0} $. Angenommene Wetten werden auch nach Ausschalten abgerechnet; Regeländerungen zur Auszahlung gelten ab nächster Runde."))]))(p);
     private void BetOpening(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> BetOpeningRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[("Modus: "+settings.Betting.OpenMode,a=>{Save(a,current=>current with{Betting=current.Betting with{OpenMode=current.Betting.OpenMode=="Time"?"PlayersPerTeam":"Time"}});BetOpening(a);}),        ("Spielerzahl: "+settings.Betting.MinHumanPlayersPerTeam,a=>Page(a,"Wetten · Mindestteilnehmer",_=>new[]{1,2,3,4,5}.Select(v=>(v.ToString(),(Action<IPlayer>)(b=>{Save(b,current=>current with{Betting=current.Betting with{MinHumanPlayersPerTeam=v}});BetOpening(b);}))).ToArray(),BetOpening,true)),        ("Zeitfenster",a=>Page(a,"Wetten · Sekunden ab Rundenstart",_=>new[]{15,30,60,90,120}.Select(v=>(v+" Sekunden",(Action<IPlayer>)(b=>{Save(b,current=>current with{Betting=current.Betting with{BetOnlyFirstSeconds=v}});BetOpening(b);}))).ToArray(),BetOpening,true))]))(p);
     private void BetLimits(IPlayer p) => OpenAdmin(p);
-    private IReadOnlyList<(string,Action<IPlayer>)> BetLimitsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[("Einsatzgrenzen",a=>a.SendChat($"[LPLK Wetten] {settings.Betting.MinBet}–{settings.Betting.MaxBet} $; all darf das gesamte Cash setzen. Eine feste Wette. Werte in settings.json > Betting.")),        ($"Ohne Sieger: {(settings.Betting.RefundIfNoWinningBets?"AN":"AUS")}",a=>{Save(a,current=>current with{Betting=current.Betting with{RefundIfNoWinningBets=!current.Betting.RefundIfNoWinningBets}});BetLimits(a);}),        ($"Abbrucherstattung: {(settings.Betting.RefundOnDrawOrRestart?"AN":"AUS")}",a=>{Save(a,current=>current with{Betting=current.Betting with{RefundOnDrawOrRestart=!current.Betting.RefundOnDrawOrRestart}});BetLimits(a);}),        ("Hausanteil: "+settings.Betting.HouseCutPercent+" %",a=>a.SendChat("[LPLK Wetten] Hausanteil und Rundungsreste werden im Journal ausgewiesen. Konfiguration: Betting.HouseCutPercent; wirksam ab nächster Runde."))]))(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> BetLimitsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[("Einsatzgrenzen",a=>a.SendLplkChat($"[LPLK Wetten] {settings.Betting.MinBet}–{settings.Betting.MaxBet} $; all darf das gesamte Cash setzen. Eine feste Wette. Werte in settings.json > Betting.")),        ($"Ohne Sieger: {(settings.Betting.RefundIfNoWinningBets?"AN":"AUS")}",a=>{Save(a,current=>current with{Betting=current.Betting with{RefundIfNoWinningBets=!current.Betting.RefundIfNoWinningBets}});BetLimits(a);}),        ($"Abbrucherstattung: {(settings.Betting.RefundOnDrawOrRestart?"AN":"AUS")}",a=>{Save(a,current=>current with{Betting=current.Betting with{RefundOnDrawOrRestart=!current.Betting.RefundOnDrawOrRestart}});BetLimits(a);}),        ("Hausanteil: "+settings.Betting.HouseCutPercent+" %",a=>a.SendLplkChat("[LPLK Wetten] Hausanteil und Rundungsreste werden im Journal ausgewiesen. Konfiguration: Betting.HouseCutPercent; wirksam ab nächster Runde."))]))(p);
 }
 
 

@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AllowUnsafeBlocks>true</AllowUnsafeBlocks><AssemblyName>SerververwaltungBridge</AssemblyName><Version>1.7.0</Version><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AllowUnsafeBlocks>true</AllowUnsafeBlocks><AssemblyName>SerververwaltungBridge</AssemblyName><Version>1.8.6</Version><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SwiftlyS2.CS2" Version="1.4.14" ExcludeAssets="runtime" PrivateAssets="all" />
     <PackageReference Include="SharpCompress" Version="0.50.4" />

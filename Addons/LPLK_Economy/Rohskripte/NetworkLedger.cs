@@ -79,7 +79,7 @@ public sealed partial class Ledger
                 """);
         }
         Exec("INSERT INTO network_scopes VALUES($p0,$p1) ON CONFLICT(id) DO UPDATE SET settings=excluded.settings",scope,JsonSerializer.Serialize(settings));
-        Exec("PRAGMA user_version=4");return 0;
+        InitializeNetworkRobbery();Exec("PRAGMA user_version=4");return 0;
     });
 
     private (string Id,EconomySettings Settings)[] NetworkScopes()

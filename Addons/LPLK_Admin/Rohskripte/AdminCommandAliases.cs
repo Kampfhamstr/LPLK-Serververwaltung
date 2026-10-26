@@ -128,7 +128,7 @@ public sealed partial class Plugin
                     if(!active||!entry.Active)return;
                     string group=entry.Group;ReloadSettings();
                     if(!active||!entry.Active||entry.Group!=group||!aliasRegistrations.TryGetValue(entry.Name,out var current)||!ReferenceEquals(entry,current))
-                    {c.Reply("[LPLK] Befehlszuordnung geändert; erneut aufrufen.");return;}
+                    {c.ReplyLplk("[LPLK] Befehlszuordnung geändert; erneut aufrufen.");return;}
                     InvokeAlias(group,c);
                 },registerRaw:true,permission:"");
                 if(entry.Id==Guid.Empty)throw new InvalidOperationException("Leere Befehlsregistrierung.");
@@ -154,9 +154,9 @@ public sealed partial class Plugin
     public void CommandStatus(ICommandContext c)
     {
         if(!active)return;
-        if(c.Sender is {} p&&!CanManage(p)){c.Reply("[LPLK] Keine Berechtigung.");return;}
+        if(c.Sender is {} p&&!CanManage(p)){c.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         ReloadSettings();
-        c.Reply("LPLK_Admin commands: "+JsonSerializer.Serialize(new{version="0.10.5",registered=aliasRegistrations.Keys.Order().ToArray(),
+        c.ReplyLplk("LPLK_Admin commands: "+JsonSerializer.Serialize(new{version="0.11.5",registered=aliasRegistrations.Keys.Order().ToArray(),
             unsupported=settings.Commands.Keys.Where(k=>AdminCommandNames.Unsupported.Contains(k,StringComparer.OrdinalIgnoreCase)).Order().ToArray(),commandError,reloadError=settingsError}));
     }
 }

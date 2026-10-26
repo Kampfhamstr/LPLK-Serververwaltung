@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
- <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>LPLK_Zombie</AssemblyName><Version>0.1.0</Version><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
+ <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>LPLK_Zombie</AssemblyName><Version>0.1.6</Version><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile></PropertyGroup>
  <ItemGroup>
   <Compile Remove="CompatAPI/**"/>
   <ProjectReference Include="CompatAPI/IHanZriotAPI.csproj"/>

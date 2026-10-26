@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -53,12 +57,14 @@ public sealed record StatisticsSettings
 }
 public sealed class Counters
 {
+ public Counters Copy()=>(Counters)MemberwiseClone();
  public long Shots {get;set;} public long Hits {get;set;} public long HeadHits {get;set;}
  public long Kills {get;set;} public long Headshots {get;set;} public long Deaths {get;set;}
  public void Validate(){if(new[]{Shots,Hits,HeadHits,Kills,Headshots,Deaths}.Any(x=>x<0||x>2_000_000_000_000)||Headshots>Kills)throw new InvalidDataException("Ungültige Zähler");}
 }
 public sealed class PlayerStats
 {
+ public PlayerStats Copy(){var copy=(PlayerStats)MemberwiseClone();copy.Pvp=Pvp.Copy();copy.Bots=Bots.Copy();copy.Extra=Extra.Copy();copy.Weapons=new(Weapons);return copy;}
  public string Name {get;set;}="Spieler";
  public DateTimeOffset LastSeen {get;set;}
  public Counters Pvp {get;set;}=new(); public Counters Bots {get;set;}=new();
@@ -68,6 +74,7 @@ public sealed class PlayerStats
 }
 public sealed class ExtraStats
 {
+ public ExtraStats Copy()=>(ExtraStats)MemberwiseClone();
  public DateTimeOffset? Since {get;set;}
  public long Assists {get;set;}public long FlashAssists {get;set;}public long Damage {get;set;}public long DamageTaken {get;set;}
  public long Rounds {get;set;}public long Wins {get;set;}public long PlaySeconds {get;set;}public long BombsPlanted {get;set;}public long BombsDefused {get;set;}
@@ -78,6 +85,7 @@ public sealed class ExtraStats
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class StatsData
 {
+ public StatsData Copy()=>new(){Schema=Schema,Players=Players.ToDictionary(p=>p.Key,p=>p.Value.Copy())};
  public int Schema {get;set;}=1;
  public Dictionary<ulong,PlayerStats> Players {get;set;}=[];
  public static StatsData Read(string path)

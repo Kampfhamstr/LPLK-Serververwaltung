@@ -57,7 +57,7 @@ public sealed partial class Plugin
         var menu=builder.AddOption(cancel).Build();
         Core.MenusAPI.OpenMenuForPlayer(p,menu);
         amountRequests[p.PlayerID]=new(p,menu,bank?.Period??0,admin,(a,text)=>accept(a,MenuAmount.Parse(text,minimum,maximum)),back);
-        p.SendChat("[LPLK] Betrag jetzt im Textchat eingeben, z. B. 2500, 2.500 oder 2,5k. Abbrechen: abbrechen. Zeit: 60 Sekunden.");
+        p.SendLplkChat("[LPLK] Betrag jetzt im Textchat eingeben, z. B. 2500, 2.500 oder 2,5k. Abbrechen: abbrechen. Zeit: 60 Sekunden.");
     }
 
     private bool CurrentAmount(IPlayer? p,AmountRequest request)=>module.Active&&p is not null&&Human(p)&&p.SteamID==request.Steam
@@ -83,7 +83,7 @@ public sealed partial class Plugin
                     if(!amountRequests.TryGetValue(slot,out var current)||!ReferenceEquals(current,request)||!CurrentAmount(actor,request))return;
                     RefreshSettings();
                     if(request.Period!=(bank?.Period??0)||!(request.Admin?module.CanAdmin(actor!):CanUse(actor!)))
-                    {amountRequests.TryRemove(new KeyValuePair<int,AmountRequest>(slot,request));actor!.SendChat("[LPLK] Berechtigung oder Bankperiode geändert. Menü neu öffnen.");return;}
+                    {amountRequests.TryRemove(new KeyValuePair<int,AmountRequest>(slot,request));actor!.SendLplkChat("[LPLK] Berechtigung oder Bankperiode geändert. Menü neu öffnen.");return;}
                     if(input.Equals("abbrechen",StringComparison.OrdinalIgnoreCase)||input.Equals("cancel",StringComparison.OrdinalIgnoreCase))
                     {amountRequests.TryRemove(new KeyValuePair<int,AmountRequest>(slot,request));request.Back(actor!);return;}
                     Guard(actor!,()=>request.Accept(actor!,input));

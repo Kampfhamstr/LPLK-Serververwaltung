@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -10,8 +14,8 @@ public sealed partial class Plugin
     private readonly string boot=Guid.NewGuid().ToString("N");
     private void BettingProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy betprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
-        string path=Path.Combine(Core.PluginDataDirectory,"betting-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"betting-probe.json");
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.ReplyLplk("LPLK_Economy betprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        string path=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"betting-probe.sqlite3"),report=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"betting-probe.json");
         const string a="76561198000000001",b="76561198000000002";
         try
         {
@@ -37,14 +41,14 @@ public sealed partial class Plugin
             if(probe.TransactionCount!=transactions||probe.Balance(a)!=500||probe.Balance(b)!=(restarted?700:0)||probe.PendingCount!=1||!probe.Blocked(a)||probe.Intent("pay")?.Status!="pending"||probe.OpenBetRounds!=(restarted?0:1))throw new InvalidDataException("Wettprobe widersprüchlich.");
             probe.Verify();
             AtomicJson.Write(report,new{updatedAt=DateTimeOffset.UtcNow,boot,seedBoot,phase=restarted?"restart-verified":"seed-verified",sqliteVersion=SQLitePCL.raw.sqlite3_libversion().utf8_to_string(),restarted,payoutNotRepeated=true,pendingPayoutPreserved=true,interruptedRoundRefunded=restarted,playerDataChanged=false,productionChanged=false});
-            ctx.Reply($"LPLK_Economy betprobe: poolVerified=True; pendingPayoutPreserved=True; payoutNotRepeated=True; restarted={restarted}; Spielerkonten unverändert.");
+            ctx.ReplyLplk($"LPLK_Economy betprobe: poolVerified=True; pendingPayoutPreserved=True; payoutNotRepeated=True; restarted={restarted}; Spielerkonten unverändert.");
         }
-        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy betprobe fehlgeschlagen");ctx.Reply("LPLK_Economy betprobe: fehlgeschlagen");}
+        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy betprobe fehlgeschlagen");ctx.ReplyLplk("LPLK_Economy betprobe: fehlgeschlagen");}
     }
     private void Probe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy probe: nur auf leerem, bereitem Standard-Testprofil.");return;}
-        string path=Path.Combine(Core.PluginDataDirectory,"probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"probe.json");
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.ReplyLplk("LPLK_Economy probe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        string path=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"probe.sqlite3"),report=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"probe.json");
         const string a="76561198000000001",b="76561198000000002";
         try
         {
@@ -65,8 +69,8 @@ public sealed partial class Plugin
             if(!rejected)throw new InvalidDataException("Offenes Konto nicht gesperrt.");probe.Verify();
             bool restarted=prior&&previousBoot is not null&&previousBoot!=boot;
             AtomicJson.Write(report,new{updatedAt=DateTimeOffset.UtcNow,boot,phase=restarted?"restart-verified":"seed-verified",sqlite=true,sqliteVersion=SQLitePCL.raw.sqlite3_libversion().utf8_to_string(),durableReplay=duplicate.Duplicate,pendingRecovered=rejected,restarted,playerDataChanged=false,productionChanged=false});
-            ctx.Reply($"LPLK_Economy probe: SQLite-Journal und Wiederholung geprüft; pendingRecovered={rejected}; restarted={restarted}; Spielerkonten unverändert.");
+            ctx.ReplyLplk($"LPLK_Economy probe: SQLite-Journal und Wiederholung geprüft; pendingRecovered={rejected}; restarted={restarted}; Spielerkonten unverändert.");
         }
-        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy probe fehlgeschlagen");ctx.Reply("LPLK_Economy probe: fehlgeschlagen");}
+        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy probe fehlgeschlagen");ctx.ReplyLplk("LPLK_Economy probe: fehlgeschlagen");}
     }
 }

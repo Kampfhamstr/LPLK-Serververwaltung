@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 // Derived from H-AN/HanZombieRiotS2 v3.2; GPL-3.0. See LICENSE and PROVENANCE.json.
 using System;
 using Microsoft.Extensions.Logging;
@@ -207,7 +211,7 @@ public class HanZriotHelpers
     {
         var CFG = _mainConfig.CurrentValue;
 
-        string baseConfig = _core.Configuration.GetConfigPath("");
+        string baseConfig = LPLK.Common.RoundFileStore.ConfigPath(_core,"");
         string mapsConfig = Path.Combine(baseConfig, "mapsconfig");
 
         // 如果 mapsconfig 文件夹不存在 → 使用默认地图
@@ -389,7 +393,7 @@ public class HanZriotHelpers
         if (pawn.TeamNum == 3 && _globals.InProtect[player.PlayerID])
         {
             _globals.InProtect[player.PlayerID] = false;
-            player.SendMessage(MessageType.Chat, $"{_core.Translation.GetPlayerLocalizer(player)["RemoveProtect"]}");
+            player.SendLplkMessage(MessageType.Chat, _core.Translation.GetPlayerLocalizer(player)["RemoveProtect"]);
         }
     }
 
@@ -427,11 +431,11 @@ public class HanZriotHelpers
 
         if (info == "hurt" && CFG.HurtMoneyMessage)
         {
-            player.SendMessage(MessageType.Chat, $"{loc["HurtMoney", account]}");
+            player.SendLplkMessage(MessageType.Chat, loc["HurtMoney", account]);
         }
         else if (info == "death" && CFG.DeathMoneyMessage)
         {
-            player.SendMessage(MessageType.Chat, $"{loc["KillMoney", account]}");
+            player.SendLplkMessage(MessageType.Chat, loc["KillMoney", account]);
         }
     }
 
@@ -563,7 +567,7 @@ public class HanZriotHelpers
                             if (player is { IsValid: true } && player.Controller is { IsValid: true } ctrl)
                             {
                                 RespawnClient(ctrl);
-                                player.SendMessage(MessageType.Chat, $"{_core.Translation.GetPlayerLocalizer(player)["Spawned"]}");
+                                player.SendLplkMessage(MessageType.Chat, _core.Translation.GetPlayerLocalizer(player)["Spawned"]);
                             }
                         });
                     }

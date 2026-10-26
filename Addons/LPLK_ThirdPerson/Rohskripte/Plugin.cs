@@ -14,7 +14,7 @@ using Vec=System.Numerics.Vector3;
 
 namespace LPLK_ThirdPerson;
 
-[PluginMetadata(Id="LPLK_ThirdPerson",Name="LPLK_ThirdPerson",Version="0.1.4",Author="LPLK; reference criskkky",Description="ThirdPerson-Kamera mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_ThirdPerson",Name="LPLK_ThirdPerson",Version="0.1.10",Author="LPLK; reference criskkky",Description="ThirdPerson-Kamera mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -31,6 +31,12 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private bool Enabled=>module.Active&&ready&&settings.Enabled&&Core.ConVar.Find<bool>("thirdperson_enabled")?.Value==true;
     public override void Load(bool hotReload)
     {
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_ThirdPerson",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         module=new(Core,"LPLK_ThirdPerson","Kamera","lplk.thirdperson.admin",OpenAdmin);
         config=new(module.SettingsPath,CameraSettings.Validate);settings=config.Current;
         Core.ConVar.CreateOrFind<bool>("thirdperson_enabled","Enable/Disable ThirdPerson",true,SwiftlyS2.Shared.Convars.ConvarFlags.NONE);
@@ -41,7 +47,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerTeam>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventRoundPrestart>(_=>{if(ready)cameras.Clear(Error);knifeWarnings.Clear();return HookResult.Continue;});
         Core.GameEvent.HookPost<EventWeaponFire>(KnifeWarning);
-        ReconcileCommand();WriteStatus();Core.Logger.LogInformation("LPLK_ThirdPerson 0.1.4 geladen: permission={Permission}; damage={Damage}",settings.UseTpPermission,settings.DamageMode);
+        ReconcileCommand();WriteStatus();Core.Logger.LogInformation("LPLK_ThirdPerson 0.1.10 geladen: permission={Permission}; damage={Damage}",settings.UseTpPermission,settings.DamageMode);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
@@ -57,16 +63,21 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(!module.Active)return;
         config.Reload();SyncSettings();reloadError=config.Error;
         if(stillCurrent is not null&&!stillCurrent())return;
-        if(ctx.Sender is not {} p){ctx.Reply("LPLK_ThirdPerson: !tp / !thirdperson benötigt einen lebenden Spieler.");return;}
+        if(ctx.Sender is not {} p){ctx.ReplyLplk("LPLK_ThirdPerson: !tp / !thirdperson benötigt einen lebenden Spieler.");return;}
         if(!module.Active||!ready||!p.IsValid||!p.IsAuthorized||p.IsFakeClient)return;
-        try{p.SendChat("[LPLK] "+cameras.Toggle(p.PlayerID,settings,Enabled));WriteStatus();}
-        catch(Exception e){Error(e);p.SendChat("[LPLK] Kamera konnte nicht sicher umgeschaltet werden.");}
+        try{p.SendLplkChat("[LPLK] "+cameras.Toggle(p.PlayerID,settings,Enabled));WriteStatus();}
+        catch(Exception e){Error(e);p.SendLplkChat("[LPLK] Kamera konnte nicht sicher umgeschaltet werden.");}
     }
     public override void Unload()
     {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore()
+    {
         module.Active=false;RemoveCustomCommand();Core.GameHooks.Entities.TakeDamage.Pre-=Damage;
         if(ready)cameras.Clear(Error);else cameras.Forget();ready=false;knifeWarnings.Clear();
-    }
+     LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnMapLoad>]
     public void MapLoad(IOnMapLoadEvent e){cameras.Forget();knifeWarnings.Clear();ready=true;lastTick=0;}
     [EventListener<EventDelegates.OnMapUnload>]
@@ -83,7 +94,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(!ready||!module.Active||!settings.EnableKnifeWarnings||e.UserIdPlayer is not {} p||!(e.Weapon.Contains("knife",StringComparison.OrdinalIgnoreCase)||e.Weapon.Contains("bayonet",StringComparison.OrdinalIgnoreCase)))return HookResult.Continue;
         if(world.Player(p.PlayerID) is {} snapshot&&cameras.Owns(snapshot))
         {
-            int count=knifeWarnings.GetValueOrDefault(snapshot.Owner);if(count<3){knifeWarnings[snapshot.Owner]=count+1;p.SendChat("[LPLK] Messerangriffe können in ThirdPerson durch die Kameraposition abweichen. Mit !tp zur Egoansicht wechseln.");}
+            int count=knifeWarnings.GetValueOrDefault(snapshot.Owner);if(count<3){knifeWarnings[snapshot.Owner]=count+1;p.SendLplkChat("[LPLK] Messerangriffe können in ThirdPerson durch die Kameraposition abweichen. Mit !tp zur Egoansicht wechseln.");}
         }
         return HookResult.Continue;
     }
@@ -119,7 +130,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     {
         try
         {
-            AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.4",settings,ready,effective=Enabled,activeCameras=cameras.Count,blocked,errors,reloadError,commandError,command=activeCommandName.Length==0?null:"sw_"+activeCommandName});
+            LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.10",settings,ready,effective=Enabled,activeCameras=cameras.Count,blocked,errors,reloadError,commandError,command=activeCommandName.Length==0?null:"sw_"+activeCommandName});
             statusWriteFailed=false;
         }
         catch(Exception e)when(e is IOException or UnauthorizedAccessException)

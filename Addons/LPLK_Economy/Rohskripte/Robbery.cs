@@ -106,7 +106,7 @@ public sealed partial class Ledger
         lock(gate)
         {
             RobEnabled(s);RobAccount(sponsor);RobAccount(target);if(sponsor==target)throw new BankRejected("Eigenes Konto ist kein Raubziel.");
-            if(Balance(target)<s.MinTargetBank)throw new BankRejected($"Ziel benötigt mindestens {s.MinTargetBank:N0} $ Bank.");
+            if(Balance(target)<s.MinTargetBank)throw new BankRejected($"Das Raubziel benötigt mindestens {s.MinTargetBank:N0} $ auf seinem Bankkonto.");
             var pending=NetworkPendingRobberies().Where(o=>o.Status!="done").ToArray();
             if(pending.Count(o=>o.Sponsor==sponsor)>=s.MaxActiveOrdersPerSponsor||pending.Count(o=>o.Target==target)>=s.MaxActiveOrdersPerTarget)throw new BankRejected("Bereits genügend offene Aufträge für Auftraggeber oder Ziel.");
             long cooldown=RobState<long>("pair:"+sponsor+":"+target);if(cooldown>now)throw new BankRejected("Erneuter Angriff auf dieses Ziel noch gesperrt.");
@@ -117,7 +117,7 @@ public sealed partial class Ledger
                 if(now<sec.ProtectedAt+s.HighRollerProtectionAbsoluteMinutes*60L)throw new BankRejected("Absoluter Raubschutz ist noch aktiv.");
                 extra=RobberyPolicy.BypassCost(s,sec.Bypasses);
             }
-            long cost=checked(s.RobberyCost+extra);if(Balance(sponsor)<cost)throw new BankRejected($"Benötigt: {cost:N0} $ Bank.");
+            long cost=checked(s.RobberyCost+extra);if(Balance(sponsor)<cost)throw new BankRejected($"Für den Auftrag benötigst du {cost:N0} $ auf deinem Bankkonto.");
             return new(cost,extra,bypass,RobberyPolicy.Chance(s,sec,Security(sponsor,s,now).RobberSkill,Balance(sponsor),Balance(target),bypass),RobberyPolicy.MaxLoot(s,sec,Balance(target),bypass));
         }
     }
@@ -212,7 +212,7 @@ public sealed partial class Ledger
                 var changes=new[]{RobChange("order:"+o.Id,next),RobChange("security:"+o.Target,sec with{ProtectedAt=now,ProtectedUntil=now+(success?s.ProtectionHoursAfterSuccess:s.ProtectionHoursAfterFail)*3600L}),RobChange("pair:"+o.Sponsor+":"+o.Target,now+s.SameTargetCooldownHours*3600L)};
                 BookInside(new("rob-settle:"+o.Id,Period,RobOwner,"Bankraub ausgeführt",[new(o.Target,-stolen),new(o.Sponsor,paid),new("system:robclaims",claim)],changes),false);
                 TitleAddInside(o.Sponsor,(success?"SuccessfulRobberies":"FailedRobberyOrders",1),("TotalStolen",stolen));
-                TitleAddInside(o.Target,(success?"RobberyVictimCount":"DefendedRobberies",1),("TotalRobbedFrom",stolen));return 0;
+                TitleAddInside(o.Target,(success?"RobberyVictimCount":"DefendedRobberies",1),("TotalRobbedFrom",stolen));QueueRobberyNotices(next,now);return 0;
             });
             o=GetRobbery(entry.Id)!;
             if(o.Status=="done"&&o.Claim>0&&!Blocked(o.Sponsor)&&Balance(o.Sponsor)<Limit)Atomic(()=>

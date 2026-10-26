@@ -1,37 +1,9 @@
-# SerververwaltungBridge – Verbindung zur Webverwaltung
+# SerververwaltungBridge 1.8.6
 
-**Ausgabe 24.10.2026: 1.7.0.** [SerververwaltungBridge.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.24-gameplay/SerververwaltungBridge.zip) · [Serverprofile, Migration und Prüfgrenzen](../../docs/FLEET-20261024.md). Die folgenden älteren Versionsnachweise sind historisch. Die echte Client- und Mehrspielerabnahme steht aus.
+Anbindung an die LPLK-Webverwaltung, RAM-Befehlseingang und verzögerte Exporte.
 
-**Aktuelles Paket 1.6.5:** [SerververwaltungBridge.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/compat-2026.10.16-bridge-maps/SerververwaltungBridge.zip) · [Prüfstand und Grenzen](../../docs/COMPATIBILITY-20261016.md). Veröffentlichung und Download-Prüfsummen bestätigt.
+[Fertiges Pluginpaket](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/SerververwaltungBridge.zip) · [Vollständige Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/LPLK-Plugins-Source.zip) · [Installation und Build](../../docs/INSTALLATION-ADDONS.md) · [Änderungen und Prüfstand](../../docs/RELEASE-20261026.md)
 
-Quellstand **1.6.5**, gebaut mit SwiftlyS2-API **1.4.14**, dieselbe DLL lokal gegen **1.4.14 und 1.5.0-beta.10** geprüft. [Alle Addons](../../docs/ADDONS.md).
+Aktuelle Ausgabe vom 26.10.2026. Einstellungen und Daten sind nicht im ZIP enthalten; vorhandene Daten bei Updates erhalten. Das Paket enthält die für dieses Plugin vorgesehenen Ressourcen, Abhängigkeiten und Lizenzhinweise. Laufende Addondaten werden im RAM verarbeitet; reguläre Persistenz und Exporte erfolgen verzögert am Rundenende. Initialisierung/Entladen und native Enginezugriffe bleiben gesondert.
 
-## Kompatibilitätskorrektur 16.10.2026
-
-Die in beta.10 entfernte `ExecuteCommandWithBuffer`-Methode wird nicht mehr verwendet. Alle sieben betroffenen Befehls-, ConVar- und Mapwechselstellen nutzen die gemeinsame `ExecuteCommand`-API. Die zweistufige Ausführung über zwei World-Updates und die bestehenden Lebenszyklus-, Ziel- und Wiederholungssperren bleiben erhalten. Konsolenausgaben werden weiterhin regulär erfasst; die zusätzliche Pufferkopie entfällt.
-
-Je 391 lokale Prüfungen mit beiden API-Paketen, darunter die Auflösung aller 207 verwendeten Framework-Verweise, bestanden. Auf Testserver `89450e53` mit SwiftlyS2 1.4.14 wurden der tatsächliche Konsolenbefehl, der ConVar-Fallback, ein Workshopwechsel auf de_drawbridge und der Rückwechsel auf de_dust2 verifiziert. Alle 20 Plugins laden, andere DLLs und Konfigurationen blieben hashgleich. Die vorige Bridge ist im Testserver-Rückfallarchiv gesichert. Nachweis: `state/bridge-compatibility-verification.json`.
-
-Zusätzlicher nativer Test unter **1.5.0-beta.10** am 16.10.2026 ebenfalls bestanden: tatsächliche Engine-Ausgabe, ConVar-Fallback, Workshop de_drawbridge und Rückkehr auf de_dust2; 20 Plugins Loaded, alle Plugin-DLLs und Konfigurationen unverändert. Nachweis `state/bridge-beta-verification.json`. Eine Mehrspielerabnahme bleibt offen.
-
-Der separate API-Befund in LPLK_Maps wurde inzwischen mit **0.2.7** behoben und anhand eigener Mapwechsel unter beiden Frameworks geprüft. Der Testserver bleibt jetzt auf **1.5.0-beta.10**. Keine globale beta.10-Freigabe für alle Addons. Geprüftes Framework-Rollback `.lplk-rollback/swiftly-before-beta10.zip` erhalten. Die produktive Bridge-Übernahme ist vom Benutzer am 16.10.2026 freigegeben; sie erfolgt mit Konfigurationsvergleich, Rückfallkopie und tatsächlicher Befehlsprüfung je Server. [Gemeinsamer Prüfstand und Migrationsgrenzen](../../docs/COMPATIBILITY-20261016.md).
-
-## Funktion
-
-Die Bridge stellt Gameserverstatus und die bestehende Auftragsanbindung für die Serververwaltung bereit. Dazu gehören je nach eingerichtetem Funktionsumfang Server-/Spielerinformationen und administrative Aktionen. Sie vermittelt den vorhandenen Vertrag zwischen Website und Gameserver; sie ersetzt nicht die einzelnen Fachmodule.
-
-## Installation und Pfade
-
-`SerververwaltungBridge.zip` nach der [gemeinsamen Anleitung](../../docs/INSTALLATION-ADDONS.md) installieren. Die DLL liegt unter `game/csgo/addons/swiftlys2/plugins/SerververwaltungBridge/SerververwaltungBridge.dll`.
-
-**Die Namen unterscheiden sich bewusst:** Paket-/Ordnername `SerververwaltungBridge`, interne Plugin-ID `lplk.serververwaltung.bridge`, Datenablage **`game/csgo/addons/swiftlys2/data/serververwaltung_bridge/`**. Groß-/Kleinschreibung unter Linux beachten. Bestehende Auftrags-, Status- und Konfigurationsstrukturen nicht ungeprüft umbenennen.
-
-## Verbindung einrichten
-
-In der [Website](../../docs/INSTALLATION-WEBSITE.md) den richtigen Server mit dem passenden Panel-/Dateiconnector und den vorgesehenen Pfaden verknüpfen. Zugangsdaten ausschließlich in den dafür vorgesehenen geschützten Verbindungsdialogen hinterlegen. Das Kopieren der DLL allein registriert keine Website und überträgt keine Zugangsdaten.
-
-Zunächst nur Status lesen und Server-/Map-/Spielerdaten vergleichen. Erst danach eine konkrete berechtigte Testaktion prüfen. Ein eingereichter Auftrag ist nicht automatisch erledigt: bestätigtes Ergebnis und anschließend neu gelesenen Serverzustand kontrollieren. Bank, Statistik und Whitelist benötigen zusätzlich ihre eigenen Addons und Freigaben.
-
-## Betrieb und Grenzen
-
-Website-Rollen, native Spielrechte und Zielschutz bleiben getrennte Prüfungen. Ältere Verbraucher der Bridge dürfen bei Änderungen am Datenformat nicht stillschweigend brechen. Betriebsdaten, Spielerlisten, Aufträge und produktive Verbindungsinformationen nicht nach GitHub übertragen.
+Das Plugin entsprechend dem eigenen Serverprofil aktivieren. Die Anwesenheit in dieser Sammlung bedeutet nicht, dass es auf jedem Server installiert werden soll. Funktionen und Prüfgrenzen dieser Veröffentlichung stehen in den oben verlinkten Releasehinweisen. Lizenz-/Autorenhinweise unter `Rohskripte/` beziehungsweise im Pluginverzeichnis beachten.

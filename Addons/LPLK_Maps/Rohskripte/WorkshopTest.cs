@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using LPLK.Common;
 using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.SteamAPI;
@@ -38,23 +42,30 @@ public sealed partial class Plugin
     [Command("lplk_maptest")]
     public void WorkshopTestCommand(ICommandContext context)
     {
-        RefreshSettings();if(context.Sender is {} actor&&!module.CanAdmin(actor)){context.Reply("[LPLK] Keine Berechtigung.");return;}
+        RefreshSettings();if(context.Sender is {} actor&&!module.CanAdmin(actor)){context.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         try
         {
-            if(context.Args is ["download",var id]){StartWorkshopTest(context.Sender,id);context.Reply("[LPLK] Maptest angefordert: "+id);return;}
+            if(context.Args is ["download",var id]){StartWorkshopTest(context.Sender,id);context.ReplyLplk("[LPLK] Maptest angefordert: "+id);return;}
             if(context.Args is ["start",var startId]&&testDownload is {} ready&&ready.Id==startId)
             {if(context.Sender is {} player)ConfirmWorkshopTest(player,ready);else StartTestMap(ready);return;}
             if(context.Args.Length==0&&context.Sender is {} p){MapTestMenu(p);return;}
-            if(context.Args is ["status"]){PollWorkshopTest(Environment.TickCount64,true);context.Reply(testDownload is {} job?$"LPLK_Maptest: id={job.Id}; ready={job.Ready}; failed={job.Failed}; confirmed={job.Confirmed}; bytes={job.Done}/{job.Total}; {job.Status}":"LPLK_Maptest: kein Auftrag");return;}
-            context.Reply("lplk_maptest download <Workshop-ID> | status | start <Workshop-ID>");
+            if(context.Args is ["status"]){PollWorkshopTest(Environment.TickCount64,true);context.ReplyLplk(testDownload is {} job?$"LPLK_Maptest: id={job.Id}; ready={job.Ready}; failed={job.Failed}; confirmed={job.Confirmed}; bytes={job.Done}/{job.Total}; {job.Status}":"LPLK_Maptest: kein Auftrag");return;}
+            context.ReplyLplk("lplk_maptest download <Workshop-ID> | status | start <Workshop-ID>");
         }
-        catch(InvalidDataException e){context.Reply("[LPLK] "+e.Message);}
+        catch(InvalidDataException e){context.ReplyLplk("[LPLK] "+e.Message);}
     }
+    private readonly Dictionary<string,Task<bool>> fileReadiness=[];
     private bool TestMapFileReady(string id)
+    {
+        if(!fileReadiness.TryGetValue(id,out var read)){string root=WorkshopRoot;fileReadiness[id]=read=LPLK.Common.RoundFileStore.RunAfterRound(()=>ReadTestMapFile(root,id));}
+        if(!read.IsCompleted)return false;
+        bool ready=read.GetAwaiter().GetResult();if(!ready)fileReadiness.Remove(id);return ready;
+    }
+    private static bool ReadTestMapFile(string root,string id)
     {
         try
         {
-            var directory=new DirectoryInfo(Path.Combine(WorkshopRoot,id));
+            var directory=new DirectoryInfo(Path.Combine(root,id));
             if(!directory.Exists||directory.Attributes.HasFlag(FileAttributes.ReparsePoint))return false;
             foreach(var file in directory.EnumerateFiles("*.vpk"))
             {
@@ -76,10 +87,12 @@ public sealed partial class Plugin
         testDownloadCancellation?.Cancel();testDownloadCancellation?.Dispose();testDownloadCancellation=new(TimeSpan.FromSeconds(30));
         var token=testDownloadCancellation.Token;var job=new TestDownload(id,p);testDownload=job;
         WriteTestDownload();if(p is not null)ShowWorkshopTest(p);
+        string diskRoot=WorkshopRoot,diskDrive=Path.GetPathRoot(RoundFileStore.GamePath(Core))!;bool bounded=settings.MaxWorkshopGiB>0;
         _=Task.Run(async()=>
         {
+            (long Used,long Free) space=default;
             WorkshopItem? item=null;string? error=null;
-            try{item=await workshopBackend.Fetch(id,token);if(item.Id!=id||!item.IsMap)throw new InvalidDataException("Das Item ist keine CS2-Map.");}
+            try{item=await workshopBackend.Fetch(id,token);if(item.Id!=id||!item.IsMap)throw new InvalidDataException("Das Item ist keine CS2-Map.");space=await LPLK.Common.RoundFileStore.RunAfterRound(()=>ReadWorkshopSpace(diskRoot,diskDrive,bounded));}
             catch(Exception e){error=e is InvalidDataException?e.Message:"Workshop-Abfrage fehlgeschlagen: "+e.GetType().Name;}
             if(!module.Active)return;
             Core.Scheduler.NextWorldUpdate(()=>
@@ -94,8 +107,9 @@ public sealed partial class Plugin
                     var map=maps.FirstOrDefault(m=>m.Id==id)??new MapEntry{Id=id,Name=item.Name,InPool=false,Enabled=false,MaxPlayers=128};
                     if(map.Removed)throw new InvalidDataException("Die Karte wurde manuell gesperrt.");
                     map=map with{IsMap=true,RemoteMapVerified=true,DownloadBytes=item.Bytes,WorkshopUpdated=item.Updated};
-                    if(!EnoughDisk(map))throw new InvalidDataException("Zu wenig freier Speicher gemäß den eingestellten Workshop-Limits.");
-                    var next=maps.Where(m=>m.Id!=id).Append(map).ToList();MapPolicy.Validate(next);AtomicJson.Write(MapsPath,next);maps=next;
+                    diskReserve=Task.FromResult(space);diskReserveAt=Environment.TickCount64;
+                    if(!EnoughDisk(map))throw new InvalidDataException(poolMessage);
+                    var next=maps.Where(m=>m.Id!=id).Append(map).ToList();SaveCatalog(next);
                     job.Name=item.Name;
                     var state=workshopBackend.Read(id);
                     if(state.Installed&&!state.Updating&&!state.Downloading){job.Confirmed=true;Scan();}
@@ -137,9 +151,9 @@ public sealed partial class Plugin
     private void ShowWorkshopTest(IPlayer p)
     {
         RefreshSettings();if(!module.CanAdmin(p))return;
-        if(testDownload is not {} job){p.SendChat("[LPLK] Noch kein Workshop-Maptest angefordert.");MapTestMenu(p);return;}
+        if(testDownload is not {} job){p.SendLplkChat("[LPLK] Noch kein Workshop-Maptest angefordert.");MapTestMenu(p);return;}
         PollWorkshopTest(Environment.TickCount64,true);
-        var actions=new List<(string,Action<IPlayer>)>{("Status: "+job.Status,a=>{a.SendChat($"[LPLK] {job.Name} ({job.Id}): {job.Status}");ShowWorkshopTest(a);})};
+        var actions=new List<(string,Action<IPlayer>)>{("Status: "+job.Status,a=>{a.SendLplkChat($"[LPLK] {job.Name} ({job.Id}): {job.Status}");ShowWorkshopTest(a);})};
         if(job.Ready)actions.Add(("Starten",a=>ConfirmWorkshopTest(a,job)));
         if(job.Failed)actions.Add(("Erneut versuchen",a=>StartWorkshopTest(a,job.Id)));
         actions.Add(("Zurück",MapTestMenu));module.Menu(p,"Maptest · "+MapPolicy.Escape(job.Name),1,actions.ToArray());
@@ -148,11 +162,11 @@ public sealed partial class Plugin
     private void ConfirmWorkshopTest(IPlayer p,TestDownload job)
     {
         if(!module.CanAdmin(p)||!ReferenceEquals(testDownload,job)||!job.Ready)return;
-        module.Menu(p,"Testmap starten?",1,("Bestätigen",a=>
+        module.Menu(p,"Map jetzt starten? · "+MapPolicy.Escape(job.Name),1,("Jetzt starten",a=>
         {
             RefreshSettings();if(!module.CanAdmin(a)||!ReferenceEquals(testDownload,job))return;
-            try{StartTestMap(job);}catch(InvalidDataException e){a.SendChat("[LPLK] "+e.Message);}
-        }),("Zurück",ShowWorkshopTest));
+            try{StartTestMap(job);}catch(InvalidDataException e){a.SendLplkChat("[LPLK] "+e.Message);}
+        }),("Später",ShowWorkshopTest));
     }
     private void StartTestMap(TestDownload job)
     {
@@ -161,21 +175,22 @@ public sealed partial class Plugin
             ||!workshopBackend.Connected||!WorkshopTestPolicy.Complete(workshopBackend.Read(job.Id),job.Confirmed,TestMapFileReady(job.Id)))
             throw new InvalidDataException("Download nicht mehr vollständig verfügbar. Status neu prüfen.");
         if(pending is not null)throw new InvalidDataException("Ein anderer Mapwechsel läuft bereits.");
-        Schedule(map,settings.ChangeDelaySeconds);
+        Schedule(map,settings.ChangeDelaySeconds,manualTest:true);
     }
     private void WriteTestDownload()
     {
         if(testDownload is not {} job)return;
         if(job.StatusOption is {} option)option.Text=new MenuNumbers().Next("Status: "+MapPolicy.Escape(job.Status));
-        try{AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"workshop-test.json"),new{updatedAt=DateTimeOffset.UtcNow,id=job.Id,name=job.Name,status=job.Status,ready=job.Ready,failed=job.Failed,downloadedBytes=job.Done,totalBytes=job.Total});}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"workshop-test.json"),new{updatedAt=DateTimeOffset.UtcNow,id=job.Id,name=job.Name,status=job.Status,ready=job.Ready,failed=job.Failed,downloadedBytes=job.Done,totalBytes=job.Total});}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException){Core.Logger.LogWarning(e,"Maptest-Statusdatei konnte nicht geschrieben werden.");}
         if((job.Ready||job.Failed)&&!job.Notified)
         {
             job.Notified=true;
             if(TestDownloadOwner(job) is {} p&&module.CanAdmin(p))
             {
-                p.SendChat($"[LPLK] Maptest {job.Name} ({job.Id}): {job.Status}."+(job.Ready?" Start über Maptest → Downloadstatus → Starten.":""));
-                if(job.Menu is not null&&ReferenceEquals(Core.MenusAPI.GetCurrentMenu(p),job.Menu))ShowWorkshopTest(p);
+                p.SendLplkChat($"[LPLK] Maptest {job.Name} ({job.Id}): {job.Status}."+(job.Ready?" Start über Maptest → Downloadstatus → Starten.":""));
+                if(job.Ready)ConfirmWorkshopTest(p,job);
+                else if(job.Menu is not null&&ReferenceEquals(Core.MenusAPI.GetCurrentMenu(p),job.Menu))ShowWorkshopTest(p);
             }
         }
     }

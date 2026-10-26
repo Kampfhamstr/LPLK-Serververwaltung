@@ -39,16 +39,16 @@ public partial class AddonsCommands : IDisposable
             .Design.SetMenuFooterVisible(true).Design.SetCommentVisible(true)
             .Design.SetDefaultComment("Statusanzeige; Steuerung aus core.jsonc");
         AddButton(builder, view, "Mapstart-Pruefung: " + (WorkshopManager.MapChecksEnabled ? "AN" : "AUS"),
-            p => p.SendChat("[AddonsManager] Letzte Pruefung: " + WorkshopManager.LastMapCheck));
+            p => p.SendLplkChat("[AddonsManager] Letzte Pruefung: " + WorkshopManager.LastMapCheck));
         foreach (string id in WorkshopManager.ConfiguredAddons)
         {
             string itemId = id;
             AddButton(builder, view, itemId + ": " + WorkshopManager.AddonStatus(itemId),
-                p => p.SendChat($"[AddonsManager] {itemId}: {WorkshopManager.AddonStatus(itemId)}"));
+                p => p.SendLplkChat($"[AddonsManager] {itemId}: {WorkshopManager.AddonStatus(itemId)}"));
         }
         AddButton(builder, view, "Anzeige aktualisieren", ShowStatus);
-        AddButton(builder, view, "Steam-Verbindung und Wiederholungen", p => p.SendChat("[AddonsManager] Bei voruebergehenden Steam-Fehlern bis zu 3 Wiederholungen nach 30/60/120 Sekunden. Ohne Steam-Anmeldung wird gewartet. Ein Klick auf eine Workshop-ID zeigt den aktuellen Stand."));
-        AddButton(builder, view, "Hilfe", p => p.SendChat("[AddonsManager] Pruefung bei jedem Mapstart. Nach Download und folgendem Mapstart liest DeathEffects 0.3.4 den Katalog aus dem Addon und laedt vor. Automatische Wiederholungen erzwingen keinen Mapwechsel."));
+        AddButton(builder, view, "Steam-Verbindung und Wiederholungen", p => p.SendLplkChat("[AddonsManager] Bei voruebergehenden Steam-Fehlern bis zu 3 Wiederholungen nach 30/60/120 Sekunden. Ohne Steam-Anmeldung wird gewartet. Ein Klick auf eine Workshop-ID zeigt den aktuellen Stand."));
+        AddButton(builder, view, "Hilfe", p => p.SendLplkChat("[AddonsManager] Pruefung bei jedem Mapstart. Nach Download und folgendem Mapstart liest DeathEffects 0.3.4 den Katalog aus dem Addon und laedt vor. Automatische Wiederholungen erzwingen keinen Mapwechsel."));
         AddButton(builder, view, "Schliessen", p => Close(p.Slot));
         Close(player.Slot);
         view.Menu = builder.Build();

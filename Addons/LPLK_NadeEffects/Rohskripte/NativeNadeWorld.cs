@@ -61,7 +61,7 @@ public sealed class NativeNadeWorld(ISwiftlyCore core,Func<IPlayer,bool> admin,A
     {
         if(Same(owner) is not {} p)return;string label=NadePolicy.Label(item);
         string outcome=!settings.RemoveNades?"":removed<0?" Granaten konnten nicht vollständig entfernt werden.":removed==0?" Keine passenden Granaten im Inventar.":" Konfigurierte Granaten entfernt.";
-        p.SendChat($"[LPLK] {label}: {Chat(settings.WarnMessage)}"+outcome);
+        p.SendLplkChat($"[LPLK] {label}: {Chat(settings.WarnMessage)}"+outcome);
         if(settings.UseCenterWarning)p.SendCenterHTML($"<font color='#ff5555'>Granatenhinweis</font><br>{Html(settings.WarnMessage)}<br>{label}",settings.CenterWarningDurationMs);
         if(settings.NotifyAdminsOnTrigger)notify($"Granateneffekt: {Chat(p.Name)}, {label}."+outcome,settings);
     }

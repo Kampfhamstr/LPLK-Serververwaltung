@@ -31,25 +31,25 @@ public sealed partial class Plugin
     [Command("adminsound", registerRaw:true, helpText:"Admin-Ansage per globaler Nummer: adminsound [Nummer|s<Seite>]")]
     public void AdminSoundCommand(ICommandContext context)
     {
-        if (AuthenticatedPlayer(context) is not { } player || !RequireSoundOverride(player,context.Reply)) return;
+        if (AuthenticatedPlayer(context) is not { } player || !RequireSoundOverride(player,context.ReplyLplk)) return;
         if(context.Args.Length==0) { OpenPlayerMenu(player,()=>ShowSoundMenu(player,adminOnly:true));return; }
         if(context.Args.Length==1 && SoundMenuPolicy.TryPageToken(context.Args[0],out int page))
         {
             CommandAction(context,()=>
             {
                 int pages=SoundMenuPolicy.Page(SoundList(adminOnly:true),0).Count;
-                if(page>pages) { context.Reply($"[LPLK Sounds] Admin-Seiten: 1 bis {pages}.");return; }
+                if(page>pages) { context.ReplyLplk($"[LPLK Sounds] Admin-Seiten: 1 bis {pages}.");return; }
                 OpenPlayerMenu(player,()=>ShowSoundMenu(player,page-1,adminOnly:true));
             });
             return;
         }
         if(context.Args.Length!=1 || !SoundMenuPolicy.TryNumber(context.Args[0],out int number))
-        { context.Reply("[LPLK Sounds] !adminsounds: Adminliste; !adminsound 70: Ansage 70; !adminsound s2: Seite 2.");return; }
+        { context.ReplyLplk("[LPLK Sounds] !adminsounds: Adminliste; !adminsound 70: Ansage 70; !adminsound s2: Seite 2.");return; }
         CommandAction(context,()=>
         {
             string? id=NumberedSounds.Resolve(catalog,number);
-            if(id is null || !catalog.Sounds[id].AdminOnly) { context.Reply("[LPLK Sounds] Keine Admin-Ansage mit dieser Nummer. Liste: !adminsounds");return; }
-            BroadcastSound(player,id,context.Reply);
+            if(id is null || !catalog.Sounds[id].AdminOnly) { context.ReplyLplk("[LPLK Sounds] Keine Admin-Ansage mit dieser Nummer. Liste: !adminsounds");return; }
+            BroadcastSound(player,id,context.ReplyLplk);
         });
     }
 
@@ -57,28 +57,28 @@ public sealed partial class Plugin
     public void SoundAllCommand(ICommandContext context)
     {
         if (AuthenticatedPlayer(context) is not { } player) return;
-        if (!RequireSoundOverride(player, context.Reply)) return;
+        if (!RequireSoundOverride(player, context.ReplyLplk)) return;
         if (context.Args.Length == 0)
         { OpenPlayerMenu(player, () => ShowSoundMenu(player, adminOverride:true)); return; }
         if (context.Args.Length == 1 && context.Args[0].Equals("stop", StringComparison.OrdinalIgnoreCase))
-        { CommandAction(context, () => StopAdminSound(player, context.Reply)); return; }
+        { CommandAction(context, () => StopAdminSound(player, context.ReplyLplk)); return; }
         if (context.Args.Length == 1 && SoundMenuPolicy.TryPageToken(context.Args[0], out int page))
         {
             CommandAction(context, () =>
             {
                 int pages = SoundMenuPolicy.Page(NumberedSounds.List(catalog), 0).Count;
-                if (page > pages) { context.Reply($"[LPLK Sounds] Verfuegbare Soundseiten: 1 bis {pages}."); return; }
+                if (page > pages) { context.ReplyLplk($"[LPLK Sounds] Verfuegbare Soundseiten: 1 bis {pages}."); return; }
                 OpenPlayerMenu(player, () => ShowSoundMenu(player, page - 1, adminOverride:true));
             });
             return;
         }
         if (context.Args.Length != 1 || !SoundMenuPolicy.TryNumber(context.Args[0], out int number))
-        { context.Reply("[LPLK Sounds] !soundall 16: Sound 16 fuer alle. !soundall s6: Seite 6. !soundall stop: Adminsound stoppen."); return; }
+        { context.ReplyLplk("[LPLK Sounds] !soundall 16: Sound 16 fuer alle. !soundall s6: Seite 6. !soundall stop: Adminsound stoppen."); return; }
         CommandAction(context, () =>
         {
             string? id = NumberedSounds.Resolve(catalog, number);
-            if (id is null) { context.Reply($"[LPLK Sounds] Soundnummer {number} fehlt im aktuellen Katalog."); return; }
-            BroadcastSound(player, id, context.Reply, adminOverride:true);
+            if (id is null) { context.ReplyLplk($"[LPLK Sounds] Soundnummer {number} fehlt im aktuellen Katalog."); return; }
+            BroadcastSound(player, id, context.ReplyLplk, adminOverride:true);
         });
     }
 

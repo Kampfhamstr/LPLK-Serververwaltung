@@ -16,7 +16,7 @@ public sealed partial class Plugin
     {
         ($"Nur Kopftreffer: {Rule(id).OnlyHeadshot}",a=>{ChangeRule(id,r=>r with{OnlyHeadshot=!r.OnlyHeadshot});RuleMenu(a,id);}),
         ("Schaden",a=>DamageMenu(a,id)),
-        ("Status",a=>a.SendChat($"[LPLK] {id}: Kopftreffer={Rule(id).OnlyHeadshot}; Schaden={Rule(id).Damage??"unverändert"}. Globale Kopftreffer-/Goldene Regeln gelten zusätzlich.")),
+        ("Status",a=>a.SendLplkChat($"[LPLK] {id}: Kopftreffer={Rule(id).OnlyHeadshot}; Schaden={Rule(id).Damage??"unverändert"}. Globale Kopftreffer-/Goldene Regeln gelten zusätzlich.")),
         ("Zurücksetzen",a=>ConfirmRemove(a,id))
     },SpecialRules);
     private void ConfirmRemove(IPlayer p,string id)

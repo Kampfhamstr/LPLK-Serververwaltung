@@ -5,11 +5,11 @@ public sealed partial class Plugin
 {
     private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,title,()=>module.Active,module.CanAdmin,rows,back);
     private void OpenAdmin(IPlayer p) => Page(p,"LPLK · Fallschirm",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Bewegung",MovementMenuRows(actor))));
-    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{("Status",a=>a.SendChat($"[LPLK] Fallschirm: {(settings.Enabled?"AN":"AUS")}; sv_parachute={enabledConvar?.Value}; Falltempo={settings.FallSpeed}; Bremse={settings.BrakePerTick}; Konfiguration={config.Error??"gültig"}."))}))(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{("Status",a=>a.SendLplkChat($"[LPLK] Fallschirm: {(settings.Enabled?"AN":"AUS")}; sv_parachute={enabledConvar?.Value}; Falltempo={settings.FallSpeed}; Bremse={settings.BrakePerTick}; Konfiguration={config.Error??"gültig"}."))}))(p);
     private void SettingsMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
-        ($"Aktiv: {settings.Enabled}",a=>{Apply(s=>s with{Enabled=!s.Enabled},a);SettingsMenu(a);}),        ($"Geiselsperre: {settings.DisableWhenCarryingHostage}",a=>{Apply(s=>s with{DisableWhenCarryingHostage=!s.DisableWhenCarryingHostage},a);SettingsMenu(a);}),        ("Berechtigung",a=>a.SendChat("[LPLK] Benötigtes Nutzungsrecht: "+(settings.UsePermission.Length==0?"keines":settings.UsePermission)+" (UsePermission in settings.json)."))
+        ($"Aktiv: {settings.Enabled}",a=>{Apply(s=>s with{Enabled=!s.Enabled},a);SettingsMenu(a);}),        ($"Geiselsperre: {settings.DisableWhenCarryingHostage}",a=>{Apply(s=>s with{DisableWhenCarryingHostage=!s.DisableWhenCarryingHostage},a);SettingsMenu(a);}),        ("Berechtigung",a=>a.SendLplkChat("[LPLK] Benötigtes Nutzungsrecht: "+(settings.UsePermission.Length==0?"keines":settings.UsePermission)+" (UsePermission in settings.json)."))
     }))(p);
     private void MovementMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> MovementMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]

@@ -13,12 +13,12 @@ public sealed partial class Plugin
     public void Command(ICommandContext context)
     {
         if(context.Sender is {} player){OpenAdmin(player);return;}
-        WriteStatus();context.Reply($"LPLK_ChatGuard 0.1.4: enabled={_config.Enabled}; bridge={BridgePresent}; filterContract={_active}; bridgeFilterReady={BridgeFilterReady()}; localData=true; exportedIdentities=0; configError={_configError??"none"}");
+        WriteStatus();context.ReplyLplk($"LPLK_ChatGuard 0.1.11: enabled={_config.Enabled}; bridge={BridgePresent}; filterContract={_active}; bridgeFilterReady={BridgeFilterReady()}; localData=true; exportedIdentities=0; configError={_configError??"none"}");
     }
     private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,title,()=>_active,_module.CanAdmin,rows,back);
     private void OpenAdmin(IPlayer p) => Page(p,"LPLK · Chat / Werbeschutz",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Schutz",ProtectionMenuRows(actor)),("Sanktionen",SanctionsMenuRows(actor)),("Meldung",MessagesMenuRows(actor)),("Regeln",RulesMenuRows(actor))));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
-("Status",a=>a.SendChat($"[LPLK] Werbeschutz: {(_config.Enabled?"AN":"AUS")}; Sperrdomains={_config.BlockedDomains.Count}; Freigaben={_config.AllowedDomains.Count}; aktive Gags={_gagUntil.Count}; Konfiguration={_configError??"gültig"}."))}))(p);
+("Status",a=>a.SendLplkChat($"[LPLK] Werbeschutz: {(_config.Enabled?"AN":"AUS")}; Sperrdomains={_config.BlockedDomains.Count}; Freigaben={_config.AllowedDomains.Count}; aktive Gags={_gagUntil.Count}; Konfiguration={_configError??"gültig"}."))}))(p);
     private void SettingsMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
 }))(p);
@@ -34,7 +34,7 @@ public sealed partial class Plugin
         ($"Namen maskieren: {_config.MaskAdvertisingPlayerNames}",a=>Change(a,c=>c.MaskAdvertisingPlayerNames=!c.MaskAdvertisingPlayerNames,MessagesMenu)),        ($"Joinfilter: {_config.CensorAdvertisingSystemMessages}",a=>Change(a,c=>c.CensorAdvertisingSystemMessages=!c.CensorAdvertisingSystemMessages,MessagesMenu)),        ($"Leavefilter: {_config.SuppressAdvertisingDisconnectMessages}",a=>Change(a,c=>c.SuppressAdvertisingDisconnectMessages=!c.SuppressAdvertisingDisconnectMessages,MessagesMenu)),        ($"Serverfilter: {_config.SuppressAdvertisingServerMessages}",a=>Change(a,c=>c.SuppressAdvertisingServerMessages=!c.SuppressAdvertisingServerMessages,MessagesMenu)),        ($"Erfolgsmeldung: {_config.BroadcastSuccess}",a=>Change(a,c=>c.BroadcastSuccess=!c.BroadcastSuccess,MessagesMenu)),        ($"Namensanzeige: {_config.BroadcastOffenderName}",a=>Change(a,c=>c.BroadcastOffenderName=!c.BroadcastOffenderName,MessagesMenu)),        ($"Textprotokoll: {_config.LogBlockedText}",a=>Change(a,c=>c.LogBlockedText=!c.LogBlockedText,MessagesMenu)),        ("Ersatzname",a=>Input(a,"Ersatzname",_config.CensoredPlayerName,v=>Change(a,c=>c.CensoredPlayerName=v,MessagesMenu),MessagesMenu,24))}))(p);
     private void RulesMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> RulesMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
-        ($"Sperrdomains ({_config.BlockedDomains.Count})",a=>ListMenu(a,0)),        ($"Freigaben ({_config.AllowedDomains.Count})",a=>ListMenu(a,1)),        ($"Marketing ({_config.MarketingKeywords.Count})",a=>ListMenu(a,2)),        ("Zentralregeln",a=>a.SendChat($"[LPLK] Testkopie: {_globalBlockedDomains.Count} Sperrdomains, {_globalAllowedDomains.Count} erlaubte Domains, {_globalBlockedPhrases.Count} Sperrphrasen. Keine produktiven Werbeidentitäten übernommen."))}))(p);
+        ($"Sperrdomains ({_config.BlockedDomains.Count})",a=>ListMenu(a,0)),        ($"Freigaben ({_config.AllowedDomains.Count})",a=>ListMenu(a,1)),        ($"Marketing ({_config.MarketingKeywords.Count})",a=>ListMenu(a,2)),        ("Zentralregeln",a=>a.SendLplkChat($"[LPLK] Testkopie: {_globalBlockedDomains.Count} Sperrdomains, {_globalAllowedDomains.Count} erlaubte Domains, {_globalBlockedPhrases.Count} Sperrphrasen. Keine produktiven Werbeidentitäten übernommen."))}))(p);
     private static List<string> List(AntiAdConfig c,int kind)=>kind==0?c.BlockedDomains:kind==1?c.AllowedDomains:c.MarketingKeywords;
     private void ListMenu(IPlayer p,int kind)=>Page(p,kind==0?"Sperrdomains":kind==1?"Erlaubte Domains":"Marketingbegriffe",_=>
     {
@@ -61,7 +61,7 @@ public sealed partial class Plugin
         if(!_module.CanAdmin(actor))return;
         try{_settingsStore.Change(edit);_configError=null;Core.Logger.LogInformation("LPLK_ChatGuard: Einstellungen durch berechtigten Admin gespeichert; sofort wirksam.");}
         catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
-        {_configError=_settingsStore.Error??e.GetType().Name;actor.SendChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
+        {_configError=_settingsStore.Error??e.GetType().Name;actor.SendLplkChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
         // A valid external update remains authoritative even when this menu edit fails.
         if(!ReferenceEquals(_config,_settingsStore.Current)){_config=_settingsStore.Current;_nameChecked.Clear();}
         WriteStatus();back(actor);

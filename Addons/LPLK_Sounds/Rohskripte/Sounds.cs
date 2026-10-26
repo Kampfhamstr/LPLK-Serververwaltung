@@ -32,14 +32,14 @@ public sealed partial class Plugin
     {
         if (!ConsoleOnly(context)) return;
         if (context.Args.Length == 0)
-        { context.Reply("[LPLK Sounds] Tote spielen nur fuer Tote: " + (config.DeadPlayersOnlyToDead ? "AN" : "AUS") + ". Aendern: lplk_sound_deadonly on/off"); return; }
+        { context.ReplyLplk("[LPLK Sounds] Tote spielen nur fuer Tote: " + (config.DeadPlayersOnlyToDead ? "AN" : "AUS") + ". Aendern: lplk_sound_deadonly on/off"); return; }
         if (context.Args.Length != 1 || context.Args[0] is not ("on" or "off"))
-        { context.Reply("lplk_sound_deadonly <on|off>"); return; }
+        { context.ReplyLplk("lplk_sound_deadonly <on|off>"); return; }
         CommandAction(context, () =>
         {
             bool enabled = context.Args[0] == "on";
             ChangeConfiguration(c=>c.DeadPlayersOnlyToDead=enabled);
-            context.Reply("[LPLK Sounds] Tote spielen nur fuer Tote: " + (enabled ? "AN" : "AUS") + " (gespeichert). Das Rundenlimit bleibt bei drei Sounds pro Spieler; Admins sind ausgenommen.");
+            context.ReplyLplk("[LPLK Sounds] Tote spielen nur fuer Tote: " + (enabled ? "AN" : "AUS") + " (gespeichert). Das Rundenlimit bleibt bei drei Sounds pro Spieler; Admins sind ausgenommen.");
         });
     }
 
@@ -49,12 +49,12 @@ public sealed partial class Plugin
         if (AuthenticatedPlayer(context) is not { } player) return;
         if (context.Args.Length == 0)
         {
-            context.Reply("[LPLK Sounds] " + ListeningSummary(player) + " Einstellungen: !sound.");
+            context.ReplyLplk("[LPLK Sounds] " + ListeningSummary(player) + " Einstellungen: !sound.");
             return;
         }
         if (context.Args.Length != 1 || context.Args[0].ToLowerInvariant() is not ("on" or "off"))
-        { context.Reply("[LPLK Sounds] lplk_sound_listen <on|off>"); return; }
-        CommandAction(context, () => SetListening(player, context.Args[0].Equals("on", StringComparison.OrdinalIgnoreCase), context.Reply));
+        { context.ReplyLplk("[LPLK Sounds] lplk_sound_listen <on|off>"); return; }
+        CommandAction(context, () => SetListening(player, context.Args[0].Equals("on", StringComparison.OrdinalIgnoreCase), context.ReplyLplk));
     }
 
     private void SetListening(IPlayer player, bool enabled, Action<string> reply)
@@ -69,11 +69,11 @@ public sealed partial class Plugin
     {
         if (AuthenticatedPlayer(context) is not { } player) return;
         if (context.Args.Length == 0)
-        { context.Reply("[LPLK Sounds] " + ListeningSummary(player) + " Lautstaerke: !soundvolume 0-100"); return; }
+        { context.ReplyLplk("[LPLK Sounds] " + ListeningSummary(player) + " Lautstaerke: !soundvolume 0-100"); return; }
         if (context.Args.Length != 1 || !int.TryParse(context.Args[0], System.Globalization.NumberStyles.None,
             System.Globalization.CultureInfo.InvariantCulture, out int volume) || volume is < 0 or > 100)
-        { context.Reply("[LPLK Sounds] !soundvolume <0-100>, zum Beispiel !soundvolume 40"); return; }
-        CommandAction(context, () => SetSoundVolume(player, volume, context.Reply));
+        { context.ReplyLplk("[LPLK Sounds] !soundvolume <0-100>, zum Beispiel !soundvolume 40"); return; }
+        CommandAction(context, () => SetSoundVolume(player, volume, context.ReplyLplk));
     }
 
     private string ListeningSummary(IPlayer player)
@@ -123,8 +123,8 @@ public sealed partial class Plugin
     public void PlaySoundCommand(ICommandContext context)
     {
         if (AuthenticatedPlayer(context) is not { } player) return;
-        if (context.Args.Length != 1) { context.Reply("[LPLK Sounds] lplk_sound_play <id>"); return; }
-        CommandAction(context, () => BroadcastSound(player, context.Args[0].ToLowerInvariant(), context.Reply));
+        if (context.Args.Length != 1) { context.ReplyLplk("[LPLK Sounds] lplk_sound_play <id>"); return; }
+        CommandAction(context, () => BroadcastSound(player, context.Args[0].ToLowerInvariant(), context.ReplyLplk));
     }
 
     private bool BroadcastSound(IPlayer source, string id, Action<string>? reply = null, bool adminOverride = false)

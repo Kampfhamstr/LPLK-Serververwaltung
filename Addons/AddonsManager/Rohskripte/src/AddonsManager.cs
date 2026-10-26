@@ -11,7 +11,7 @@ using AddonsManager.Clients;
 
 namespace AddonsManager;
 
-[PluginMetadata(Id = "AddonsManager", Version = "2.0.3-lplk.3", Name = "Addons Manager", Author = "Swiftly Development Team; LPLK", Description = "Workshop mounts and game-data correction for CS2 2000930", MinimumAPIVersion = "1.4.13")]
+[PluginMetadata(Id = "AddonsManager", Version = "2.0.3-lplk.6", Name = "Addons Manager", Author = "Swiftly Development Team; LPLK", Description = "Workshop mounts and game-data correction for CS2 2000930", MinimumAPIVersion = "1.4.13")]
 public class AddonsManager(ISwiftlyCore core) : BasePlugin(core)
 {
     public IServiceProvider? ServiceProvider;
@@ -26,12 +26,12 @@ public class AddonsManager(ISwiftlyCore core) : BasePlugin(core)
     }
 
     public override void Load(bool hotReload)
-    {
+    { ChatTheme.Initialize("AddonsManager",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         Core.Configuration
             .InitializeJsonWithModel<AddonsConfig>("config.jsonc", "Main")
             .Configure(builder =>
             {
-                builder.AddJsonFile("config.jsonc", optional: false, reloadOnChange: true);
+                builder.AddJsonFile("config.jsonc", optional: false, reloadOnChange: false);
             });
 
         ServiceCollection services = new();

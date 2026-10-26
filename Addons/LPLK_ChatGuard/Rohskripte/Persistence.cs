@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text;
@@ -36,7 +40,7 @@ public sealed partial class Plugin
     private void EnsureDefaultConfig()
     {
         if (File.Exists(_configPath)) return;
-        string seed=Path.Combine(Core.PluginPath,"resources","settings.seed.json");
+        string seed=Path.Combine(LPLK.Common.RoundFileStore.PluginPath(Core),"resources","settings.seed.json");
         var initial=File.Exists(seed)?JsonSerializer.Deserialize<AntiAdConfig>(File.ReadAllText(seed),_json)??throw new InvalidDataException("Leere Startkonfiguration."):AntiAdConfig.CreateDefault();
         ChatGuardPolicy.Validate(initial);SaveConfig(initial);
     }
@@ -68,7 +72,7 @@ public sealed partial class Plugin
                 action,
                 text = _config.LogBlockedText ? SanitizeForLog(text ?? string.Empty) : null
             }, _json);
-            lock (_logSync) File.AppendAllText(_eventsLog, line + Environment.NewLine);
+            lock (_logSync) RoundData.Append(_eventsLog,line);
             QueueGlobalEvent(type, steamId, playerName, match, action, text);
         }
         catch (Exception ex)

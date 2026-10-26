@@ -1,0 +1,1 @@
+Set LPLK_BUILD_ROOT to a local temporary build directory. Use .NET 10. For a component: dotnet restore Addons/NAME/Rohskripte/NAME.csproj --locked-mode ; dotnet publish Addons/NAME/Rohskripte/NAME.csproj -c Release --no-restore. The native SQLite library and original licenses are included. Each plugin retains its original license. No credentials or server data are included.

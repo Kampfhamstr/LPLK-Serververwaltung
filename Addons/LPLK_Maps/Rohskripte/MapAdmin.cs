@@ -14,7 +14,7 @@ public sealed partial class Plugin
         var actions=new List<(string,Action<IPlayer>)>();
         if(settings.Enabled&&!settings.MeasurementOnly)
         {
-            actions.Add(("RTV",p=>{if(!StartVote(Reason.Admin))p.SendChat("[LPLK] Abstimmung momentan nicht verfügbar.");}));
+            actions.Add(("RTV",p=>{if(!StartVote(Reason.Admin))p.SendLplkChat("[LPLK] Abstimmung momentan nicht verfügbar.");}));
             actions.Add(("Nominieren",p=>p.ExecuteCommand("sw_nominate")));
         }
         actions.Add(("Mapwechsel",MapChangeGroups));
@@ -42,21 +42,21 @@ public sealed partial class Plugin
     private void MapSettingsMenu(IPlayer player)=>module.Menu(player,"Einstellungen",1,new (string,Action<IPlayer>)[]{
         ("Grenzen",OpenLimitReview),
         ("Mapliste",p=>Selection(p,"LPLK · Mapverwaltung",maps.Where(m=>m.IsMap&&!settings.ExcludedWorkshopIds.Contains(m.Id)).OrderBy(m=>m.Name).ToList(),OpenMap)),
-        ("Abgleichen",p=>{Scan();RefreshCollection();p.SendChat("[LPLK] "+poolMessage);WriteStatus();}),
+        ("Abgleichen",p=>{Scan();RefreshCollection();p.SendLplkChat("[LPLK] "+poolMessage);WriteStatus();}),
         }.Concat(WorkshopRows()).Concat(RuleRows()).Append(("Zurück",(Action<IPlayer>)OpenAdmin)).ToArray());
     private void OpenLimitReview(IPlayer player)=>Selection(player,"LPLK · Grenzen: Freigabe offen",maps.Where(m=>MapPolicy.Measured(m)&&!MapPolicy.LimitsApproved(m)).OrderBy(m=>m.Name).ToList(),OpenLimitProposal);
     private void OpenLimitProposal(IPlayer player,MapEntry selected)
     {
         if(!module.CanAdmin(player))return;var map=maps.FirstOrDefault(m=>m.Id==selected.Id);
-        if(map is null||!MapPolicy.Measured(map)||map.LimitProposal is not {} proposal){player.SendChat("[LPLK] Noch keine bestätigte Messung verfügbar.");return;}
-        player.SendChat($"[LPLK] {map.Name}: bisher {map.MinPlayers}–{map.MaxPlayers}, Vorschlag {proposal.MinPlayers}–{proposal.MaxPlayers}. T/CT-Spawns {map.TSpawns}/{map.CtSpawns}; Bombenplätze {map.BombSites}; Geiseln {map.Hostages}; Reserve {proposal.Reserve}.");
+        if(map is null||!MapPolicy.Measured(map)||map.LimitProposal is not {} proposal){player.SendLplkChat("[LPLK] Noch keine bestätigte Messung verfügbar.");return;}
+        player.SendLplkChat($"[LPLK] {map.Name}: bisher {map.MinPlayers}–{map.MaxPlayers}, Vorschlag {proposal.MinPlayers}–{proposal.MaxPlayers}. T/CT-Spawns {map.TSpawns}/{map.CtSpawns}; Bombenplätze {map.BombSites}; Geiseln {map.Hostages}; Reserve {proposal.Reserve}.");
         module.Menu(player,"LPLK · "+MapPolicy.Escape(map.Name),
             ("Messwerte",a=>OpenLimitProposal(a,map)),
             ("Übernehmen",a=>
             {
                 var current=maps.First(m=>m.Id==map.Id);
-                try{ReplaceMap(MapPolicy.ApproveLimits(current,proposal.Signature));WriteStatus();a.SendChat("[LPLK] Genau diese Grenzen freigegeben. Manuelle Sperren und Prüfmodus bleiben unverändert.");OpenLimitReview(a);}
-                catch(InvalidDataException e){a.SendChat("[LPLK] "+e.Message);OpenLimitProposal(a,current);}
+                try{ReplaceMap(MapPolicy.ApproveLimits(current,proposal.Signature));WriteStatus();a.SendLplkChat("[LPLK] Genau diese Grenzen freigegeben. Manuelle Sperren und Prüfmodus bleiben unverändert.");OpenLimitReview(a);}
+                catch(InvalidDataException e){a.SendLplkChat("[LPLK] "+e.Message);OpenLimitProposal(a,current);}
             }),
             ("Abbrechen",OpenLimitReview));
     }
@@ -69,9 +69,9 @@ public sealed partial class Plugin
             ($"Pool: {(map.Enabled?"Ja":"Nein")}",a=>{var current=maps.First(m=>m.Id==map.Id);ReplaceMap(current with{Enabled=!current.Enabled});OpenMap(a,current);}),
             ($"Gesperrt: {(map.Removed?"Ja":"Nein")}",a=>{var current=maps.First(m=>m.Id==map.Id);ReplaceMap(current with{Removed=!current.Removed});OpenMap(a,current);}),
             ($"Spielergrenze: {map.MinPlayers}–{map.MaxPlayers}",a=>Input(a,"Maximale Spielerzahl (0 = automatisch)",3,v=>int.TryParse(v,out int n)&&n is >=0 and <=128,(actor,v)=>
-            {int value=int.Parse(v);var current=maps.First(m=>m.Id==map.Id);ReplaceMap(current with{ConfiguredMaxPlayers=value==0?null:value,MeasuredAt=null,LastProbeAt=null,ProbeError=null});if(MapPolicy.Confirmed(current,CurrentMap,Workshop))MeasureCurrent(actor);else actor.SendChat("[LPLK] Grenze gespeichert; automatische Neuprüfung vorgemerkt.");})),
-            ("Neu prüfen",a=>{var current=maps.First(m=>m.Id==map.Id);ReplaceMap(current with{MeasuredAt=null,LastProbeAt=null,ProbeError=null});a.SendChat("[LPLK] Automatische Prüfung vorgemerkt.");}),
-            ("Messwerte",a=>a.SendChat($"[LPLK] T-Spawns: {map.TSpawns?.ToString()??"?"}; CT: {map.CtSpawns?.ToString()??"?"}; Bombenplätze: {map.BombSites?.ToString()??"?"}; Geiseln: {map.Hostages?.ToString()??"?"}. {map.ProbeError}")));
+            {int value=int.Parse(v);var current=maps.First(m=>m.Id==map.Id);ReplaceMap(current with{ConfiguredMaxPlayers=value==0?null:value,MeasuredAt=null,LastProbeAt=null,ProbeError=null});if(MapPolicy.Confirmed(current,CurrentMap,Workshop))MeasureCurrent(actor);else actor.SendLplkChat("[LPLK] Grenze gespeichert; automatische Neuprüfung vorgemerkt.");})),
+            ("Neu prüfen",a=>{var current=maps.First(m=>m.Id==map.Id);ReplaceMap(current with{MeasuredAt=null,LastProbeAt=null,ProbeError=null});a.SendLplkChat("[LPLK] Automatische Prüfung vorgemerkt.");}),
+            ("Messwerte",a=>a.SendLplkChat($"[LPLK] T-Spawns: {map.TSpawns?.ToString()??"?"}; CT: {map.CtSpawns?.ToString()??"?"}; Bombenplätze: {map.BombSites?.ToString()??"?"}; Geiseln: {map.Hostages?.ToString()??"?"}. {map.ProbeError}")));
     }
     private void OpenWorkshop(IPlayer p)=>MapSettingsMenu(p);
     private IReadOnlyList<(string,Action<IPlayer>)> WorkshopRows()=>new (string,Action<IPlayer>)[]{
@@ -82,8 +82,8 @@ public sealed partial class Plugin
     };
     private void Apply(Func<MapSettings,MapSettings> edit,IPlayer p)
     {
-        try{ChangeConfiguration(edit,true,_=>module.CanAdmin(p));p.SendChat("[LPLK] Regeln gespeichert.");OpenAdmin(p);}
-        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException){p.SendChat("[LPLK] Regeln nicht gespeichert: "+e.Message);}
+        try{ChangeConfiguration(edit,true,_=>module.CanAdmin(p));p.SendLplkChat("[LPLK] Regeln gespeichert.");OpenAdmin(p);}
+        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException){p.SendLplkChat("[LPLK] Regeln nicht gespeichert: "+e.Message);}
     }
     private static readonly Dictionary<string,string> Labels=new()
     {
@@ -120,8 +120,9 @@ public sealed partial class Plugin
         [nameof(MapSettings.FallbackRandomMap)]="Ersatzmap",[nameof(MapSettings.ChangeDelaySeconds)]="RTV-Wechselverzögerung",[nameof(MapSettings.MatchEndDelaySeconds)]="Endverzögerung",
         [nameof(MapSettings.VerifySeconds)]="Mapwechsel-Prüfintervall",[nameof(MapSettings.MaxAttempts)]="Wechselversuche",[nameof(MapSettings.SetNextLevel)]="Nextlevel",
         [nameof(MapSettings.RequireVpkFile)]="Dateiprüfung",[nameof(MapSettings.RescanOnMapLoad)]="Startprüfung",[nameof(MapSettings.RescanBeforeVote)]="Voteprüfung",
+        [nameof(MapSettings.IdleRotationMinutes)]="Leerlaufwechsel (Minuten, 0 = aus)",[nameof(MapSettings.RotateStartupMap)]="Wechselnde Startmap",
         [nameof(MapSettings.AutoVoteMinutes)]="Zeitvote",[nameof(MapSettings.PoolRefreshMinutes)]="Abgleichintervall",[nameof(MapSettings.EmptySecondsBeforeProbe)]="Prüfwartezeit",
-        [nameof(MapSettings.MaxWorkshopGiB)]="Speicherlimit",[nameof(MapSettings.MinimumFreeDiskGiB)]="Speicherreserve"
+        [nameof(MapSettings.MaxWorkshopGiB)]="Mapspeicher (GiB, 0 = unbegrenzt)",[nameof(MapSettings.MinimumFreeDiskGiB)]="Reserve (GiB)"
     };
     private void OpenRules(IPlayer p)=>MapSettingsMenu(p);
     private IReadOnlyList<(string,Action<IPlayer>)> RuleRows()
@@ -144,7 +145,7 @@ public sealed partial class Plugin
         GameThreadMenu.BindInput(Core,input,player,()=>module.Active&&serial==generation,(actor,value)=>
         {
             if(actor.SteamID==owner&&module.CanAdmin(actor))
-            {try{change(actor,value);}catch(InvalidDataException e){actor.SendChat("[LPLK] "+e.Message);}}
+            {try{change(actor,value);}catch(InvalidDataException e){actor.SendLplkChat("[LPLK] "+e.Message);}}
         });
         var back=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};
         GameThreadMenu.Bind(Core,back,player,()=>module.Active&&serial==generation,a=>{if(module.CanAdmin(a))OpenAdmin(a);});

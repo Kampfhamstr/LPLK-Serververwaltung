@@ -24,12 +24,12 @@ public sealed partial class Plugin
         if (AuthenticatedPlayer(context) is not { } player) return;
         if (context.Args.Length == 0) { OpenPlayerMenu(player,()=>ShowSendSoundMenu(player)); return; }
         if (context.Args.Length != 1 || !SoundMenuPolicy.TryNumber(context.Args[0],out int number))
-        { context.Reply("[LPLK Sounds] !soundsend <Soundnummer> oder !soundsend fuer die Liste."); return; }
+        { context.ReplyLplk("[LPLK Sounds] !soundsend <Soundnummer> oder !soundsend fuer die Liste."); return; }
         CommandAction(context,()=>
         {
             var entry = NumberedSounds.List(catalog).FirstOrDefault(s=>s.Number == number);
-            if (entry is null) { context.Reply("[LPLK Sounds] Unbekannte Soundnummer."); return; }
-            if (!RequireSoundAccess(player,entry.Id,context.Reply)) return;
+            if (entry is null) { context.ReplyLplk("[LPLK Sounds] Unbekannte Soundnummer."); return; }
+            if (!RequireSoundAccess(player,entry.Id,context.ReplyLplk)) return;
             OpenPlayerMenu(player,()=>ShowSoundRecipients(player,entry,0,p=>ShowSendSoundMenu(p)));
         });
     }
@@ -63,10 +63,10 @@ public sealed partial class Plugin
         if (!RequireSoundAccess(player,entry.Id,m=>Reply(player,m))) return;
         var targets=Core.PlayerManager.GetAllPlayers().Where(p=>RealSoundPlayer(p) && p.SteamID!=player.SteamID)
             .OrderBy(p=>p.Slot).ToArray();
-        int pages=Math.Max(1,(targets.Length+9)/10),page=Math.Clamp(pageIndex,0,pages-1);
+        int pages=1,page=0;
         var owner=new OwnedMenu(player.Slot,player.SteamID);
         var builder=MenuBuilder(PrivateSoundLimitTitle(player,$"Empfänger {page+1}/{pages}: {MenuPolicy.Label(entry.Title)}"));
-        foreach (var target in targets.Skip(page*10).Take(10))
+        foreach (var target in targets)
         {
             var identity=new SoundRecipient(target.Slot,target.SteamID);
             string label=MenuPolicy.Label(SoundPlayerName(target))+" · "+(AliveForSounds(target)?"lebend":"tot/Zuschauer");
@@ -158,10 +158,10 @@ public sealed partial class Plugin
         var connected=Core.PlayerManager.GetAllPlayers().Where(p=>RealSoundPlayer(p) && p.SteamID!=player.SteamID)
             .DistinctBy(p=>p.SteamID).ToDictionary(p=>p.SteamID.ToString(),SoundPlayerName);
         var ids=connected.Keys.Concat(blocked).Distinct().OrderBy(id=>connected.GetValueOrDefault(id)??id,StringComparer.OrdinalIgnoreCase).ToArray();
-        int pages=Math.Max(1,(ids.Length+9)/10),page=Math.Clamp(pageIndex,0,pages-1);
+        int pages=1,page=0;
         var owner=new OwnedMenu(player.Slot,player.SteamID);
         var builder=MenuBuilder($"Private Sounds blockieren {page+1}/{pages}");
-        foreach(string id in ids.Skip(page*10).Take(10))
+        foreach(string id in ids)
         {
             string name=connected.GetValueOrDefault(id)??("Offline: "+id);
             Button(builder,owner,(blocked.Contains(id)?"[BLOCKIERT] ":"[ERLAUBT] ")+MenuPolicy.Label(name),p=>

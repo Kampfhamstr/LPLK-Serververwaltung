@@ -24,7 +24,7 @@ public partial class AddonsCommands
     {
         if (context.IsSentByPlayer)
         {
-            context.Reply("[AddonsManager] This command can only be used from the server console.");
+            context.ReplyLplk("[AddonsManager] This command can only be used from the server console.");
             return;
         }
 
@@ -36,13 +36,13 @@ public partial class AddonsCommands
     {
         if (context.IsSentByPlayer)
         {
-            context.Reply("[AddonsManager] This command can only be used from the server console.");
+            context.ReplyLplk("[AddonsManager] This command can only be used from the server console.");
             return;
         }
 
         if (context.Args.Length < 1)
         {
-            context.Reply("[AddonsManager] Usage: downloadaddon <workshop_id>");
+            context.ReplyLplk("[AddonsManager] Usage: downloadaddon <workshop_id>");
             return;
         }
 
@@ -52,8 +52,8 @@ public partial class AddonsCommands
     [Command("addonupdates")]
     public void UpdateStatus(ICommandContext context)
     {
-        context.Reply($"[AddonsManager 2.0.3-dc.2] Pruefung bei jedem Mapstart: {WorkshopManager.MapChecksEnabled}; letzte Pruefung: {WorkshopManager.LastMapCheck}.");
+        context.ReplyLplk($"[AddonsManager] Pruefung bei jedem Mapstart: {WorkshopManager.MapChecksEnabled}; letzte Pruefung: {WorkshopManager.LastMapCheck}.");
         foreach (string id in WorkshopManager.ConfiguredAddons)
-            context.Reply($"[AddonsManager] {id}: {WorkshopManager.AddonStatus(id)}");
+            context.ReplyLplk($"[AddonsManager] {id}: {WorkshopManager.AddonStatus(id)}");
     }
 }

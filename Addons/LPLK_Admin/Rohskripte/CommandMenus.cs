@@ -32,7 +32,7 @@ public sealed partial class Plugin
     {
         var rows=new List<(string,Action<IPlayer>)>();
         foreach(var name in AdminCommandNames.Groups[group])
-            rows.Add((name,a=>a.SendChat("[LPLK] Fester Befehl: !"+name+" / sw_"+name+". Ein freier direkter Konsolenname wird zusätzlich registriert.")));
+            rows.Add((name,a=>a.SendLplkChat("[LPLK] Fester Befehl: !"+name+" / sw_"+name+". Ein freier direkter Konsolenname wird zusätzlich registriert.")));
         var aliases=Aliases(settings,group).Except(AdminCommandNames.Groups[group]).ToArray();
         foreach(var name in aliases)rows.Add((name,a=>CommandAliasMenu(a,group,name,groupsPage,page)));
         if(Aliases(settings,group).Length<16)rows.Add(("Hinzufügen",a=>SettingInput(a,"Befehlsname",43,ValidAlias,

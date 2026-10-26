@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using LPLK.Common;
@@ -11,35 +15,51 @@ public sealed record WebBankSettings
 }
 public sealed partial class Plugin
 {
-    private long nextWebExport;
-    private readonly Queue<string> webAccounts=[];
+    private readonly ExportWriter exportWriter=new();
+    private DateTimeOffset? lastWebExportAt;
     private string? webError;
+    private Task<(DateTimeOffset At,long Milliseconds)>? webExportTask;
+    private bool webExportRequested;
+    private long webExportMs;
     private void ExportWeb()
     {
         if(!Active||!settings.WebBank.ExportEnabled)return;
+        webExportRequested=true;CompleteWebExport();
+    }
+    private void CompleteWebExport(bool wait=false)
+    {
+        if(webExportTask is not null&&(wait||webExportTask.IsCompleted))
+        {
+            try{var result=webExportTask.GetAwaiter().GetResult();lastWebExportAt=result.At;webExportMs=result.Milliseconds;webError=exportWriter.Error;}
+            catch{webError="Webexport nicht verfügbar; Kontobuchungen bleiben unabhängig davon aktiv.";}
+            webExportTask=null;
+        }
+        if(webExportTask is not null||!webExportRequested)return;
+        webExportRequested=false;
         try
         {
-            if(Environment.TickCount64>=nextWebExport&&webAccounts.Count==0)
-            {
-                nextWebExport=Environment.TickCount64+30000;
-                foreach(var a in bank!.Accounts(int.MaxValue))webAccounts.Enqueue(a.Id);
-                AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"web","ranking.json"),bank.WebRanking(DateTimeOffset.UtcNow));
-            }
-            for(int i=0;i<32&&webAccounts.TryPeek(out var account);i++)
-            {
-                AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"web",account+".json"),bank!.WebPlayer(account,DateTimeOffset.UtcNow));webAccounts.Dequeue();
-            }
-            webError=null;
+            var read=bank!.CreateWebSnapshotReader();var persisted=bank.WaitForRoundPersistence();string directory=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"web");
+            // Separate read-only connection: no shared connection/lock or engine
+            // access on the worker. Both database reads and serialization stay
+            // outside the last-kill/round-end game callback.
+            webExportTask=Task.Run(async()=>{
+                await persisted.ConfigureAwait(false);
+                var timer=System.Diagnostics.Stopwatch.StartNew();var at=DateTimeOffset.UtcNow;
+                foreach(var item in read(at))exportWriter.Queue(Path.Combine(directory,item.Key),item.Value);
+                exportWriter.Drain();if(exportWriter.Error is not null)throw new IOException("Round export incomplete");
+                return (at,timer.ElapsedMilliseconds);
+            });
         }
         catch {webError="Webexport nicht verfügbar; Kontobuchungen bleiben unabhängig davon aktiv.";}
+        if(wait&&webExportTask is not null)CompleteWebExport(true);
     }
     [Command("lplk_bank_request")][CommandAlias("lplk_bank_request",registerRaw:true)]
     public void WebBankCommand(ICommandContext ctx)
     {
-        if(ctx.Sender is not null){ctx.Reply("Dieser Befehl ist nur für die authentifizierte Serververwaltung vorgesehen.");return;}
-        if(ctx.Args.Length!=1||ctx.Args[0].Length!=32||!ctx.Args[0].All(char.IsAsciiHexDigit)){ctx.Reply("Ungültige Auftragsnummer.");return;}
-        string id=ctx.Args[0];string root=Path.Combine(Core.PluginDataDirectory,"web-requests");
-        string path=Path.Combine(root,id+".json"),result=Path.Combine(Core.PluginDataDirectory,"web-results",id+".json");
+        if(ctx.Sender is not null){ctx.ReplyLplk("Dieser Befehl ist nur für die authentifizierte Serververwaltung vorgesehen.");return;}
+        if(ctx.Args.Length!=1||ctx.Args[0].Length!=32||!ctx.Args[0].All(char.IsAsciiHexDigit)){ctx.ReplyLplk("Ungültige Auftragsnummer.");return;}
+        string id=ctx.Args[0];string root=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"web-requests");
+        string path=Path.Combine(root,id+".json"),result=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"web-results",id+".json");
         try
         {
             if(!Active||!settings.BankEnabled||!settings.WebBank.AdminChangesEnabled||!settings.AllowEditPlayerBank||reloadError is not null)throw new BankRejected("Webbank-Änderungen derzeit gesperrt.");
@@ -54,10 +74,9 @@ public sealed partial class Plugin
             if(request.ActorSteamId!=request.Account&&targetRank>0&&request.ActorRank<=targetRank)throw new BankRejected("Geschütztes Zielkonto.");
             var receipt=bank!.PanelAdjust(request,DateTimeOffset.UtcNow,settings.MaxManualBankSet);
             AtomicJson.Write(result,new{schema=1,id,state="applied",receipt});
-            AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"web",request.Account+".json"),bank.WebPlayer(request.Account,DateTimeOffset.UtcNow));
-            nextWebExport=0;ctx.Reply("Bankauftrag verbucht; dauerhafter Beleg vorhanden.");
+            ctx.ReplyLplk("Bankauftrag verbucht; dauerhafter Beleg vorhanden.");
         }
-        catch(BankRejected e){AtomicJson.Write(result,new{schema=1,id,state="rejected",message=e.Message});ctx.Reply(e.Message);}
-        catch {ctx.Reply("Auftragsstatus unklar. Dieselbe Auftragsnummer prüfen; keinen Ersatzauftrag erzeugen.");}
+        catch(BankRejected e){AtomicJson.Write(result,new{schema=1,id,state="rejected",message=e.Message});ctx.ReplyLplk(e.Message);}
+        catch {ctx.ReplyLplk("Auftragsstatus unklar. Dieselbe Auftragsnummer prüfen; keinen Ersatzauftrag erzeugen.");}
     }
 }

@@ -10,7 +10,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_AntiTeamFlash;
 
-[PluginMetadata(Id="LPLK_AntiTeamFlash",Name="LPLK_AntiTeamFlash",Version="0.1.3",Author="LPLK; reference St1nixx",Description="Teamflash-Schutz mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_AntiTeamFlash",Name="LPLK_AntiTeamFlash",Version="0.1.9",Author="LPLK; reference St1nixx",Description="Teamflash-Schutz mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ModuleSupport module = null!;
@@ -25,6 +25,12 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
     public override void Load(bool hotReload)
     {
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_AntiTeamFlash",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         module = new(Core,"LPLK_AntiTeamFlash","Teamflash-Schutz","lplk.antiteamflash.admin",OpenAdmin);
         config=new(module.SettingsPath,FlashSettings.Validate);
         module.Active = true;
@@ -34,10 +40,15 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)history.Remove(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p)history.Remove(p.PlayerID);return HookResult.Continue;});
         WriteStatus();
-        Core.Logger.LogInformation("LPLK_AntiTeamFlash 0.1.3 geladen: enabled={Enabled}; flashOwner={Owner}; Schutzrecht={Permission}; hotloadWait={Wait}",settings.Enabled,settings.FlashOwner,settings.AccessPermission,!ready);
+        Core.Logger.LogInformation("LPLK_AntiTeamFlash 0.1.9 geladen: enabled={Enabled}; flashOwner={Owner}; Schutzrecht={Permission}; hotloadWait={Wait}",settings.Enabled,settings.FlashOwner,settings.AccessPermission,!ready);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
-    public override void Unload(){if(module is not null)module.Active=false;ready=false;history.Clear();}
+    public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore(){if(module is not null)module.Active=false;ready=false;history.Clear(); LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnClientDisconnected>]
     public void Disconnected(IOnClientDisconnectedEvent e)=>history.Remove(e.PlayerId);
     [EventListener<EventDelegates.OnMapUnload>]
@@ -91,7 +102,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     }
     private void WriteStatus()
     {
-        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.3",settings,ready,cleared,preservedOverlaps=preserved,errors,tracked=history.Count,reloadError}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.9",settings,ready,cleared,preservedOverlaps=preserved,errors,tracked=history.Count,reloadError}); statusWriteFailed=false; }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException)
         { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_AntiTeamFlash: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }

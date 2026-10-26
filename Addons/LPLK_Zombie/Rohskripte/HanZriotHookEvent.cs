@@ -102,7 +102,7 @@ public class HanZriotEvents : IDisposable
         var kind=_zombieConfig.GetConfig().ZombieList.FirstOrDefault(z=>z.Name==ac.Entity?.Name);
         if(kind is null)return;
         context.Params.Info.Damage+=kind.Damage;
-        vp.SendMessage(MessageType.Chat,$"{_core.Translation.GetPlayerLocalizer(vp)["ZombieDamage",ac.PlayerName,vc.PlayerName,context.Params.Info.Damage]}");
+        vp.SendLplkMessage(MessageType.Chat,_core.Translation.GetPlayerLocalizer(vp)["ZombieDamage",ac.PlayerName,vc.PlayerName,context.Params.Info.Damage]);
     }
 
     private void Event_OnTick()
@@ -353,7 +353,7 @@ public class HanZriotEvents : IDisposable
         }
         if (attackerPawn.TeamNum == 2 && playerPawn.TeamNum == 3)
         {
-            player.SendMessage(MessageType.Chat, $"{_core.Translation.GetPlayerLocalizer(player)["Attacked", attackerController.PlayerName, dmgHealth]}");
+            player.SendLplkMessage(MessageType.Chat, _core.Translation.GetPlayerLocalizer(player)["Attacked", attackerController.PlayerName, dmgHealth]);
         }
         return HookResult.Continue;
     }
@@ -455,14 +455,14 @@ public class HanZriotEvents : IDisposable
                             }
                             else
                             {
-                                Deather.SendMessage(MessageType.Chat, $"{_core.Translation.GetPlayerLocalizer(Deather)["DeathInfo", (int)_globals.RebornSec[Deather.PlayerID]]}");
+                                Deather.SendLplkMessage(MessageType.Chat, _core.Translation.GetPlayerLocalizer(Deather)["DeathInfo", (int)_globals.RebornSec[Deather.PlayerID]]);
                                 var now = Environment.TickCount;
                                 _globals.DeathTime[Deather.PlayerID] = now + ((int)_globals.RebornSec[Deather.PlayerID] * 1000);
                             }
                         }
                         else
                         {
-                            Deather.SendMessage(MessageType.Chat, $"{_core.Translation.GetPlayerLocalizer(Deather)["DeathInfo", (int)_globals.RebornSec[Deather.PlayerID]]}");
+                            Deather.SendLplkMessage(MessageType.Chat, _core.Translation.GetPlayerLocalizer(Deather)["DeathInfo", (int)_globals.RebornSec[Deather.PlayerID]]);
 
                             var now = Environment.TickCount;
                             _globals.DeathTime[Deather.PlayerID] = now + ((int)_globals.RebornSec[Deather.PlayerID] * 1000);
@@ -534,7 +534,7 @@ public class HanZriotEvents : IDisposable
                             _globals.SpawnProtect[player.PlayerID] = null;
                             _globals.SpawnProtect[player.PlayerID] = _globals.Scheduler.DelayBySeconds(CFG.SpawnProtectCount, _globals.Scheduler.ForPlayer(player, () => { _helpers.DeleSpawnProtect(player); }));
 
-                            player.SendMessage(MessageType.Chat, $"{_core.Translation.GetPlayerLocalizer(player)["SpawnProtect", CFG.SpawnProtectCount]}");
+                            player.SendLplkMessage(MessageType.Chat, _core.Translation.GetPlayerLocalizer(player)["SpawnProtect", CFG.SpawnProtectCount]);
                         }
                     }
                 }
@@ -563,7 +563,7 @@ public class HanZriotEvents : IDisposable
                     _globals.SpawnProtect[player.PlayerID]?.Cancel();
                     _globals.SpawnProtect[player.PlayerID] = null;
                     _globals.SpawnProtect[player.PlayerID] = _globals.Scheduler.DelayBySeconds(CFG.SpawnProtectCount, _globals.Scheduler.ForPlayer(player, () => { _helpers.DeleSpawnProtect(player); }));
-                    player.SendMessage(MessageType.Chat, $"{_core.Translation.GetPlayerLocalizer(player)["SpawnProtect", CFG.SpawnProtectCount]}");
+                    player.SendLplkMessage(MessageType.Chat, _core.Translation.GetPlayerLocalizer(player)["SpawnProtect", CFG.SpawnProtectCount]);
                 }
 
 
@@ -667,7 +667,7 @@ public class HanZriotEvents : IDisposable
         if (pawn.TeamNum == 3 && _globals.InProtect[player.PlayerID])
         {
             _globals.InProtect[player.PlayerID] = false;
-            player.SendMessage(MessageType.Chat, $"{_core.Translation.GetPlayerLocalizer(player)["RemoveProtect"]}");
+            player.SendLplkMessage(MessageType.Chat, _core.Translation.GetPlayerLocalizer(player)["RemoveProtect"]);
         }
 
         return HookResult.Continue;

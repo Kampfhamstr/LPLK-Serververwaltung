@@ -29,7 +29,7 @@ public sealed partial class Plugin
         lastMenuOpen[player.Slot]=now;
         MenuAction(player,show);
     }
-    private static void Reply(IPlayer player,string text)=>player.SendChat(text);
+    private static void Reply(IPlayer player,string text)=>player.SendLplkChat(text);
     private void MenuAction(IPlayer player,Action action)
     {
         try { action(); }

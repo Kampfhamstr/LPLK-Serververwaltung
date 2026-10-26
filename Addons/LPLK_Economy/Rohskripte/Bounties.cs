@@ -44,17 +44,19 @@ public sealed partial class Ledger
         if(BountyState<BountyClaim>("claim:"+id)is not null)throw new InvalidDataException("Doppelter Kopfgeldanspruch.");
         BountyStateInside("claim:"+id,new BountyClaim(id,account,amount,amount,mode,kind,targetName));
     }
-    public long ClaimBounty(string eventId,string attacker,string victim,bool sameTeam)=>Atomic(()=>
+    public long ClaimBounty(string eventId,string attacker,string victim,bool sameTeam)=>ClaimBounty(eventId,attacker,victim,sameTeam,null,null);
+    private long ClaimBounty(string eventId,string attacker,string victim,bool sameTeam,string[]? eligibleOrders,string[]? pendingAtDeath)=>Atomic(()=>
     {
         if(!Key(eventId,70)||!BankPolicy.Steam(attacker)||!BankPolicy.Steam(victim)||attacker==victim||!Exists(attacker)||!titleRules.Enabled||!titleRules.Bounty.Enabled||titleRules.Bounty.IgnoreTeamKills&&sameTeam)return 0L;
         string key="kill:"+eventId;
         if(State(BountyOwner,key).Json is {} previous){var pair=JsonSerializer.Deserialize<string[]>(previous)!;if(!pair.SequenceEqual(new[]{attacker,victim}))throw new BankRejected("Abweichendes Kopfgeldereignis.");return 0L;}
-        var orders=Bounties().Where(o=>o.Target==victim&&o.Status=="active").ToArray();long total=orders.Sum(o=>o.Amount);
+        var orders=Bounties().Where(o=>o.Target==victim&&o.Status=="active"&&(eligibleOrders is null||eligibleOrders.Contains(o.Id))&&pendingAtDeath?.Contains(o.Id)!=true).ToArray();long total=orders.Sum(o=>o.Amount);
         BookInside(new("bounty-kill:"+eventId,Period,BountyOwner,"Kopfgeldanspruch nach Kill",[]),true);
         BountyStateInside(key,new[]{attacker,victim});
         foreach(var o in orders)BountyStateInside("order:"+o.Id,o with{Status="claimed"});
         if(total>0){NewBountyClaimInside("kill:"+eventId,attacker,total,titleRules.Bounty.RewardMode,"reward",orders[0].TargetName);TitleAddInside(attacker,("BountiesClaimed",1),("TotalBountyClaimed",total));}
-        foreach(var o in Bounties().Where(o=>o.Target==victim&&o.Status=="pending"))BountyStateInside("order:"+o.Id,o with{RefundReason="Ziel vor Cashbestätigung gestorben"});
+        foreach(var o in Bounties().Where(o=>o.Target==victim&&o.Status=="pending"&&(eligibleOrders is null||eligibleOrders.Contains(o.Id))))BountyStateInside("order:"+o.Id,o with{RefundReason="Ziel vor Cashbestätigung gestorben"});
+        foreach(var id in pendingAtDeath??[])if(GetBounty(id) is {} pending)RefundBountyInside(pending,"Ziel vor Cashbestätigung gestorben");
         fault?.Invoke("after-bounty-claimed");return total;
     });
     private void RefundBountyInside(BountyOrder o,string reason)
@@ -65,7 +67,8 @@ public sealed partial class Ledger
         NewBountyClaimInside("refund:"+o.Id,o.Sponsor,o.Amount,o.Source=="Cash"?"CashThenBankOverflow":"Bank","refund",o.TargetName);
         BountyStateInside("order:"+o.Id,o with{Status="refunded",RefundReason=reason});
     }
-    public void RefundBounties(string? target,string reason)=>Atomic(()=>
+    public void RefundBounties(string? target,string reason){if(!DeferBountyRefund(target,reason))RefundBountiesNow(target,reason);}
+    private void RefundBountiesNow(string? target,string reason)=>Atomic(()=>
     {
         if(reason.Length is <1 or >100||target is not null&&!BankPolicy.Steam(target))throw new BankRejected("Ungültige Erstattung.");
         foreach(var o in Bounties().Where(o=>target is null||o.Target==target))RefundBountyInside(o,reason);

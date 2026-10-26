@@ -55,7 +55,7 @@ public static class NadePolicy
     public static string[] Weapons(NadeSettings s)=>new[]{"flashbang","hegrenade","smokegrenade","molotov","incgrenade","decoy","tagrenade"}.Where(x=>Configured(s,x)).Select(x=>"weapon_"+x).ToArray();
     public static string Label(string item)=>Normalize(item) switch{"flashbang"=>"Flashbang","hegrenade"=>"HE-Granate","smokegrenade"=>"Smoke","molotov"=>"Molotov","incgrenade"=>"Incendiary","decoy"=>"Decoy","tagrenade"=>"TA-Granate",_=>"Granate"};
     public static bool CanSelect(NadePlayer actor,NadePlayer target)=>actor.Admin&&AdminActionPolicy.CanTarget(actor.Owner.Connection.Steam,target.Owner.Connection.Steam,actor.Rank,target.Rank);
-    public static (int Index,int Pages,int Offset,int Size) Page(int count,int requested){int size=count<=4?4:2,pages=Math.Max(1,(count+size-1)/size),index=Math.Clamp(requested,0,pages-1);return(index,pages,index*size,size);}
+    public static (int Index,int Pages,int Offset,int Size) Page(int count,int requested)=>(0,1,0,Math.Max(1,count));
 }
 public readonly record struct NadeConnection(int Slot,ulong Steam,ulong Session);
 public readonly record struct NadeOwner(NadeConnection Connection,uint Pawn,int Team);

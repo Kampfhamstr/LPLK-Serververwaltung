@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text;
 using System.Text.Json;
 using LPLK.Common;
@@ -14,7 +18,7 @@ using SwiftlyS2.Shared.ProtobufDefinitions;
 
 namespace LPLK_Whitelist;
 
-[PluginMetadata(Id="LPLK_Whitelist",Name="LPLK_Whitelist",Version="0.2.6",Author="LPLK",Description="Zugangsliste, Webpanel-Befehle und !admin",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Whitelist",Name="LPLK_Whitelist",Version="0.2.13",Author="LPLK",Description="Zugangsliste, Webpanel-Befehle und !admin",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -25,21 +29,34 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private long nextPoll;
     private int generation;
     private string? reloadError;
-    private string ListPath=>Path.Combine(Core.PluginPath,"whitelist.txt");
-    private string ConfigPath=>Path.Combine(Core.GameFilesDirectory,"addons","swiftlys2","configs","plugins","LPLK_Whitelist","config.jsonc");
+    private string ListPath=>Path.Combine(LPLK.Common.RoundFileStore.PluginPath(Core),"whitelist.txt");
+    private string ConfigPath=>Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"addons","swiftlys2","configs","plugins","LPLK_Whitelist","config.jsonc");
     public override void Load(bool hotReload)
     {
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_Whitelist",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         module=new(Core,"LPLK_Whitelist","Zugang","lplk.whitelist.admin",OpenAdmin,
             p=>Core.Permission.PlayerHasPermission(p.SteamID,settings.PermissionForCommands));
         if(!File.Exists(ConfigPath))WriteSettings(new());
         if(!File.Exists(ListPath))SaveIds([]);
+        // Prime contents at load; metadata alone is insufficient for later RAM streams.
+        _=File.ReadAllText(ListPath);
         Reload();module.Active=true;
         Core.GameEvent.HookPost<EventPlayerConnectFull>(e=>{if(e.UserIdPlayer is {} p)Enforce(p);return HookResult.Continue;});
         Core.Scheduler.NextWorldUpdate(()=>{if(module.Active)EnforceAll();});
-        Core.Logger.LogInformation("LPLK_Whitelist 0.2.6 geladen: Modus {Mode}, {Count} Einträge, AdminBypass={Bypass}",settings.Mode,ids.Count,settings.AdminBypass);
+        Core.Logger.LogInformation("LPLK_Whitelist 0.2.13 geladen: Modus {Mode}, {Count} Einträge, AdminBypass={Bypass}",settings.Mode,ids.Count,settings.AdminBypass);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
-    public override void Unload(){generation++;if(module is not null)module.Active=false;RemoveConfiguredCommands();}
+    public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore(){generation++;if(module is not null)module.Active=false;RemoveConfiguredCommands(); LPLK.Common.DeferredJson.Drain(); }
     private bool Bypass(IPlayer p)=>Core.Permission.PlayerHasPermission(p.SteamID,"lplk.admin")||Core.Permission.PlayerHasPermission(p.SteamID,"lplk.whitelist.bypass");
     private bool Reload()
     {
@@ -92,22 +109,22 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void CommandChange(ICommandContext c,bool add,Func<bool>? stillCurrent=null)
     {
         if(!module.Active)return;
-        if(c.Sender is {} p&&!module.CanAdmin(p)){c.Reply("[LPLK] Keine Berechtigung.");return;}
-        if(c.Args.Length!=1){c.Reply((add?activeCommandNames.Add:activeCommandNames.Remove)+" <SteamID64>");return;}
-        try{Change(c.Args[0],add,c.Reply,c.Sender,stillCurrent);}catch(Exception e){Core.Logger.LogError(e,"Whitelist-Dateiänderung fehlgeschlagen");c.Reply("[LPLK] Änderung nicht gespeichert; bisherige Liste bleibt aktiv.");}
+        if(c.Sender is {} p&&!module.CanAdmin(p)){c.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
+        if(c.Args.Length!=1){c.ReplyLplk((add?activeCommandNames.Add:activeCommandNames.Remove)+" <SteamID64>");return;}
+        try{Change(c.Args[0],add,c.ReplyLplk,c.Sender,stillCurrent);}catch(Exception e){Core.Logger.LogError(e,"Whitelist-Dateiänderung fehlgeschlagen");c.ReplyLplk("[LPLK] Änderung nicht gespeichert; bisherige Liste bleibt aktiv.");}
     }
     [Command("lplk_whitelist")]
     public void Status(ICommandContext c)
     {
-        if(c.Sender is {} p){if(module.CanAdmin(p))OpenAdmin(p);else c.Reply("[LPLK] Keine Berechtigung.");return;}
+        if(c.Sender is {} p){if(module.CanAdmin(p))OpenAdmin(p);else c.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         if(c.Args.Length==2&&c.Args[0]=="check"&&AccessPolicy.ValidId(c.Args[1]))
-        {c.Reply($"LPLK_Whitelist: listed={ids.Contains(c.Args[1])}; allowedWithoutBypass={AccessPolicy.Allows(settings,ids.Contains(c.Args[1]),false)}");return;}
-        c.Reply($"LPLK_Whitelist 0.2.6: enabled={settings.Enabled}; mode={settings.Mode}; entries={ids.Count}; adminBypass={settings.AdminBypass}; persisted={File.Exists(ListPath)}; reloadError={reloadError??"none"}; addCommand=sw_{activeCommandNames.Add}; removeCommand=sw_{activeCommandNames.Remove}; commandError={commandError??"none"}");
+        {c.ReplyLplk($"LPLK_Whitelist: listed={ids.Contains(c.Args[1])}; allowedWithoutBypass={AccessPolicy.Allows(settings,ids.Contains(c.Args[1]),false)}");return;}
+        c.ReplyLplk($"LPLK_Whitelist 0.2.13: enabled={settings.Enabled}; mode={settings.Mode}; entries={ids.Count}; adminBypass={settings.AdminBypass}; persisted={File.Exists(ListPath)}; reloadError={reloadError??"none"}; addCommand=sw_{activeCommandNames.Add}; removeCommand=sw_{activeCommandNames.Remove}; commandError={commandError??"none"}");
     }
     private void WriteSettings(AccessSettings value)=>AtomicJson.Write(ConfigPath,new{Whitelist=new{value.Enabled,value.Mode,value.AdminBypass,value.KickMessage,value.PermissionForCommands,AddCommand="wl",RemoveCommand="uwl"}});
     private void WriteStatus()
     {
-        try{AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.2.6",settings.Enabled,settings.Mode,settings.AdminBypass,entries=ids.Count,reloadError,addCommand="sw_"+activeCommandNames.Add,removeCommand="sw_"+activeCommandNames.Remove,commandError});statusWriteFailed=false;}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.2.13",settings.Enabled,settings.Mode,settings.AdminBypass,entries=ids.Count,reloadError,addCommand="sw_"+activeCommandNames.Add,removeCommand="sw_"+activeCommandNames.Remove,commandError});statusWriteFailed=false;}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Whitelist: Status nicht schreibbar.");statusWriteFailed=true;}
     }
     private void Apply(Func<AccessSettings,AccessSettings> edit,IPlayer p)
@@ -115,10 +132,10 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(!module.CanAdmin(p))return;
         try
         {
-            if(Reload())EnforceAll();if(!module.CanAdmin(p)){p.SendChat("[LPLK] Keine Berechtigung nach Aktualisierung der Zugangsregeln.");return;}
+            if(Reload())EnforceAll();if(!module.CanAdmin(p)){p.SendLplkChat("[LPLK] Keine Berechtigung nach Aktualisierung der Zugangsregeln.");return;}
             var next=edit(settings);AccessFiles.WriteSettings(ConfigPath,ListPath,snapshot,next);Reload();EnforceAll();
         }
-        catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Whitelist: Änderung nicht gespeichert");p.SendChat("[LPLK] Nicht gespeichert. Aktuelle Zugangsdateien prüfen.");}
+        catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Whitelist: Änderung nicht gespeichert");p.SendLplkChat("[LPLK] Nicht gespeichert. Aktuelle Zugangsdateien prüfen.");}
         OpenRules(p);
     }
     private void OpenAdmin(IPlayer p) => module.Menu(p,"LPLK · Zugang",((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("OpenRules",OpenRulesRows(actor)))))(p));
@@ -129,14 +146,14 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         ("Hinzufügen",a=>Input(a,true)),("Entfernen",a=>Input(a,false)),($"Liste ({ids.Count})",a=>ShowEntries(a,0)),("Zurück",OpenAdmin));
     private void ShowEntries(IPlayer p,int page)
     {
-        var actions=ids.Order().Select(id=>(id,(Action<IPlayer>)(a=>module.Menu(a,"LPLK · "+id,1,("Eintrag entfernen",b=>{Change(id,false,b.SendChat,b);ShowEntries(b,0);}),("Zurück",b=>ShowEntries(b,0)))))).ToList();
+        var actions=ids.Order().Select(id=>(id,(Action<IPlayer>)(a=>module.Menu(a,"LPLK · "+id,1,("Eintrag entfernen",b=>{Change(id,false,b.SendLplkChat,b);ShowEntries(b,0);}),("Zurück",b=>ShowEntries(b,0)))))).ToList();
         actions.Add(("Zurück",OpenEntries));module.Menu(p,"LPLK · Einträge",1,actions.ToArray());
     }
     private void Input(IPlayer player,bool add)
     {
         if(!module.CanAdmin(player))return;int serial=generation;
         var input=new InputMenuOption(new MenuNumbers().Next("SteamID64"),maxLength:18,validator:AccessPolicy.ValidId,hintMessage:"SteamID64 in den Chat eingeben.");
-        GameThreadMenu.BindInput(Core,input,player,()=>module.Active&&serial==generation,(a,value)=>{if(module.CanAdmin(a)){try{Change(value,add,a.SendChat,a);}catch(Exception e){Core.Logger.LogError(e,"Whitelist-Eingabe fehlgeschlagen");a.SendChat("[LPLK] Änderung nicht gespeichert.");}}});
+        GameThreadMenu.BindInput(Core,input,player,()=>module.Active&&serial==generation,(a,value)=>{if(module.CanAdmin(a)){try{Change(value,add,a.SendLplkChat,a);}catch(Exception e){Core.Logger.LogError(e,"Whitelist-Eingabe fehlgeschlagen");a.SendLplkChat("[LPLK] Änderung nicht gespeichert.");}}});
         var back=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};GameThreadMenu.Bind(Core,back,player,()=>module.Active&&serial==generation,a=>{if(module.CanAdmin(a))OpenEntries(a);});
         Core.MenusAPI.OpenMenuForPlayer(player,Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).Design.SetMenuTitle(MenuColors.Heading(add?"LPLK · Eintrag hinzufügen":"LPLK · Eintrag entfernen")).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter).AddOption(input).AddOption(back).Build());
     }

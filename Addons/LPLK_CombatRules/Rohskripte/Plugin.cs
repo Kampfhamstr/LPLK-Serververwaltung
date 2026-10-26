@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_CombatRules;
 
-[PluginMetadata(Id="LPLK_CombatRules",Name="LPLK_CombatRules",Version="0.1.4",Author="LPLK; reference Michael Zauche",Description="Headshot-Regeln, Goldene Regel und Schadensregeln",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_CombatRules",Name="LPLK_CombatRules",Version="0.1.10",Author="LPLK; reference Michael Zauche",Description="Headshot-Regeln, Goldene Regel und Schadensregeln",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -26,14 +26,25 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private readonly Dictionary<int,long> alerts=[];
     public override void Load(bool hotReload)
     {
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_CombatRules",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         module=new(Core,"LPLK_CombatRules","Kampfregeln","lplk.combat.admin",OpenAdmin);
         config=new(module.SettingsPath,CombatSettings.Validate);settings=config.Current;module.Active=true;
         Core.GameHooks.Entities.TakeDamage.Pre+=Damage;
         Core.GameEvent.HookPost<EventRoundStart>(_=>{Announce();return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_CombatRules 0.1.4 geladen: headshot={Headshot}; golden={Golden}",settings.HeadshotOnly,settings.GoldenRule);
+        WriteStatus();Core.Logger.LogInformation("LPLK_CombatRules 0.1.10 geladen: headshot={Headshot}; golden={Golden}",settings.HeadshotOnly,settings.GoldenRule);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
-    public override void Unload(){module.Active=false;Core.GameHooks.Entities.TakeDamage.Pre-=Damage;alerts.Clear();}
+    public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore(){module.Active=false;Core.GameHooks.Entities.TakeDamage.Pre-=Damage;alerts.Clear(); LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnClientDisconnected>]
     public void Disconnected(IOnClientDisconnectedEvent e)=>alerts.Remove(e.PlayerId);
     private (int Ct,int T,bool? Warmup,bool? Ffa) Match()
@@ -90,7 +101,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
             var m=Match();int team=CombatPolicy.Leader(m.Ct,m.T,settings.MinimumLeadRounds);
             if(team==0||settings.GoldenWeapons.Length==0||!CombatPolicy.BlockGolden(settings,settings.GoldenWeapons[0],team,m.Ct,m.T,true,m.Warmup,m.Ffa))return;
             string weapons=string.Join(" / ",settings.GoldenWeapons.Select(id=>WeaponCatalog.Find(id)!.Name));
-            foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(p=>!p.IsFakeClient))p.SendChat($"[LPLK] Goldene Regel: {(team==3?"CT":"T")} führt {m.Ct}:{m.T} (CT:T) – {weapons} nur No-Scope.");
+            foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(p=>!p.IsFakeClient))p.SendLplkChat($"[LPLK] Goldene Regel: {(team==3?"CT":"T")} führt {m.Ct}:{m.T} (CT:T) – {weapons} nur No-Scope.");
         }
         catch(Exception e){if(errors++==0)Core.Logger.LogWarning(e,"LPLK_CombatRules: Spielstand nicht verfügbar");}
     }
@@ -104,7 +115,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void RefreshSettings(){if(config is null)return;config.Reload();settings=config.Current;reloadError=config.Error;}
     private void WriteStatus()
     {
-        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.4",settings.Enabled,settings.HeadshotOnly,settings.FirearmsOnly,settings.GoldenRule,settings.GoldenWeapons,settings.MinimumLeadRounds,settings.EnabledInWarmup,specialRules=settings.Rules.Count,headshotsBlocked,goldenBlocked,modified,errors,reloadError}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.10",settings.Enabled,settings.HeadshotOnly,settings.FirearmsOnly,settings.GoldenRule,settings.GoldenWeapons,settings.MinimumLeadRounds,settings.EnabledInWarmup,specialRules=settings.Rules.Count,headshotsBlocked,goldenBlocked,modified,errors,reloadError}); statusWriteFailed=false; }
         catch(Exception e)when(e is IOException or UnauthorizedAccessException)
         {if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_CombatRules: Status nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true;}
     }
@@ -117,6 +128,6 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     public void Status(ICommandContext c)
     {
         if(c.Sender is {} p){OpenAdmin(p);return;}
-        RefreshSettings();WriteStatus();c.Reply($"LPLK_CombatRules 0.1.4: enabled={settings.Enabled}; headshot={settings.HeadshotOnly}; golden={settings.GoldenRule}; lead={settings.MinimumLeadRounds}; rules={settings.Rules.Count}; errors={errors}; reloadError={reloadError??"none"}");
+        RefreshSettings();WriteStatus();c.ReplyLplk($"LPLK_CombatRules 0.1.10: enabled={settings.Enabled}; headshot={settings.HeadshotOnly}; golden={settings.GoldenRule}; lead={settings.MinimumLeadRounds}; rules={settings.Rules.Count}; errors={errors}; reloadError={reloadError??"none"}");
     }
 }

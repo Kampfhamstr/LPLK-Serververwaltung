@@ -17,7 +17,7 @@ public sealed partial class Plugin
     {
         try
         {
-            soundNumbers ??= new SoundNumberStore(Path.Combine(Core.PluginDataDirectory, "sound-numbers.json"));
+            soundNumbers ??= new SoundNumberStore(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "sound-numbers.json"));
             soundNumbers.Update(catalog);
             soundNumberError = null;
         }
@@ -42,12 +42,12 @@ public sealed partial class Plugin
         if(context.Args.Length==1 && SoundMenuPolicy.TryPageToken(context.Args[0],out int page))
         { OpenSoundPage(context,player,page); return; }
         if(context.Args.Length!=1 || !SoundMenuPolicy.TryNumber(context.Args[0],out int number))
-        { context.Reply("[LPLK Sounds] !sound 51 spielt Sound 51; !sound s6 oeffnet Seite 6. Liste: !sounds"); return; }
+        { context.ReplyLplk("[LPLK Sounds] !sound 51 spielt Sound 51; !sound s6 oeffnet Seite 6. Liste: !sounds"); return; }
         CommandAction(context,()=>
         {
             string? id=NumberedSounds.Resolve(catalog,number);
-            if(id is null) { context.Reply($"[LPLK Sounds] Soundnummer {number} ist nicht im aktuellen Katalog. Liste: !sounds"); return; }
-            BroadcastSound(player,id,context.Reply);
+            if(id is null) { context.ReplyLplk($"[LPLK Sounds] Soundnummer {number} ist nicht im aktuellen Katalog. Liste: !sounds"); return; }
+            BroadcastSound(player,id,context.ReplyLplk);
         });
     }
 
@@ -57,7 +57,7 @@ public sealed partial class Plugin
         if(AuthenticatedPlayer(context) is not { } player)return;
         if(context.Args.Length==0) { OpenPlayerMenu(player,()=>ShowSoundMenu(player)); return; }
         if(context.Args.Length!=1 || !SoundMenuPolicy.TryNumber(context.Args[0],out int number))
-        { context.Reply("[LPLK Sounds] Liste: !sounds. Seite 6: !sound s6. Direkt abspielen: !sound 51"); return; }
+        { context.ReplyLplk("[LPLK Sounds] Liste: !sounds. Seite 6: !sound s6. Direkt abspielen: !sound 51"); return; }
         OpenSoundPage(context,player,number);
     }
 
@@ -66,7 +66,7 @@ public sealed partial class Plugin
         CommandAction(context,()=>
         {
             int pages=SoundMenuPolicy.Page(SoundList(),0).Count;
-            if(number>pages) { context.Reply($"[LPLK Sounds] Verfuegbare Soundseiten: 1 bis {pages}."); return; }
+            if(number>pages) { context.ReplyLplk($"[LPLK Sounds] Verfuegbare Soundseiten: 1 bis {pages}."); return; }
             OpenPlayerMenu(player,()=>ShowSoundMenu(player,number-1));
         });
     }

@@ -258,11 +258,11 @@ public sealed partial class Plugin
         string roleLabel = FormatGameRole(normalizedRole);
         if (isPlayerName)
         {
-            player.SendChat($"[Werbeschutz] Hinweis fuer {roleLabel}: Dein Name enthaelt ein Werbemuster. Bitte aendere ihn. Es wurde keine automatische Sanktion gesetzt.");
+            player.SendLplkChat($"[Werbeschutz] Hinweis fuer {roleLabel}: Dein Name enthaelt ein Werbemuster. Bitte aendere ihn. Es wurde keine automatische Sanktion gesetzt.");
             return;
         }
 
-        player.SendChat($"[Werbeschutz] Hinweis fuer {roleLabel}: Der Werbetext wurde unterdrueckt. Kein Strike, Gag, Kick oder automatischer Ban.");
+        player.SendLplkChat($"[Werbeschutz] Hinweis fuer {roleLabel}: Der Werbetext wurde unterdrueckt. Kein Strike, Gag, Kick oder automatischer Ban.");
     }
 
     private void HandleChatAdvertisement(IPlayer player, string originalText, string match)
@@ -291,13 +291,13 @@ public sealed partial class Plugin
             int gagMinutes = Math.Clamp(_config.GagMinutes, 1, 1440);
             _gagUntil[steamId] = now.AddMinutes(gagMinutes);
             WriteEvent("chat_block", steamId, player.Name, match, $"gag_{gagMinutes}m", originalText);
-            player.SendChat($"[Werbeschutz] Werbung ist nicht erlaubt. Dein Textchat wurde fuer {gagMinutes} Minuten gesperrt.");
+            player.SendLplkChat($"[Werbeschutz] Werbung ist nicht erlaubt. Dein Textchat wurde fuer {gagMinutes} Minuten gesperrt.");
             BroadcastSuccess("Werbung automatisch blockiert und Wiederholung gesperrt.", player);
             return;
         }
 
         WriteEvent("chat_block", steamId, player.Name, match, "warn", originalText);
-        player.SendChat("[Werbeschutz] Werbung und Spam sind auf diesem Server nicht erlaubt.");
+        player.SendLplkChat("[Werbeschutz] Werbung und Spam sind auf diesem Server nicht erlaubt.");
         BroadcastSuccess("Werbung automatisch blockiert.", player);
     }
 
@@ -326,7 +326,7 @@ public sealed partial class Plugin
         {
             if (target.IsFakeClient || target.SteamID == 0)
                 continue;
-            target.SendChat($"[Werbeschutz] ✓ {message}{suffix}");
+            target.SendLplkChat($"[Werbeschutz] ✓ {message}{suffix}");
         }
     }
 

@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 namespace LPLK_ChatGuard;
@@ -22,7 +26,7 @@ public sealed class SettingsStore
         var info=new FileInfo(path);
         if(!info.Exists||info.Length>MaxBytes||info.Attributes.HasFlag(FileAttributes.ReparsePoint))throw new InvalidDataException("Konfiguration fehlt, ist verknüpft oder zu groß.");
         // Bounded read also handles a file growing after the initial check.
-        using var file=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);
+        using var file=LPLK.Common.RamFile.Open(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);
         using var bytes=new MemoryStream();byte[] buffer=new byte[8192];int count;
         while((count=file.Read(buffer))>0){if(bytes.Length+count>MaxBytes)throw new InvalidDataException("Konfiguration zu groß.");bytes.Write(buffer,0,count);}
         using var reader=new StreamReader(new MemoryStream(bytes.ToArray()),new System.Text.UTF8Encoding(false,true),true);

@@ -11,26 +11,26 @@ namespace LPLK_NadeEffects;
 public sealed partial class Plugin
 {
     [Command("nadeboom")][CommandAlias("nb")]
-    public void NadeBoom(ICommandContext ctx){if(ctx.Sender is {} p)OpenAdmin(p);else ctx.Reply("LPLK_NadeEffects: !nadeboom / !nb benötigt einen Administrator im Spiel.");}
+    public void NadeBoom(ICommandContext ctx){if(ctx.Sender is {} p)OpenAdmin(p);else ctx.ReplyLplk("LPLK_NadeEffects: !nadeboom / !nb benötigt einen Administrator im Spiel.");}
     [Command("lplk_nadeeffects")]
     public void Administration(ICommandContext ctx)
     {
         if(ctx.Sender is {} p){OpenAdmin(p);return;}
         if(ctx.Args.Length==1&&ctx.Args[0]=="probe")
         {
-            if(!ready||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_NadeEffects probe: leerer, bereiter Server erforderlich");return;}
+            if(!ready||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.ReplyLplk("LPLK_NadeEffects probe: leerer, bereiter Server erforderlich");return;}
             uint fade=uint.MaxValue;
             try
             {
                 fade=world.CreateFade(settings);if(fade==uint.MaxValue||!world.VerifyFade(fade,settings))throw new InvalidOperationException("Fade-Einstellungen nicht bestätigt");
                 world.ProbeInput(fade);world.Destroy(fade);if(world.Exists(fade))throw new InvalidOperationException("Fade blieb bestehen");fade=uint.MaxValue;
-                ctx.Reply("LPLK_NadeEffects probe: env_fade erzeugt, Dauer/Haltezeit und ActivatorOnly bestätigt, Fade-Input ausgeführt, entfernt; keine Spieler oder Inventare verändert.");
+                ctx.ReplyLplk("LPLK_NadeEffects probe: env_fade erzeugt, Dauer/Haltezeit und ActivatorOnly bestätigt, Fade-Input ausgeführt, entfernt; keine Spieler oder Inventare verändert.");
             }
-            catch(Exception e){Error(e);ctx.Reply("LPLK_NadeEffects probe: fehlgeschlagen");}
+            catch(Exception e){Error(e);ctx.ReplyLplk("LPLK_NadeEffects probe: fehlgeschlagen");}
             finally{if(fade!=uint.MaxValue)world.Destroy(fade);WriteStatus();}
             return;
         }
-        WriteStatus();ctx.Reply($"LPLK_NadeEffects 0.1.3: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; selected={effects.Selected}; pending={effects.PendingCount}; fades={effects.FadeCount}; cooldown={settings.TriggerCooldownSeconds}; remove={settings.RemoveNades}; errors={errors}; reloadError={reloadError??"none"}");
+        WriteStatus();ctx.ReplyLplk($"LPLK_NadeEffects 0.1.10: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; selected={effects.Selected}; pending={effects.PendingCount}; fades={effects.FadeCount}; cooldown={settings.TriggerCooldownSeconds}; remove={settings.RemoveNades}; errors={errors}; reloadError={reloadError??"none"}");
     }
     private IMenuBuilderAPI Builder(string title)=>Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).SetAutoCloseDelay(0)
         .SetSelectButton(Enum.Parse<KeyBind>(settings.SelectButton)).SetMoveForwardButton(Enum.Parse<KeyBind>(settings.MoveUpButton)).SetMoveBackwardButton(Enum.Parse<KeyBind>(settings.MoveDownButton)).SetExitButton(Enum.Parse<KeyBind>(settings.ExitButton))
@@ -49,7 +49,7 @@ public sealed partial class Plugin
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Spieler ({effects.Selected})",a=>Targets(a,0)),("Zurücksetzen",a=>{if(ready)effects.Clear();WriteStatus();OpenAdmin(a);})}))(p);
     private void Targets(IPlayer p,int requested)
     {
-        if(!module.CanAdmin(p))return;if(!ready){p.SendChat("[LPLK] Die Map ist noch nicht bereit.");return;}
+        if(!module.CanAdmin(p))return;if(!ready){p.SendLplkChat("[LPLK] Die Map ist noch nicht bereit.");return;}
         var targets=Core.PlayerManager.GetAllValidPlayers().Where(x=>x is {IsValid:true,IsAuthorized:true,IsFakeClient:false})
             .Select(x=>(Player:x,State:world.Player(x.PlayerID))).Where(x=>x.State is not null).OrderBy(x=>x.Player.Name).ToArray();
         var page=NadePolicy.Page(targets.Length,requested);var builder=Builder(targets.Length==0?"Granateneffekte · Keine Spieler":$"Granateneffekte · Ziele {page.Index+1}/{page.Pages}");var numbers=new MenuNumbers();
@@ -62,7 +62,7 @@ public sealed partial class Plugin
             GameThreadMenu.Bind(Core,button,p,()=>module.Active,a=>
             {
                 if(!ready||!module.CanAdmin(a)||world.Player(a.PlayerID) is not {} actor)return;
-                string result=effects.Toggle(actor.Owner.Connection,connection);a.SendChat("[LPLK] "+NativeNadeWorld.Chat(name)+": "+result);
+                string result=effects.Toggle(actor.Owner.Connection,connection);a.SendLplkChat("[LPLK] "+NativeNadeWorld.Chat(name)+": "+result);
                 if(result is "AN" or "AUS"&&settings.NotifyAdminsOnToggle)Notify($"{NativeNadeWorld.Chat(a.Name)}: Granateneffekt für {NativeNadeWorld.Chat(name)} {result}.",settings);
                 WriteStatus();Targets(a,page.Index);
             });builder.AddOption(button);
@@ -92,7 +92,7 @@ public sealed partial class Plugin
     private void WarningMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> WarningMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Warntext ändern",WarnInput),($"Bildschirmhinweis: {(settings.UseCenterWarning?"AN":"AUS")}",a=>{Apply(a,s=>s with{UseCenterWarning=!s.UseCenterWarning});WarningMenu(a);}),($"Hinweisdauer: {settings.CenterWarningDurationMs} ms",a=>NumberInput(a,nameof(NadeSettings.CenterWarningDurationMs),"Hinweisdauer (Millisekunden)",100,10000,WarningMenu))}))(p);
     private void MenuAppearance(IPlayer p) => OpenAdmin(p);
-    private IReadOnlyList<(string,Action<IPlayer>)> MenuAppearanceRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Namenslänge: {settings.MenuNameMaxLength}",a=>NumberInput(a,nameof(NadeSettings.MenuNameMaxLength),"Namenslänge",5,64,MenuAppearance)),("Tastenbelegung",a=>{a.SendChat($"[LPLK] Auswahl: {settings.SelectButton}; aufwärts: {settings.MoveUpButton}; abwärts: {settings.MoveDownButton}; schließen: {settings.ExitButton}. Änderung in settings.json; vier unterschiedliche Tasten erforderlich.");MenuAppearance(a);})}))(p);
+    private IReadOnlyList<(string,Action<IPlayer>)> MenuAppearanceRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Namenslänge: {settings.MenuNameMaxLength}",a=>NumberInput(a,nameof(NadeSettings.MenuNameMaxLength),"Namenslänge",5,64,MenuAppearance)),("Tastenbelegung",a=>{a.SendLplkChat($"[LPLK] Auswahl: {settings.SelectButton}; aufwärts: {settings.MoveUpButton}; abwärts: {settings.MoveDownButton}; schließen: {settings.ExitButton}. Änderung in settings.json; vier unterschiedliche Tasten erforderlich.");MenuAppearance(a);})}))(p);
     private void AdminNotices(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> AdminNoticesRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Bei Markierung: {(settings.NotifyAdminsOnToggle?"AN":"AUS")}",a=>{Apply(a,s=>s with{NotifyAdminsOnToggle=!s.NotifyAdminsOnToggle});AdminNotices(a);}),($"Bei Auslösung: {(settings.NotifyAdminsOnTrigger?"AN":"AUS")}",a=>{Apply(a,s=>s with{NotifyAdminsOnTrigger=!s.NotifyAdminsOnTrigger});AdminNotices(a);})}))(p);
     private void WarnInput(IPlayer p)=>TextInput(p,"Granateneffekte · Warntext",settings.WarnMessage,160,NadeSettings.TextValid,(s,v)=>s with{WarnMessage=v},WarningMenu);
@@ -126,7 +126,7 @@ public sealed partial class Plugin
         if(!module.CanAdmin(actor))return;
         try{config.Change(edit);reloadError=null;}
         catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
-        {reloadError=config.Error??e.GetType().Name;actor.SendChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
+        {reloadError=config.Error??e.GetType().Name;actor.SendLplkChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
         SyncSettings();WriteStatus();
     }
 }

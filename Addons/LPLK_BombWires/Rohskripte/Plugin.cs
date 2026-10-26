@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LPLK_BombWires;
 
-[PluginMetadata(Id = "LPLK_BombWires", Name = "LPLK_BombWires", Version = "0.1.6", Author = "LPLK / K4ryuu", Description = "Bombendrähte mit gültigkeitsgeprüften Menüs", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_BombWires", Name = "LPLK_BombWires", Version = "0.1.13", Author = "LPLK / K4ryuu", Description = "Bombendrähte mit gültigkeitsgeprüften Menüs", MinimumAPIVersion = "1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ModuleSupport module = null!;
@@ -29,6 +29,12 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
     public override void Load(bool hotReload)
     {
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_BombWires",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         module = new(Core, "LPLK_BombWires", "Bombendrähte", "lplk.bombwires.admin", OpenAdmin);
         config = new(module.SettingsPath,WireSettings.Validate); module.Active = true;
         // When loaded mid-round, do not attach a new guess to an already active bomb.
@@ -45,7 +51,12 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     }
 
     public override void ConfigureSharedInterface(IInterfaceManager manager) => module.ConfigureSharedInterface(manager);
-    public override void Unload() { if(module is not null) module.Active=false; Reset(); }
+    public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore() { if(module is not null) module.Active=false; Reset();  LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnMapUnload>] public void MapUnload(IOnMapUnloadEvent e) => Reset();
     [EventListener<EventDelegates.OnClientDisconnected>] public void Disconnect(IOnClientDisconnectedEvent e) => Close(e.PlayerId);
     [EventListener<EventDelegates.OnTick>] public void Tick()
@@ -69,14 +80,15 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Close(player.PlayerID);
         int generation=round.Generation; ulong steamId=player.SteamID; Guid token=Guid.NewGuid();
         long expires=Environment.TickCount64 + settings.MenuSeconds*1000L;
-        // Swiftly's Space binding represents +jump, including remapped keys and mouse-wheel binds.
+        // Use Swiftly's Space/+jump binding. Mouse-wheel pulses are not reliably
+        // observed by the menu input poll; advertise the supported held key only.
         var builder=Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).SetAutoCloseDelay(settings.MenuSeconds)
             .SetSelectButton(KeyBind.Space).Design.SetMenuTitle(MenuColors.Heading(planting?"LPLK · Sicheren Draht wählen":"LPLK · Draht ziehen (optional)")).Design.SetMaxVisibleItems(4);
         int[] order=[0,1,2,3]; if(settings.RandomizeOrder) Random.Shared.Shuffle(order);
         var numbers=new MenuNumbers();
         foreach(int color in order)
         {
-            var option=new ButtonMenuOption(numbers.Next(Colors[color])) { CloseAfterClick=false };
+            var option=new ButtonMenuOption(numbers.Next(WireMessages.MenuColor(color))) { CloseAfterClick=false };
             GameThreadMenu.Bind(Core,option,player,()=>module.Active,p=>
             {
 
@@ -84,7 +96,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                     !menus.TryGetValue(p.PlayerID,out var entry) || entry.Token!=token || generation!=round.Generation) return;
                 if(planting)
                 {
-                    if(round.Choose(steamId,generation,color)) p.SendChat("[LPLK] Sicherer Draht: "+Colors[color]);
+                    if(round.Choose(steamId,generation,color)) p.SendChat(WireMessages.Chosen(color));
                 }
                 else
                 {
@@ -92,25 +104,33 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                     var bomb=Core.EntitySystem.GetAllEntitiesByClass<CPlantedC4>().FirstOrDefault(b => b.IsValid && b.BombTicking && !b.BombDefused);
                     if(pawn is null || !pawn.IsValid || !pawn.IsDefusing || bomb is null || bomb.BombDefuser.Value?.Index!=pawn.Index) return;
                     bool? success=round.Cut(generation,color);
-                    if(success==true) { bomb.DefuseCountDown.Value=0; bomb.DefuseCountDownUpdated(); Core.PlayerManager.SendChat("[LPLK] Richtiger Draht – Bombe wird entschärft!"); }
-                    else if(success==false) { bomb.C4Blow.Value=0; bomb.C4BlowUpdated(); Core.PlayerManager.SendChat("[LPLK] Falscher Draht – die Bombe explodiert!"); }
+                    if(success==true)
+                    {
+                        Core.PlayerManager.SendChat(WireMessages.Result(p.Name,color,round.Color!.Value));
+                        bomb.DefuseCountDown.Value=0; bomb.DefuseCountDownUpdated();
+                    }
+                    else if(success==false)
+                    {
+                        Core.PlayerManager.SendChat(WireMessages.Result(p.Name,color,round.Color!.Value));
+                        bomb.C4Blow.Value=0; bomb.C4BlowUpdated();
+                    }
                 }
                 Close(p.PlayerID); return;
             });
             builder.AddOption(option);
         }
         var menu=builder.Build(); menus[player.PlayerID]=(player,menu,token); Core.MenusAPI.OpenMenuForPlayer(player,menu);
-        player.SendChat("[LPLK] Vor-/Zurücktaste (Standard: W/S): Draht wählen. Sprungtaste (Standard: Leertaste): bestätigen.");
-        player.SendChat(planting
+        player.SendLplkChat("W/S: Draht wählen. Leertaste: Draht bestätigen.");
+        player.SendLplkChat(planting
             ? "[LPLK] Ohne Auswahl wird der sichere Draht zufällig gewählt."
             : "[LPLK] Benutzen-Taste (Standard: E) zum Entschärfen halten. Drahtziehen ist optional; falscher Draht explodiert!");
     }
 
     [Command("lplk_bombwires",permission:"lplk.bombwires.admin")]
-    public void Command(ICommandContext ctx) { if(ctx.Sender is {} p) OpenAdmin(p); else ctx.Reply($"LPLK_BombWires 0.1.6: enabled={settings.Enabled}; menuSeconds={settings.MenuSeconds}; randomize={settings.RandomizeOrder}; planted={round.Planted}; reloadError={config.Error??"none"}"); }
+    public void Command(ICommandContext ctx) { if(ctx.Sender is {} p) OpenAdmin(p); else ctx.ReplyLplk($"LPLK_BombWires 0.1.13: enabled={settings.Enabled}; menuSeconds={settings.MenuSeconds}; randomize={settings.RandomizeOrder}; planted={round.Planted}; reloadError={config.Error??"none"}"); }
     private void WriteStatus()
     {
-        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.6",settings.Enabled,settings.MenuSeconds,settings.RandomizeOrder,round.Planting,round.Planted,round.Resolved,activeMenus=menus.Count,reloadError=config.Error}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.13",settings.Enabled,settings.MenuSeconds,settings.RandomizeOrder,round.Planting,round.Planted,round.Resolved,activeMenus=menus.Count,reloadError=config.Error}); statusWriteFailed=false; }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException)
         { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_BombWires: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }

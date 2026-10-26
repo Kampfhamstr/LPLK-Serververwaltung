@@ -1,0 +1,161 @@
+{
+  "tag": "fleet-2026.10.26-current",
+  "createdAt": "2026-10-26T21:16:16.886651+00:00",
+  "prerelease": true,
+  "plugins": [
+    {
+      "name": "AddonsManager",
+      "version": "2.0.3-lplk.6",
+      "package": "AddonsManager.zip",
+      "packageSha256": "adb4712de49a09e89e71ebc70b26542e20f2c809be18d6962b86080792ebf067",
+      "dllSha256": "c36f31ad5e7de42d956fbc4328522c87a1e1ca8d61b53d991aba24893fbd6829"
+    },
+    {
+      "name": "LPLK_Admin",
+      "version": "0.11.5",
+      "package": "LPLK_Admin.zip",
+      "packageSha256": "73816dafaa09f68417711ef0f70416491d195e3268b9de118ffe1e1d9b90a683",
+      "dllSha256": "b7bc2b5a6718abd77ac787c0fc974a6f62923357f44fa64847d1fac25eb6c3f4"
+    },
+    {
+      "name": "LPLK_AntiCamp",
+      "version": "0.1.12",
+      "package": "LPLK_AntiCamp.zip",
+      "packageSha256": "0e45e1a5f7a432b0de65dc5acbe2c27a3406b7c268812363f0dcee1c114e1d52",
+      "dllSha256": "fa202f53e609c585168fa3747a203418b76fea80abb81cbe6e4fce171cd290f0"
+    },
+    {
+      "name": "LPLK_AntiTeamFlash",
+      "version": "0.1.9",
+      "package": "LPLK_AntiTeamFlash.zip",
+      "packageSha256": "e0316de53f85a28d0a0ca20af07bdfd3605baa13309a2b89f0ad4bbd1f9cb3ad",
+      "dllSha256": "a6d1f94421c9a5964587f46f431c18cd5144c01340cb1820cdc0b8b68b262fb5"
+    },
+    {
+      "name": "LPLK_BombWires",
+      "version": "0.1.13",
+      "package": "LPLK_BombWires.zip",
+      "packageSha256": "be252f5fbcbad790918ae0e0d84773db7208f933b4cba1fb3036c3b4d1963914",
+      "dllSha256": "f1675f945179c3995edb0f98827ddcf1df3cd2f30d1f85a4105862cd49b9d500"
+    },
+    {
+      "name": "LPLK_ChatGuard",
+      "version": "0.1.11",
+      "package": "LPLK_ChatGuard.zip",
+      "packageSha256": "2f460ea71131edf78c26828e36f85e9d815ec11e5b5f0bb2f40a66fc3fde537f",
+      "dllSha256": "43241fdbe3b84aaec0245a6bb9e2552d74caddc373369e105844596c96771b71"
+    },
+    {
+      "name": "LPLK_CombatRules",
+      "version": "0.1.10",
+      "package": "LPLK_CombatRules.zip",
+      "packageSha256": "2a9f01230c8dbbfec011a90a8ce43921601c1bb8ea54449e9dab7bc43e4b5c50",
+      "dllSha256": "26bbb2958fde7c39f3592f6be4f6e62c7a010272eb9c102e31e149e14332e556"
+    },
+    {
+      "name": "LPLK_Demos",
+      "version": "0.2.3",
+      "package": "LPLK_Demos.zip",
+      "packageSha256": "647c3579d97e87a917fc391524708b282648e1465b8e6d91e0e384c12e6ecb55",
+      "dllSha256": "bd5726ad70da7a89023ed34e8cbfebb33a2784896f0120f0791be81db8112e0e"
+    },
+    {
+      "name": "LPLK_Economy",
+      "version": "0.12.12",
+      "package": "LPLK_Economy.zip",
+      "packageSha256": "04d2389871dd4d5d4ce6247772a942c4cfe6deb1dfa92009e8619edac22f0f44",
+      "dllSha256": "244286d655c958e705af27cff180dffa6ca9a6a26ff1f4da95b4532c9e0bdc17"
+    },
+    {
+      "name": "LPLK_Fluch",
+      "version": "0.1.10",
+      "package": "LPLK_Fluch.zip",
+      "packageSha256": "f8156d52afcb5f29b8c867380134f5a0dc08c9139d5c34384259cf113be5138a",
+      "dllSha256": "5eaa9d214f83f5fbe5c9531e8f4d94fbc32f0199c41bec2b14e3c9bb5c7eb428"
+    },
+    {
+      "name": "LPLK_Maps",
+      "version": "0.4.17",
+      "package": "LPLK_Maps.zip",
+      "packageSha256": "1c3c854cd650d387578891c55cb72a4c7b8b05fbb10cdf93cb97fcfdf60dad65",
+      "dllSha256": "cd1a49467454a342acc7fcf569ba5e3edf8438ee987754459f5806eeedb29683"
+    },
+    {
+      "name": "LPLK_NadeEffects",
+      "version": "0.1.10",
+      "package": "LPLK_NadeEffects.zip",
+      "packageSha256": "6becb2d21210a623a5c0251a7e13411dc954bbf3e9a6baa081fd801ebd435711",
+      "dllSha256": "2cc5df4f1019cc235c0918dc7b1a585772d2967a61cf976ec4866e30dc325a9b"
+    },
+    {
+      "name": "LPLK_Parachute",
+      "version": "0.1.12",
+      "package": "LPLK_Parachute.zip",
+      "packageSha256": "0bb412d1a7c0e2d3e3185e83c8f329a0742edff7add1046a58ec391132f685fb",
+      "dllSha256": "f4ed5b32b45f5766d30706280f04bd5d9c5805168cbf45057896cd386fee35d2"
+    },
+    {
+      "name": "LPLK_Sounds",
+      "version": "0.1.16",
+      "package": "LPLK_Sounds.zip",
+      "packageSha256": "bcc584c699ab305e957acb8ceef3f33d3b93241125191ba8be3812ea527f5c2b",
+      "dllSha256": "14190c98833c809fbf875f6885c3ec0371ba0cb23ddec6dd12ba3588dfc6bdda"
+    },
+    {
+      "name": "LPLK_Statistics",
+      "version": "0.2.22",
+      "package": "LPLK_Statistics.zip",
+      "packageSha256": "2644c27bd9046f883fa93b5ede2b496deeafb32fd72719e957e5200bc850eb72",
+      "dllSha256": "c43e13a63339bde3d5ec0b820e421cc461748a4e4c998ac0cbe29095578832a9"
+    },
+    {
+      "name": "LPLK_Surf",
+      "version": "0.1.11",
+      "package": "LPLK_Surf.zip",
+      "packageSha256": "05ce1130ff06e07f1bba26d770b46934eebce4370196c6fd665f10347ce3fe41",
+      "dllSha256": "af632074c8e9bbb2c12d64a7c535466b3535368f3de367820c06cfbd145fe751"
+    },
+    {
+      "name": "LPLK_Teams",
+      "version": "0.2.12",
+      "package": "LPLK_Teams.zip",
+      "packageSha256": "b0c8ddf51ed38f9ff7c4d2c28eea4d2c15f614db57034b03dde934b356996bb7",
+      "dllSha256": "52d8d67e761f6af2311cf6bf9f636935b88d3d899adbe54835eb13702b7504fc"
+    },
+    {
+      "name": "LPLK_ThirdPerson",
+      "version": "0.1.10",
+      "package": "LPLK_ThirdPerson.zip",
+      "packageSha256": "0fc64f7af0b653dfda36800ba1ca739991f924e5c682c566aafc8aa53ea389c1",
+      "dllSha256": "f2236ec089bd30614142cdaaa4a332ef389a7a8c4debcfe5fc7a4e4312aed319"
+    },
+    {
+      "name": "LPLK_Weapons",
+      "version": "0.2.10",
+      "package": "LPLK_Weapons.zip",
+      "packageSha256": "15c28d161c978f4bf92ddf397ad59755d068123d35482d5547fb1fcd399bee26",
+      "dllSha256": "d43a71e056ab50c967c372014ca7283fc031f75012e04cb8e650a3fa16f2b707"
+    },
+    {
+      "name": "LPLK_Whitelist",
+      "version": "0.2.13",
+      "package": "LPLK_Whitelist.zip",
+      "packageSha256": "d26b815f342f51bf3ff8c424d44db0d98d2ce32555f7d2b9dd9bbf4d951acc77",
+      "dllSha256": "a3cfecb6023cb35540571bff673b2ea6d11384c11d4e03796aa1e90ac6adbab6"
+    },
+    {
+      "name": "LPLK_Zombie",
+      "version": "0.1.6",
+      "package": "LPLK_Zombie.zip",
+      "packageSha256": "19819a89e23c0fa400d9ac2c5887fbfe6ad831e5f2f418f318d1679f7d2c5837",
+      "dllSha256": "de5d18e714072a93542067730b0b46ba6e3cc99b06d8ca51174851c0a255809d"
+    },
+    {
+      "name": "SerververwaltungBridge",
+      "version": "1.8.6",
+      "package": "SerververwaltungBridge.zip",
+      "packageSha256": "93f389b2685a3c7fad3463dd0130164cc43d9bc09e5f41e262fa79e85a98ca46",
+      "dllSha256": "a13e17ac183f1f0b3829f1691e0b467a0bb99f9ee4aad113b8710ed2a53fd6c0"
+    }
+  ]
+}

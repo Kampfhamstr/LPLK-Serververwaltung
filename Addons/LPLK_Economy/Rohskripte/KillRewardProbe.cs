@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using Microsoft.Extensions.Logging;
@@ -7,9 +11,9 @@ public sealed partial class Plugin
 {
     private void KillRewardProbe(ICommandContext ctx)
     {
-        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Economy killprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
+        if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.ReplyLplk("LPLK_Economy killprobe: nur auf leerem, bereitem Standard-Testprofil.");return;}
         const string a="76561198000000001",b="76561198000000002";
-        string path=Path.Combine(Core.PluginDataDirectory,"killreward-probe.sqlite3"),report=Path.Combine(Core.PluginDataDirectory,"killreward-probe.json");
+        string path=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"killreward-probe.sqlite3"),report=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"killreward-probe.json");
         try
         {
             bool prior=File.Exists(path),completed=false;string seedBoot=boot;
@@ -35,8 +39,8 @@ public sealed partial class Plugin
             if(registered!=commands.Length)throw new InvalidDataException("Legacy Economy command missing");
             int legacyAdminChecks=LegacyAdminProbe();int webBankChecks=WebBankProbe();
             AtomicJson.Write(report,new{updatedAt=DateTimeOffset.UtcNow,boot,seedBoot,phase=restarted?"restart-verified":"seed-verified",restarted,claimPreserved=true,pendingCashPreserved=true,victimBalancePreserved=true,settledOnce=restarted,legacyAliases=aliases.Length,registeredCommands=registered,legacyAdminClampVerified=true,legacyAdminChecks,webBankChecks,sqliteVersion=SQLitePCL.raw.sqlite3_libversion().utf8_to_string(),playerDataChanged=false,productionChanged=false});
-            ctx.Reply($"LPLK_Economy killprobe: claim=True; pendingCash=True; victimUnchanged=True; settledOnce={restarted}; restarted={restarted}; commands={registered}/{commands.Length}; Spielerkonten unverändert.");
+            ctx.ReplyLplk($"LPLK_Economy killprobe: claim=True; pendingCash=True; victimUnchanged=True; settledOnce={restarted}; restarted={restarted}; commands={registered}/{commands.Length}; Spielerkonten unverändert.");
         }
-        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy killprobe fehlgeschlagen");ctx.Reply("LPLK_Economy killprobe: fehlgeschlagen");}
+        catch(Exception e){Core.Logger.LogError(e,"LPLK_Economy killprobe fehlgeschlagen");ctx.ReplyLplk("LPLK_Economy killprobe: fehlgeschlagen");}
     }
 }

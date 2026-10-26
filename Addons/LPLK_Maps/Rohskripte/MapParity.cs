@@ -46,7 +46,7 @@ public sealed partial class Plugin
         appliedLimits=after;extensions++;extendVotes.Clear();directVotes.Clear();rtv.Clear();nextMap=null;changeAtRoundEnd=false;endVoteStarted=false;
         earliestEndRound=rounds+1;nextVoteAllowed=Environment.TickCount64+60000;
         autoVotePostponedUntil=Environment.TickCount64+Math.Max(settings.ExtendMinutes,settings.AutoVoteMinutes)*60000L;
-        Core.PlayerManager.SendChat($"[LPLK] Map verlängert ({extensions}/{settings.ExtendLimit}): Zeitlimit {after.Minutes:0.##} Minuten, Rundenlimit {after.Rounds}, Sieglimit {after.Wins}.");WriteStatus();return true;
+        Core.PlayerManager.SendLplkChat($"[LPLK] Map verlängert ({extensions}/{settings.ExtendLimit}): Zeitlimit {after.Minutes:0.##} Minuten, Rundenlimit {after.Rounds}, Sieglimit {after.Wins}.");WriteStatus();return true;
     }
     private void RestoreOwnedLimits(MapExtension before,MapExtension after)
     {
@@ -108,61 +108,65 @@ public sealed partial class Plugin
     [Command("extend")][CommandAlias("ext")][CommandAlias("extendmap")]
     public void ExtendCommand(ICommandContext ctx)
     {
-        if(ctx.Sender is not {} p||!CanVote(p)||voteEnds>0||!CanExtend()){ctx.Reply("[LPLK] Verlängerung derzeit nicht möglich.");return;}
-        if(!extendVotes.Add(p.SteamID)){ctx.Reply("[LPLK] Deine Verlängerungsstimme ist bereits gespeichert.");return;}
-        Core.PlayerManager.SendChat($"[LPLK] Verlängern: {extendVotes.Count}/{MapPolicy.RequiredRtv(Voters().Count,settings.ExtendPercent)} Stimmen.");
+        if(ctx.Sender is not {} p||!CanVote(p)||voteEnds>0||!CanExtend()){ctx.ReplyLplk("[LPLK] Verlängerung derzeit nicht möglich.");return;}
+        if(!extendVotes.Add(p.SteamID)){ctx.ReplyLplk("[LPLK] Deine Verlängerungsstimme ist bereits gespeichert.");return;}
+        Core.PlayerManager.SendLplkChat($"[LPLK] Verlängern: {extendVotes.Count}/{MapPolicy.RequiredRtv(Voters().Count,settings.ExtendPercent)} Stimmen.");
         if(extendVotes.Count>=MapPolicy.RequiredRtv(Voters().Count,settings.ExtendPercent))ExtendMap();
     }
     [Command("unrtv")]
-    public void UnRtv(ICommandContext ctx){if(ctx.Sender is {} p)ctx.Reply(rtv.Remove(p.SteamID)?"[LPLK] RTV-Stimme zurückgezogen.":"[LPLK] Keine RTV-Stimme gespeichert.");}
+    public void UnRtv(ICommandContext ctx){if(ctx.Sender is {} p)ctx.ReplyLplk(rtv.Remove(p.SteamID)?"[LPLK] RTV-Stimme zurückgezogen.":"[LPLK] Keine RTV-Stimme gespeichert.");}
     [Command("revote")]
     public void Revote(ICommandContext ctx)
     {
         if(ctx.Sender is not {} p||!CanVote(p)||voteEnds<=Environment.TickCount64)return;
         if(ctx.Args.Length==0){ShowVote(p);return;}
-        var choices=BallotChoices();if(ctx.Args.Length!=1||!int.TryParse(ctx.Args[0],out int number)||number<1||number>choices.Count){ctx.Reply("[LPLK] Ungültige Stimmnummer; !revote öffnet die Auswahl.");return;}
+        var choices=BallotChoices();if(ctx.Args.Length!=1||!int.TryParse(ctx.Args[0],out int number)||number<1||number>choices.Count){ctx.ReplyLplk("[LPLK] Ungültige Stimmnummer; !revote öffnet die Auswahl.");return;}
         CastBallot(p,choices[number-1]);
     }
     [Command("votemap")]
     public void Votemap(ICommandContext ctx)
     {
         if(!settings.DirectVotemapEnabled){MapChooser(ctx);return;}
-        if(ctx.Sender is not {} p||!CanVote(p)||!GameplayAvailable||voteEnds>0||nextMap is not null||Voters().Count<settings.DirectVotemapMinPlayers){ctx.Reply("[LPLK] Direkte Mapabstimmung derzeit nicht verfügbar.");return;}
-        if(ctx.Args.Length>0){var map=MapPolicy.Resolve(Eligible(),string.Join(" ",ctx.Args));if(map is null)ctx.Reply("[LPLK] Map nicht eindeutig oder nicht wählbar.");else DirectVote(p,map);return;}
+        if(ctx.Sender is not {} p||!CanVote(p)||!GameplayAvailable||voteEnds>0||nextMap is not null||Voters().Count<settings.DirectVotemapMinPlayers){ctx.ReplyLplk("[LPLK] Direkte Mapabstimmung derzeit nicht verfügbar.");return;}
+        if(ctx.Args.Length>0){var map=MapPolicy.Resolve(Eligible(),string.Join(" ",ctx.Args));if(map is null)ctx.ReplyLplk("[LPLK] Map nicht eindeutig oder nicht wählbar.");else DirectVote(p,map);return;}
         Categories(p,"Map direkt wählen",()=>Eligible(),DirectVote,a=>CanVote(a)&&GameplayAvailable&&voteEnds==0&&nextMap is null);
     }
     private void DirectVote(IPlayer p,MapEntry selected)
     {
         if(!settings.DirectVotemapEnabled||!GameplayAvailable||!CanVote(p)||voteEnds>0||nextMap is not null||!Eligible().Any(m=>m.Id==selected.Id))return;
-        directVotes[p.SteamID]=selected.Id;Close(p.PlayerID);Core.PlayerManager.SendChat($"[LPLK] {selected.Name}: {directVotes.Values.Count(v=>v==selected.Id)}/{MapPolicy.RequiredRtv(Voters().Count,settings.DirectVotemapPercent)} Stimmen.");
+        bool changed=directVotes.TryGetValue(p.SteamID,out var previous);
+        if(previous==selected.Id){p.SendLplkChat($"[LPLK] Deine Stimme für {selected.Name} ist bereits gespeichert.");Close(p.PlayerID);return;}
+        directVotes[p.SteamID]=selected.Id;Close(p.PlayerID);
+        if(changed)Core.PlayerManager.SendLplkChat($"[LPLK] {p.Name} ändert seine Stimme auf {selected.Name} ({directVotes.Values.Count(v=>v==selected.Id)}/{MapPolicy.RequiredRtv(Voters().Count,settings.DirectVotemapPercent)} Stimmen).");
+        else Core.PlayerManager.SendLplkChat($"[LPLK] {p.Name} stimmt für {selected.Name} ({directVotes.Values.Count(v=>v==selected.Id)}/{MapPolicy.RequiredRtv(Voters().Count,settings.DirectVotemapPercent)} Stimmen).");
     }
     [Command("nextmap")]
-    public void NextMapCommand(ICommandContext ctx)=>ctx.Reply((pending??nextMap) is {} map?"[LPLK] Nächste Map: "+map.Name:"[LPLK] Nächste Map noch nicht gewählt.");
+    public void NextMapCommand(ICommandContext ctx)=>ctx.ReplyLplk((pending??nextMap) is {} map?"[LPLK] Nächste Map: "+map.Name:"[LPLK] Nächste Map noch nicht gewählt.");
     [Command("timeleft")]
     public void Timeleft(ICommandContext ctx)
     {
-        var remaining=RemainingSeconds();var limits=Limits();ctx.Reply($"[LPLK] Zeit: {(remaining is {} s?TimeSpan.FromSeconds(s).ToString(@"hh\:mm\:ss"):"kein aktives Zeitlimit")} · Rundenlimit {limits.Rounds} · Sieglimit {limits.Wins} · Verlängerungen {extensions}/{settings.ExtendLimit}.");
+        var remaining=RemainingSeconds();var limits=Limits();ctx.ReplyLplk($"[LPLK] Zeit: {(remaining is {} s?TimeSpan.FromSeconds(s).ToString(@"hh\:mm\:ss"):"kein aktives Zeitlimit")} · Rundenlimit {limits.Rounds} · Sieglimit {limits.Wins} · Verlängerungen {extensions}/{settings.ExtendLimit}.");
     }
     [Command("maplist")][CommandAlias("maps")][CommandAlias("hsmaps")][CommandAlias("workshopmaps")]
     public void MapList(ICommandContext ctx)
     {
-        if(ctx.Sender is {} p)Categories(p,"Mapliste",()=>maps.Where(m=>m.IsMap&&!m.Removed).ToList(),(a,m)=>a.SendChat($"[LPLK] {m.Name} · {m.Id} · {m.MinPlayers}–{m.MaxPlayers} Spieler · {(MapPolicy.LimitsApproved(m)?"Grenzen freigegeben":"Grenzprüfung offen")}"),a=>module.Active&&a.IsValid);
-        else ctx.Reply($"[LPLK] {maps.Count(m=>m.IsMap&&!m.Removed)} Maps im Katalog.");
+        if(ctx.Sender is {} p)Categories(p,"Mapliste",()=>maps.Where(m=>m.IsMap&&!m.Removed).ToList(),(a,m)=>a.SendLplkChat($"[LPLK] {m.Name} · {m.Id} · {m.MinPlayers}–{m.MaxPlayers} Spieler · {(MapPolicy.LimitsApproved(m)?"Grenzen freigegeben":"Grenzprüfung offen")}"),a=>module.Active&&a.IsValid);
+        else ctx.ReplyLplk($"[LPLK] {maps.Count(m=>m.IsMap&&!m.Removed)} Maps im Katalog.");
     }
     [Command("setnextmap")]
     public void SetNextMap(ICommandContext ctx)
     {
-        if(ctx.Sender is {} p&&!MayManage(p,s=>s.SetNextMapPermission)){ctx.Reply("[LPLK] Keine Berechtigung.");return;}
-        if(!GameplayAvailable){ctx.Reply("[LPLK] Mapwahl derzeit nicht aktiv.");return;}
+        if(ctx.Sender is {} p&&!MayManage(p,s=>s.SetNextMapPermission)){ctx.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
+        if(!GameplayAvailable){ctx.ReplyLplk("[LPLK] Mapwahl derzeit nicht aktiv.");return;}
         var map=MapPolicy.Resolve(maps.Where(m=>Available(m)&&m.Enabled&&m.InPool),string.Join(" ",ctx.Args));
-        if(map is null){ctx.Reply("[LPLK] setnextmap <eindeutige Map oder ID>");return;}
-        CancelVote();nextMap=map;endVoteStarted=true;ctx.Reply("[LPLK] Nächste Map: "+map.Name);
+        if(map is null){ctx.ReplyLplk("[LPLK] setnextmap <eindeutige Map oder ID>");return;}
+        CancelVote();nextMap=map;endVoteStarted=true;ctx.ReplyLplk("[LPLK] Nächste Map: "+map.Name);
     }
     [Command("mapsvote")]
     public void AdminMapsVote(ICommandContext ctx)
     {
-        if(ctx.Sender is {} p){if(!MayManage(p,s=>s.MapsVotePermission)){ctx.Reply("[LPLK] Keine Berechtigung.");return;}CustomVoteMenu(p,new HashSet<string>());return;}
-        ctx.Reply(StartVote(Reason.Admin)?"[LPLK] Mapabstimmung gestartet.":"[LPLK] Abstimmung derzeit nicht möglich.");
+        if(ctx.Sender is {} p){if(!MayManage(p,s=>s.MapsVotePermission)){ctx.ReplyLplk("[LPLK] Keine Berechtigung.");return;}CustomVoteMenu(p,new HashSet<string>());return;}
+        ctx.ReplyLplk(StartVote(Reason.Admin)?"[LPLK] Mapabstimmung gestartet.":"[LPLK] Abstimmung derzeit nicht möglich.");
     }
     private void CustomVoteMenu(IPlayer player,HashSet<string> selected)
     {
@@ -171,7 +175,7 @@ public sealed partial class Plugin
         selected.IntersectWith(Eligible().Select(m=>m.Id));
         CompactMenu.Open(Core,player,$"Admin-Mapwahl · {selected.Count} ausgewählt",()=>module.Active&&serial==generation,Allowed,_=>
         [("Maps auswählen",p=>Categories(p,"Map zur Abstimmung",()=>Eligible(),(actor,map)=>{if(!selected.Add(map.Id))selected.Remove(map.Id);CustomVoteMenu(actor,selected);},Allowed)),
-         ("Abstimmung starten",p=>{if(!StartSelectedVote(p,selected))p.SendChat("[LPLK] Mindestens eine weiterhin zulässige Map auswählen; Abstimmung muss frei sein.");}),
+         ("Abstimmung starten",p=>{if(!StartSelectedVote(p,selected))p.SendLplkChat("[LPLK] Mindestens eine weiterhin zulässige Map auswählen; Abstimmung muss frei sein.");}),
          ("Auswahl leeren",p=>CustomVoteMenu(p,new HashSet<string>()))],p=>p.ExecuteCommand("sw_admin"));
     }
     private bool StartSelectedVote(IPlayer player,IReadOnlySet<string> selected)
@@ -182,7 +186,7 @@ public sealed partial class Plugin
     [Command("cyclemenu")][CommandAlias("mapcycle")]
     public void CycleMenu(ICommandContext ctx)
     {
-        if(ctx.Sender is not {} p||!MayManage(p,s=>s.CyclePermission)){ctx.Reply("[LPLK] Keine Berechtigung.");return;}
+        if(ctx.Sender is not {} p||!MayManage(p,s=>s.CyclePermission)){ctx.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         int serial=generation;
         CompactMenu.Open(Core,p,"Maprotation",()=>module.Active&&serial==generation,a=>MayManage(a,s=>s.CyclePermission),_=>
         [($"Rotation: {(settings.CycleEnabled?"AN":"AUS")}",a=>CycleSave(a,s=>s with{CycleEnabled=!s.CycleEnabled})),
@@ -194,34 +198,40 @@ public sealed partial class Plugin
     private void CycleSave(IPlayer p,Func<MapSettings,MapSettings> edit)
     {
         if(!MayManage(p,s=>s.CyclePermission))return;
-        try{ChangeConfiguration(edit,false,s=>MayManageCurrent(p,s.CyclePermission));p.SendChat("[LPLK] Maprotation gespeichert.");p.ExecuteCommand("sw_cyclemenu");}
-        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException){p.SendChat("[LPLK] Maprotation nicht gespeichert: "+e.Message);}
+        try{ChangeConfiguration(edit,false,s=>MayManageCurrent(p,s.CyclePermission));p.SendLplkChat("[LPLK] Maprotation gespeichert.");p.ExecuteCommand("sw_cyclemenu");}
+        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException){p.SendLplkChat("[LPLK] Maprotation nicht gespeichert: "+e.Message);}
     }
     [Command("addmap")]
     public void AddMap(ICommandContext ctx)
     {
-        if(ctx.Sender is {} p&&!MayManage(p,s=>s.CyclePermission)){ctx.Reply("[LPLK] Keine Berechtigung.");return;}
+        if(ctx.Sender is {} p&&!MayManage(p,s=>s.CyclePermission)){ctx.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         string query=string.Join(" ",ctx.Args).Trim();var map=MapPolicy.Resolve(maps,query);
-        if(map is not null){ReplaceMap(map with{Enabled=true,Removed=false,InPool=true});ctx.Reply("[LPLK] Map im Pool aktiviert; bestehende Messungen und Freigaben bleiben erhalten.");return;}
-        if(MapPolicy.WorkshopId(query) is not {} id){ctx.Reply("[LPLK] addmap <eindeutige bekannte Map oder Workshop-ID>");return;}
-        if(settings.ExcludedWorkshopIds.Contains(id)){ctx.Reply("[LPLK] Workshop-Eintrag ist ausdrücklich ausgeschlossen.");return;}
+        if(map is not null){ReplaceMap(map with{Enabled=true,Removed=false,InPool=true});ctx.ReplyLplk("[LPLK] Map im Pool aktiviert; bestehende Messungen und Freigaben bleiben erhalten.");return;}
+        if(MapPolicy.WorkshopId(query) is not {} id){ctx.ReplyLplk("[LPLK] addmap <eindeutige bekannte Map oder Workshop-ID>");return;}
+        if(settings.ExcludedWorkshopIds.Contains(id)){ctx.ReplyLplk("[LPLK] Workshop-Eintrag ist ausdrücklich ausgeschlossen.");return;}
         try{ChangeConfiguration(s=>s with{WorkshopIds=s.WorkshopIds.Append(id).Distinct().ToArray()},false,s=>ctx.Sender is not {} actor||MayManageCurrent(actor,s.CyclePermission));RefreshCollection();}
-        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException){ctx.Reply("[LPLK] Workshop-ID nicht gespeichert: "+e.Message);return;}
-        ctx.Reply("[LPLK] Workshop-ID vorgemerkt. Maptyp, Messung und Grenzen müssen vor der Wahl bestätigt werden.");
+        catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException){ctx.ReplyLplk("[LPLK] Workshop-ID nicht gespeichert: "+e.Message);return;}
+        ctx.ReplyLplk("[LPLK] Workshop-ID vorgemerkt. Maptyp, Messung und Grenzen müssen vor der Wahl bestätigt werden.");
     }
     [Command("removemap")]
     public void RemoveMap(ICommandContext ctx)
     {
-        if(ctx.Sender is {} p&&!MayManage(p,s=>s.CyclePermission)){ctx.Reply("[LPLK] Keine Berechtigung.");return;}
-        var map=MapPolicy.Resolve(maps,string.Join(" ",ctx.Args));if(map is null){ctx.Reply("[LPLK] removemap <eindeutige Map oder ID>");return;}
-        ReplaceMap(map with{Enabled=false});ctx.Reply("[LPLK] Map aus der aktiven Rotation entfernt; Dateien, Messwerte und Freigaben bleiben erhalten.");
+        if(ctx.Sender is {} p&&!MayManage(p,s=>s.CyclePermission)){ctx.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
+        var map=MapPolicy.Resolve(maps,string.Join(" ",ctx.Args));if(map is null){ctx.ReplyLplk("[LPLK] removemap <eindeutige Map oder ID>");return;}
+        ReplaceMap(map with{Enabled=false});ctx.ReplyLplk("[LPLK] Map aus der aktiven Rotation entfernt; Dateien, Messwerte und Freigaben bleiben erhalten.");
     }
     private List<MapEntry> BallotChoices()=>candidates.Concat(reason==Reason.EndOfMap&&CanExtend(true)?[new MapEntry{Id=ExtendChoice,Name="Aktuelle Map verlängern"}]:Array.Empty<MapEntry>()).ToList();
     private void CastBallot(IPlayer actor,MapEntry map)
     {
         if(!GameplayAvailable||!CanVote(actor)||voteEnds<=Environment.TickCount64)return;
         if(map.Id==ExtendChoice){if(reason!=Reason.EndOfMap||!CanExtend(true))return;}
-        else if(!candidates.Any(m=>m.Id==map.Id)||!Eligible().Any(m=>m.Id==map.Id)){actor.SendChat("[LPLK] Map inzwischen nicht mehr wählbar.");return;}
-        ballots[actor.SteamID]=map.Id;actor.SendChat("[LPLK] Stimme gespeichert: "+map.Name);Close(actor.PlayerID);
+        else if(!candidates.Any(m=>m.Id==map.Id)||!Eligible().Any(m=>m.Id==map.Id)){actor.SendLplkChat("[LPLK] Map inzwischen nicht mehr wählbar.");return;}
+        bool changed=ballots.TryGetValue(actor.SteamID,out var previous);
+        string choice=map.Id==ExtendChoice?"die Verlängerung der aktuellen Map":map.Name;
+        if(previous==map.Id){actor.SendLplkChat($"[LPLK] Deine Stimme für {choice} ist bereits gespeichert.");Close(actor.PlayerID);return;}
+        ballots[actor.SteamID]=map.Id;
+        int votes=ballots.Values.Count(v=>v==map.Id);
+        Core.PlayerManager.SendChat($"[blue]{ChatTheme.Plain(actor.Name)}[yellow] {(changed?"ändert seine Stimme auf":"stimmt für")} [blue]{ChatTheme.Plain(choice)}[yellow] ({votes}).[default]");
+        Close(actor.PlayerID);
     }
 }

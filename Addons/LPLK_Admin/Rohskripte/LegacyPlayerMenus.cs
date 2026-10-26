@@ -56,7 +56,7 @@ public sealed partial class Plugin
     {
         if(PlayerFeatureAllowed(p,id,command)){PlayerCommand(p,id,command);return;}
         if(LegacyCommand(p,id,command) is {} old){p.ExecuteCommand(old);return;}
-        p.SendChat("[LPLK] Funktion derzeit nicht verfügbar.");
+        p.SendLplkChat("[LPLK] Funktion derzeit nicht verfügbar.");
     }
     private bool PublicMapsAvailable(IPlayer p)=>Loaded("LPLK_Surf")?ModeApi(p,"Surf","maps") is not null:Loaded("LPLK_Maps")||new[]{"sw_rtv","sw_nominate","sw_revote","sw_nextmap"}.Any(c=>LegacyCommand(p,"LPLK_Maps",c) is not null);
 }

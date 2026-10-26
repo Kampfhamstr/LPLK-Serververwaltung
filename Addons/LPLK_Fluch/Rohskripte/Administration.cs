@@ -9,12 +9,12 @@ namespace LPLK_Fluch;
 public sealed partial class Plugin
 {
     [Command("fluch")]
-    public void Fluch(ICommandContext ctx){if(ctx.Sender is {} p)OpenAdmin(p);else ctx.Reply("LPLK_Fluch: !fluch benötigt einen Administrator im Spiel.");}
+    public void Fluch(ICommandContext ctx){if(ctx.Sender is {} p)OpenAdmin(p);else ctx.ReplyLplk("LPLK_Fluch: !fluch benötigt einen Administrator im Spiel.");}
     [Command("fluchstop")]
     public void Stop(ICommandContext ctx)
     {
         if(ctx.Sender is {} p&&!module.CanAdmin(p))return;
-        if(ready)curses.Clear();ctx.Reply("LPLK_Fluch: alle aktiven Flüche beendet.");WriteStatus();
+        if(ready)curses.Clear();ctx.ReplyLplk("LPLK_Fluch: alle aktiven Flüche beendet.");WriteStatus();
     }
     [Command("fluchconfig")]
     public void Config(ICommandContext ctx){if(ctx.Sender is {} p&&!module.CanAdmin(p))return;Status(ctx);}
@@ -24,28 +24,28 @@ public sealed partial class Plugin
         if(ctx.Sender is {} p){OpenAdmin(p);return;}
         if(ctx.Args.Length==1&&ctx.Args[0]=="probe")
         {
-            if(!ready||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.Reply("LPLK_Fluch probe: leerer, bereiter Server erforderlich");return;}
+            if(!ready||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient)){ctx.ReplyLplk("LPLK_Fluch probe: leerer, bereiter Server erforderlich");return;}
             uint chicken=uint.MaxValue;
             try
             {
                 chicken=world.Spawn(new(0,0,64),0);if(chicken==uint.MaxValue)throw new InvalidOperationException("Huhn fehlt");
                 if(!world.Move(chicken,new(16,24,96),90)||world.Position(chicken) is not {} pos||System.Numerics.Vector3.Distance(pos,new(16,24,96))>.1f)throw new InvalidOperationException("Hühnerposition nicht bestätigt");
                 world.Destroy(chicken);if(world.Position(chicken) is not null)throw new InvalidOperationException("Huhn blieb bestehen");chicken=uint.MaxValue;
-                ctx.Reply("LPLK_Fluch probe: chicken erzeugt, Teleport bestätigt, entfernt; kein Spielerschaden ausgelöst.");
+                ctx.ReplyLplk("LPLK_Fluch probe: chicken erzeugt, Teleport bestätigt, entfernt; kein Spielerschaden ausgelöst.");
             }
-            catch(Exception e){Error(e);ctx.Reply("LPLK_Fluch probe: fehlgeschlagen");}
+            catch(Exception e){Error(e);ctx.ReplyLplk("LPLK_Fluch probe: fehlgeschlagen");}
             finally{if(chicken!=uint.MaxValue)world.Destroy(chicken);WriteStatus();}
             return;
         }
         Status(ctx);
     }
-    private void Status(ICommandContext ctx){WriteStatus();ctx.Reply($"LPLK_Fluch 0.1.3: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; chickens={settings.ChickenCount}; duration={settings.OrbitDurationSeconds}; damage={settings.TotalDamage}; active={curses.Count}; errors={errors}; reloadError={reloadError??"none"}");}
+    private void Status(ICommandContext ctx){WriteStatus();ctx.ReplyLplk($"LPLK_Fluch 0.1.10: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; chickens={settings.ChickenCount}; duration={settings.OrbitDurationSeconds}; damage={settings.TotalDamage}; active={curses.Count}; errors={errors}; reloadError={reloadError??"none"}");}
     private void OpenAdmin(IPlayer p) => module.Menu(p,"LPLK · Hühnerfluch",((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Wirkung",EffectMenuRows(actor)),("Kreisbahn",OrbitMenuRows(actor)),("Bewegung",WaveMenuRows(actor)),("Meldung",MessageMenuRows(actor)),("Bildschirm",CenterMenuRows(actor)),("Anzeigezeit",MessageTimesRows(actor)))))(p));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Spieler",a=>Targets(a,0)),($"Beenden ({curses.Count})",a=>{if(ready)curses.Clear();OpenAdmin(a);})}))(p);
     private void Targets(IPlayer p,int page)
     {
         if(!module.CanAdmin(p))return;
-        if(!Enabled){p.SendChat("[LPLK] Der Fluch ist ausgeschaltet oder die Map noch nicht bereit.");OpenAdmin(p);return;}
+        if(!Enabled){p.SendLplkChat("[LPLK] Der Fluch ist ausgeschaltet oder die Map noch nicht bereit.");OpenAdmin(p);return;}
         var targets=Core.PlayerManager.GetAllValidPlayers().Where(x=>settings.AllowSelfTarget||x.PlayerID!=p.PlayerID)
             .Select(x=>(Player:x,State:world.Player(x.PlayerID))).Where(x=>x.State is {Alive:true}).OrderBy(x=>x.Player.Name).ToArray();
         var layout=TargetPages.Make(targets.Length,page);
@@ -57,7 +57,7 @@ public sealed partial class Plugin
             {
                 if(!module.CanAdmin(a)||!Enabled)return;
                 if(world.Player(a.PlayerID) is not {} caster)return;
-                a.SendChat("[LPLK] "+curses.Start(caster.Owner,owner,settings,Environment.TickCount64/1000d));WriteStatus();Targets(a,layout.Index);
+                a.SendLplkChat("[LPLK] "+curses.Start(caster.Owner,owner,settings,Environment.TickCount64/1000d));WriteStatus();Targets(a,layout.Index);
             }));
         }
         if(layout.Index>0)actions.Add(("Vorherige Seite",a=>Targets(a,layout.Index-1)));
@@ -108,12 +108,12 @@ public sealed partial class Plugin
         if(!module.CanAdmin(actor))return;
         try{config.Change(edit);reloadError=null;}
         catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
-        {reloadError=config.Error??e.GetType().Name;actor.SendChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
+        {reloadError=config.Error??e.GetType().Name;actor.SendLplkChat("[LPLK] Nicht gespeichert. Werte und externe Konfiguration prüfen.");}
         SyncSettings();WriteStatus();
     }
 }
 public static class TargetPages
 {
     public static (int Index,int Pages,int Offset,int Size) Make(int count,int requested)
-    {int size=count<=4?4:2,pages=Math.Max(1,(count+size-1)/size),index=Math.Clamp(requested,0,pages-1);return(index,pages,index*size,size);}
+    => (0,1,0,Math.Max(1,count));
 }

@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text;
@@ -17,7 +21,7 @@ using SwiftlyS2.Shared.ProtobufDefinitions;
 
 namespace LPLK_ChatGuard;
 
-[PluginMetadata(Id="LPLK_ChatGuard",Name="LPLK_ChatGuard",Version="0.1.4",Author="LPLK",Description="Chat-, Namen- und Werbeschutz mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_ChatGuard",Name="LPLK_ChatGuard",Version="0.1.11",Author="LPLK",Description="Chat-, Namen- und Werbeschutz mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private readonly JsonSerializerOptions _json = new()
@@ -70,22 +74,28 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 
     public override void Load(bool hotReload)
     {
-        _root = Core.PluginDataDirectory;
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { LPLK.Common.RoundData.Attach(Core); ChatTheme.Initialize("LPLK_ChatGuard",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
+        _root = LPLK.Common.RoundFileStore.DataPath(Core);
         // Production Bridge and the web sync use this established directory.
         // The explicit migration marker preserves their shared outbox and rules.
         if (File.Exists(Path.Combine(_root,"legacy-bridge-storage")))
         {
-            string legacy=Path.Combine(Core.GameFilesDirectory,"addons","swiftlys2","data","serververwaltung_antiadvertisement");
+            string legacy=Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"addons","swiftlys2","data","serververwaltung_antiadvertisement");
             if(!Directory.Exists(legacy)||new DirectoryInfo(legacy).LinkTarget is not null||!File.Exists(Path.Combine(legacy,"config.json")))throw new InvalidDataException("Bestehender Bridge-Werbeschutzspeicher fehlt.");
             _root=legacy;
         }
         _configPath = Path.Combine(_root, "config.json");
         _eventsLog = Path.Combine(_root, "events.log");
 
-        string bridgeRoot = Path.Combine(Core.GameFilesDirectory, "addons", "swiftlys2", "data", "serververwaltung_bridge");
+        string bridgeRoot = Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core), "addons", "swiftlys2", "data", "serververwaltung_bridge");
         _bridgeBansPath = Path.Combine(bridgeRoot, "bans.json");
         _bridgeGlobalBansPath = Path.Combine(bridgeRoot, "global_bans.json");
-        _permissionsPath = Path.Combine(Core.GameFilesDirectory, "addons", "swiftlys2", "configs", "permissions.jsonc");
+        _permissionsPath = Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core), "addons", "swiftlys2", "configs", "permissions.jsonc");
         _globalProtectionPath = Path.Combine(_root, "global_protection.json");
         _bridgeOutboxDir = Path.Combine(_root, "bridge_outbox");
 
@@ -119,10 +129,15 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         _serverNetMessageHookGuids.Add(Core.NetMessage.HookServerMessage<CCSUsrMsg_KeyHintText>(OnCsKeyHintText));
         _serverNetMessageHookGuids.Add(Core.NetMessage.HookServerMessage<CCSUsrMsg_RadioText>(OnCsRadioText));
         _active=true;_module.Active=true;WriteStatus();
-        Core.Logger.LogInformation("LPLK_ChatGuard 0.1.4 geladen. Config: {Path}", _configPath);
+        Core.Logger.LogInformation("LPLK_ChatGuard 0.1.11 geladen. Config: {Path}", _configPath);
     }
 
     public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore()
     {
         _active=false;if(_module is not null)_module.Active=false;
         if (_playerConnectPreHookGuid != Guid.Empty) Core.GameEvent.Unhook(_playerConnectPreHookGuid);
@@ -153,6 +168,6 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         _permissionsLastWriteUtc = DateTime.MinValue;
         _lastServerAdvertisingText = string.Empty;
         _lastServerAdvertisingAt = DateTimeOffset.MinValue;
-    }
+     LPLK.Common.RoundData.Drain(); }
 
 }

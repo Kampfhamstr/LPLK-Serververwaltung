@@ -16,24 +16,25 @@ public sealed partial class Plugin
     {
         if(c.Sender is {} p){OpenAdmin(p);return;}
         Refresh();WriteStatus();
-        c.Reply($"LPLK_Teams 0.2.2: enabled={settings.Enabled}; ready={ready}; bridgeReady={BridgeReady()}; CT={score?.Ct}; T={score?.T}; source={tracker.Source}; rounds={rounds}; threshold={TeamPolicy.Threshold(settings,rounds)}; selected={SelectionIds.Count()}; errors={errors}; reloadError={reloadError??"none"}");
+        c.Reply($"LPLK_BOTPOP {JsonSerializer.Serialize(new{version="0.2.12",humans=botHumans,desired=botDesired,actual=botActual,removalAttempts=botRemovalAttempts,quota=Core.ConVar.Find<int>("bot_quota")?.Value,mode=Core.ConVar.Find<string>("bot_quota_mode")?.Value})}");
+        c.ReplyLplk($"LPLK_Teams 0.2.12: enabled={settings.Enabled}; ready={ready}; bridgeReady={BridgeReady()}; CT={score?.Ct}; T={score?.T}; source={tracker.Source}; rounds={rounds}; threshold={TeamPolicy.Threshold(settings,rounds)}; selected={SelectionIds.Count()}; errors={errors}; reloadError={reloadError??"none"}");
     }
     [Command("tsbscore")]
     public void ScoreCommand(ICommandContext c)
     {
         if(c.Sender is not null&&!settings.AllowChatStatusCommand)return;
         Refresh();
-        c.Reply($"[LPLK] Teams {(settings.Enabled?"AN":"AUS")}: CT {score?.Ct.ToString()??"?"} : {score?.T.ToString()??"?"} T; geschützt: {ProtectedText()}; Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds}; Halbzeit {Halftime}; Quelle {tracker.Source}.");
+        c.ReplyLplk($"[LPLK] Teams {(settings.Enabled?"AN":"AUS")}: CT {score?.Ct.ToString()??"?"} : {score?.T.ToString()??"?"} T; geschützt: {ProtectedText()}; Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds}; Halbzeit {Halftime}; Quelle {tracker.Source}.");
     }
     private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,title,()=>loaded,module.CanAdmin,rows,back);
     private void OpenAdmin(IPlayer p)=>Page(p,"LPLK · Teamwechsel",_=>new (string,Action<IPlayer>)[]{
-        ("Spielstand",a=>{Refresh();a.SendChat($"[LPLK] CT {score?.Ct} : {score?.T} T | {ProtectedText()} | Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds} | {roundsSource} | {tracker.Source} | Konfiguration: {reloadError??"gültig"}");}),
+        ("Spielstand",a=>{Refresh();a.SendLplkChat($"[LPLK] CT {score?.Ct} : {score?.T} T | {ProtectedText()} | Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds} | {roundsSource} | {tracker.Source} | Konfiguration: {reloadError??"gültig"}");}),
         ($"Verliererteam ({SelectionIds.Count()})",PlayersRoot),
         ($"Aktiv: {settings.Enabled}",a=>Set(a,nameof(TeamSettings.Enabled),false,toggle:true))}.Concat(Groups.SelectMany((g,index)=>SettingRows(index))).Concat(TextSettingRows()).ToArray());
     private void SettingsRoot(IPlayer p)=>OpenAdmin(p);
     private static readonly (string Name,string Label)[][] Groups=
     [
-        [(nameof(TeamSettings.AutoDetectMaxRounds),"Autorunden"),(nameof(TeamSettings.FallbackMaxRounds),"Ersatz-Rundenzahl"),(nameof(TeamSettings.BlockAtMaxRoundsPercent),"Sperranteil"),
+        [(nameof(TeamSettings.BotFillSlots),"Bot-Füllziel (0 = aus)"),(nameof(TeamSettings.AutoDetectMaxRounds),"Autorunden"),(nameof(TeamSettings.FallbackMaxRounds),"Ersatz-Rundenzahl"),(nameof(TeamSettings.BlockAtMaxRoundsPercent),"Sperranteil"),
          (nameof(TeamSettings.BlockOnlyIfTeamIsLeading),"Führungsschutz"),(nameof(TeamSettings.BlockBothTeamsIfBothReachedLimit),"Doppelsperre"),(nameof(TeamSettings.AllowSpectator),"Zuschauer erlauben"),(nameof(TeamSettings.ForceBackIfSwitchStillHappened),"Rückversetzen")],
         [(nameof(TeamSettings.AllowHalftimeTeamSwitchException),"Halbzeitausnahme"),(nameof(TeamSettings.HalftimeSwitchGraceSeconds),"Halbzeitdauer"),(nameof(TeamSettings.TreatWinScoreAsMatchEnd),"Siegpunkt"),
          (nameof(TeamSettings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd),"Verliererzuordnung"),(nameof(TeamSettings.MatchEndGuardWindowSeconds),"Sperrdauer"),(nameof(TeamSettings.ResetScoreOnNewMap),"Map-Rücksetzung"),(nameof(TeamSettings.ResetScoreOnNewMatch),"Match-Rücksetzung")],
@@ -63,7 +64,7 @@ public sealed partial class Plugin
             Refresh();
         }
         catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
-        {reloadError=config.Error??e.GetType().Name;actor.SendChat("[LPLK] Einstellung nicht gespeichert. Externe Konfiguration prüfen und Menü erneut öffnen.");}
+        {reloadError=config.Error??e.GetType().Name;actor.SendLplkChat("[LPLK] Einstellung nicht gespeichert. Externe Konfiguration prüfen und Menü erneut öffnen.");}
         if(!ReferenceEquals(settings,config.Current)){settings=config.Current;revision++;permits.Clear();intents.Clear();}
         WriteStatus();if(group is {} g)SettingsMenu(actor,g);else SettingsRoot(actor);
     }
@@ -72,14 +73,14 @@ public sealed partial class Plugin
         bool fraction=name==nameof(TeamSettings.BlockAtMaxRoundsPercent);value=0;
         if(fraction){if(!double.TryParse(text.Replace(',','.'),NumberStyles.Float,CultureInfo.InvariantCulture,out double d)||!double.IsFinite(d)||d is <=0 or >1)return false;value=d;return true;}
         if(!int.TryParse(text,NumberStyles.Integer,CultureInfo.InvariantCulture,out int n))return false;
-        if(name==nameof(TeamSettings.FallbackMaxRounds)?n is <2 or >1000:n is <1 or >120)return false;value=n;return true;
+        if(name==nameof(TeamSettings.BotFillSlots)?n is <0 or >30:name==nameof(TeamSettings.FallbackMaxRounds)?n is <2 or >1000:n is <1 or >120)return false;value=n;return true;
     }
     private void InputNumber(IPlayer p,string name,string label,int group)
     {
         if(!module.CanAdmin(p))return;
         var input=new InputMenuOption(new MenuNumbers().Next(label),maxLength:12,validator:v=>Number(name,v,out _),
             defaultValue:Convert.ToString(typeof(TeamSettings).GetProperty(name)!.GetValue(settings),CultureInfo.InvariantCulture)??"",
-            hintMessage:name==nameof(TeamSettings.BlockAtMaxRoundsPercent)?"Anteil >0 bis 1 eingeben, z. B. 0,5.":name==nameof(TeamSettings.FallbackMaxRounds)?"2 bis 1000 Runden eingeben.":"1 bis 120 Sekunden eingeben."){CloseAfterClick=false};
+            hintMessage:name==nameof(TeamSettings.BotFillSlots)?"0 = aus; sonst Zielzahl 1 bis 30 aus Menschen in T/CT und Spielbots; Zuschauer zählen nicht.":name==nameof(TeamSettings.BlockAtMaxRoundsPercent)?"Anteil >0 bis 1 eingeben, z. B. 0,5.":name==nameof(TeamSettings.FallbackMaxRounds)?"2 bis 1000 Runden eingeben.":"1 bis 120 Sekunden eingeben."){CloseAfterClick=false};
         GameThreadMenu.BindInput(Core,input,p,()=>loaded,(a,text)=>{if(Number(name,text,out var value))Set(a,name,value,group);});
         var back=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};
         GameThreadMenu.Bind(Core,back,p,()=>loaded,a=>{if(module.CanAdmin(a))SettingsMenu(a,group);});
@@ -89,10 +90,10 @@ public sealed partial class Plugin
     {
         if(!CanUseSelection(p))return;
         var ids=Core.PlayerManager.GetAllValidPlayers().Where(IsHuman).Select(x=>x.SteamID).Concat(SelectionIds).Distinct().Where(id=>SelectionMatches(filter,HasSelection(id))).Order().ToArray();
-        page=Math.Clamp(page,0,Math.Max(0,(ids.Length-1)/2));
+        page=0;
         var builder=Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).Design.SetMenuTitle(MenuColors.Heading("Teams · Verliererteam-Auswahl")).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter);
         var numbers=new MenuNumbers();
-        foreach(var id in ids.Skip(page*2).Take(2))
+        foreach(var id in ids)
         {
             var target=Core.PlayerManager.GetAllValidPlayers().FirstOrDefault(x=>x.SteamID==id&&IsHuman(x));
             ConnectionKey? identity=target is null?null:Key(target);
@@ -100,15 +101,15 @@ public sealed partial class Plugin
             var button=new ButtonMenuOption(numbers.Next($"{label}: {(active?"AN":"AUS")}",enabled:active)){CloseAfterClick=false};
             GameThreadMenu.Bind(Core,button,p,()=>loaded,a=>
             {
-                if(!CanUseSelection(a)||!CanTarget(a.SteamID,id)){a.SendChat("[LPLK] Ziel hat gleiche/höhere Rechte.");return;}
+                if(!CanUseSelection(a)||!CanTarget(a.SteamID,id)){a.SendLplkChat("[LPLK] Ziel hat gleiche/höhere Rechte.");return;}
                 if(identity is {} expected)
                 {
                     var fresh=Core.PlayerManager.GetPlayer(expected.Slot);
-                    if(!IsHuman(fresh)||Key(fresh!)!=expected){a.SendChat("[LPLK] Spielerverbindung hat sich geändert.");PlayersMenu(a,page,filter);return;}
+                    if(!IsHuman(fresh)||Key(fresh!)!=expected){a.SendLplkChat("[LPLK] Spielerverbindung hat sich geändert.");PlayersMenu(a,page,filter);return;}
                 }
                 if(HasSelection(id))
                 {
-                    if(selected.TryGetValue(id,out var owner)&&owner!=a.SteamID&&!CanTarget(a.SteamID,owner)){a.SendChat("[LPLK] Auswahl eines gleich/höher berechtigten Admins.");return;}
+                    if(selected.TryGetValue(id,out var owner)&&owner!=a.SteamID&&!CanTarget(a.SteamID,owner)){a.SendLplkChat("[LPLK] Auswahl eines gleich/höher berechtigten Admins.");return;}
                     SaveSelection(id,null);
                 }
                 else
@@ -124,15 +125,13 @@ public sealed partial class Plugin
             var button=new ButtonMenuOption(back?MenuColors.Back(label):numbers.Next(label)){CloseAfterClick=false};
             GameThreadMenu.Bind(Core,button,p,()=>loaded,a=>{if(CanUseSelection(a))action(a);});builder.AddOption(button);
         }
-        if(page>0)Navigation("Vorherige Seite",a=>PlayersMenu(a,page-1,filter));
-        if((page+1)*2<ids.Length)Navigation("Nächste Seite",a=>PlayersMenu(a,page+1,filter));
         Navigation("Zurück",PlayersRoot,true);Core.MenusAPI.OpenMenuForPlayer(p,builder.Build());
     }
     private void ConfirmSelection(IPlayer actor,ulong id,ConnectionKey identity,int page,SelectionFilter filter=SelectionFilter.All)=>module.Menu(actor,"Matchende-Zuordnung bestätigen",1,
         ("Bestätigen",a=>
         {
             var p=Core.PlayerManager.GetPlayer(identity.Slot);
-            if(!CanUseSelection(a)||!IsHuman(p)||Key(p!)!=identity||!CanTarget(a.SteamID,id)){a.SendChat("[LPLK] Ziel/Berechtigung nicht mehr gültig.");return;}
+            if(!CanUseSelection(a)||!IsHuman(p)||Key(p!)!=identity||!CanTarget(a.SteamID,id)){a.SendLplkChat("[LPLK] Ziel/Berechtigung nicht mehr gültig.");return;}
             SaveSelection(id,a.SteamID);
             Core.Logger.LogInformation("LPLK_Teams: Admin {Actor} wählt Ziel {Target} für Matchende",a.SteamID,id);
             if(Effective&&!Halftime&&p!.Controller.TeamNum==GuardWinner)QueueMove(p,GuardWinner==3?2:3,true);

@@ -13,6 +13,7 @@ public sealed partial class Plugin
     private bool nativeReady;
     private void ApplyAmmoLimits(CCSWeaponBase weapon,WeaponRule rule)
     {
+        if(rule.Clip is null&&rule.Ammo is null)return;
         ApplyAmmoDefinition(weapon.WeaponBaseVData,rule);
     }
     private void ApplyAmmoDefinition(CCSWeaponBaseVData data,WeaponRule rule)
@@ -35,7 +36,7 @@ public sealed partial class Plugin
     public void AmmoMapLoad(IOnMapLoadEvent e){nativeReady=true;}
     private HookResult WeaponEquip(EventItemEquip e)
     {
-        if(!module.Active||!settings.Enabled||!nativeReady)return HookResult.Continue;
+        if(!module.Active||!settings.Enabled||!nativeReady||settings.Rules.Count==0)return HookResult.Continue;
         try
         {
             if(e.UserIdPlayer?.PlayerPawn?.WeaponServices?.ActiveWeapon.Value is {IsValid:true} active&&settings.Rules.TryGetValue(WeaponName(active),out var rule))ApplyAmmoLimits(active.As<CCSWeaponBase>(),rule);
@@ -45,7 +46,7 @@ public sealed partial class Plugin
     }
     private HookResult WeaponFire(EventWeaponFire e)
     {
-        if(!module.Active||!settings.Enabled||!nativeReady)return HookResult.Continue;
+        if(!module.Active||!settings.Enabled||!nativeReady||settings.Rules.Count==0)return HookResult.Continue;
         try
         {
             if(e.UserIdPlayer is not {IsValid:true,IsAlive:true} p||p.PlayerPawn?.WeaponServices?.ActiveWeapon.Value is not {IsValid:true} active)return HookResult.Continue;

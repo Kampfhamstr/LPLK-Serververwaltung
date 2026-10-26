@@ -1,4 +1,9 @@
-# LPLK_Zombie
+# LPLK_Zombie 0.1.6
 
-**Ausgabe 24.10.2026: 0.1.0.** [LPLK_Zombie.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.24-gameplay/LPLK_Zombie.zip) · [Serverprofile, Migration und Prüfgrenzen](../../docs/FLEET-20261024.md). Die folgenden älteren Versionsnachweise sind historisch. Die echte Client- und Mehrspielerabnahme steht aus.
+Zombie-Wellen, Klassen, Ausrüstung und Modusregeln; GPL-Ableitung.
 
+[Fertiges Pluginpaket](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/LPLK_Zombie.zip) · [Vollständige Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/LPLK-Plugins-Source.zip) · [Installation und Build](../../docs/INSTALLATION-ADDONS.md) · [Änderungen und Prüfstand](../../docs/RELEASE-20261026.md)
+
+Aktuelle Ausgabe vom 26.10.2026. Einstellungen und Daten sind nicht im ZIP enthalten; vorhandene Daten bei Updates erhalten. Das Paket enthält die für dieses Plugin vorgesehenen Ressourcen, Abhängigkeiten und Lizenzhinweise. Laufende Addondaten werden im RAM verarbeitet; reguläre Persistenz und Exporte erfolgen verzögert am Rundenende. Initialisierung/Entladen und native Enginezugriffe bleiben gesondert.
+
+Das Plugin entsprechend dem eigenen Serverprofil aktivieren. Die Anwesenheit in dieser Sammlung bedeutet nicht, dass es auf jedem Server installiert werden soll. Funktionen und Prüfgrenzen dieser Veröffentlichung stehen in den oben verlinkten Releasehinweisen. Lizenz-/Autorenhinweise unter `Rohskripte/` beziehungsweise im Pluginverzeichnis beachten.

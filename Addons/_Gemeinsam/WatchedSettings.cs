@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 
 namespace LPLK.Common;
@@ -15,7 +19,7 @@ public sealed class WatchedSettings<T> where T : class,new()
     {
         this.path=path;this.validate=validate;
         if(!File.Exists(path)){var initial=new T();validate(initial);AtomicJson.Write(path,initial);}
-        accepted=Read();Current=Parse(accepted);
+        accepted=Read();Current=Parse(accepted);RoundFileStore.FreezeConfiguration(path);
     }
     private string Read()
     {

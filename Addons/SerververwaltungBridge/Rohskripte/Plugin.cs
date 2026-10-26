@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.IO.Compression;
@@ -27,7 +31,7 @@ namespace SerververwaltungBridge;
 
 [PluginMetadata(
     Id = "lplk.serververwaltung.bridge",
-    Version = "1.7.0",
+    Version = "1.8.6",
     Name = "Serververwaltung Bridge",
     Author = "LPLK",
     Description = "Lokale Bridge zwischen LPLK Serververwaltung und SwiftlyS2")]
@@ -171,15 +175,21 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
     public override void Load(bool hotReload)
     {
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("SerververwaltungBridge",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         _unloading = false;
-        _root = Path.Combine(Core.CSGODirectory, "addons", "swiftlys2", "data", "serververwaltung_bridge");
+        _root = Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core), "addons", "swiftlys2", "data", "serververwaltung_bridge");
         _commands = Path.Combine(_root, "commands");
         _results = Path.Combine(_root, "results");
         _status = Path.Combine(_root, "status.json");
         _bansFile = Path.Combine(_root, "bans.json");
         _globalBansFile = Path.Combine(_root, "global_bans.json");
         _globalCommsFile = Path.Combine(_root, "global_communication_sanctions.json");
-        string antiAdRoot = Path.Combine(Core.CSGODirectory, "addons", "swiftlys2", "data", "serververwaltung_antiadvertisement");
+        string antiAdRoot = Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core), "addons", "swiftlys2", "data", "serververwaltung_antiadvertisement");
         _antiAdOutboxDir = Path.Combine(antiAdRoot, "bridge_outbox");
         _antiAdGlobalFile = Path.Combine(antiAdRoot, "global_protection.json");
         _antiAdConfigFile = Path.Combine(antiAdRoot, "config.json");
@@ -187,7 +197,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         _gagsFile = Path.Combine(_root, "gags.json");
         _nicknamesFile = Path.Combine(_root, "nickname_overrides.json");
         _adminActionsLog = Path.Combine(_root, "admin_actions.log");
-        _permissionsFile = Path.Combine(Core.CSGODirectory, "addons", "swiftlys2", "configs", "permissions.jsonc");
+        _permissionsFile = Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core), "addons", "swiftlys2", "configs", "permissions.jsonc");
         _pluginBackupsRoot = Path.Combine(_root, "plugin_backups");
         _fastLiveConfigPath = Path.Combine(_root, "fastlive.json");
         Directory.CreateDirectory(_root);
@@ -199,6 +209,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         ReloadAntiAdvertisementPolicy(force: true);
         LoadFastLiveConfig();
         LoadPersistentData();
+        if(LocalAdministrationOnly){PreserveSanctionsLocally();RetireGlobalIdentityCaches();}
         RefreshAdminNotifyRecipients(force: true);
 
         ScanInstalledWorkshopMaps();
@@ -230,12 +241,18 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         // marshal the actual bridge work back to the game thread.
         _tickTimer = new Timer(_ => QueueTickOnGameThread(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
         TryWriteStatus();
-        Core.Logger.LogInformation("SerververwaltungBridge v1.7.0 geladen. Datenpfad: {Path}", _root);
+        Core.Logger.LogInformation("SerververwaltungBridge v1.8.3 geladen. Datenpfad: {Path}", _root);
     }
 
     public override void Unload()
     {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore()
+    {
         _unloading = true;
+        bridgeStatusWriter.GetAwaiter().GetResult();
         _chatGuardInterfaces=null;
         _tickTimer?.Dispose();
         _tickTimer = null;
@@ -260,7 +277,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         _changingMap = false;
         SavePersistentData();
         TryWriteStatus();
-    }
+     LPLK.Common.DeferredJson.Drain(); }
 
     [EventListener<EventDelegates.OnMapLoad>]
     public void OnMapLoad(IOnMapLoadEvent @event)
@@ -335,11 +352,13 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         ctx.SetReturn(AcquireResult.NotAllowedByProhibition);
         ctx.SetHookResult(HookResult.Stop);
         if (!acquiringPlayer.IsFakeClient)
-            acquiringPlayer.SendChat($"[Serververwaltung] Teamlimit erreicht: {WeaponDisplayName(weaponName)} max. {limit} pro Team.");
+            acquiringPlayer.SendLplkChat($"[Serververwaltung] Teamlimit erreicht: {WeaponDisplayName(weaponName)} max. {limit} pro Team.");
     }
 
+    private BridgeStatus? pendingWebStatus;
     private HookResult OnRoundEnd(EventRoundEnd @event)
     {
+        Core.Scheduler.DelayBySeconds(1,()=>{if(!_unloading)PublishBridgeStatus();});
         if (_rulesRemainingRounds > 0)
         {
             _rulesRemainingRounds--;
@@ -403,7 +422,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         lock (_globalCommSync) globallyGagged = IsCommActive(_globalGags, player.SteamID);
         if (IsCommActive(_gags, player.SteamID) || globallyGagged)
         {
-            player.SendChat("[Serververwaltung] Dein Textchat ist derzeit gesperrt.");
+            player.SendLplkChat("[Serververwaltung] Dein Textchat ist derzeit gesperrt.");
             return HookResult.Stop;
         }
 
@@ -420,6 +439,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             TryReloadFastLiveConfigIfChanged();
             ProcessFastLiveCommands();
             TryWriteStatus();
+            if(pendingWebStatus is {} latest){TryStartFastLiveExchange(latest);if(!latest.Players.Any(p=>!p.IsBot&&(p.Team=="T"||p.Team=="CT")))PublishBridgeStatus();}
         }
         catch (Exception ex)
         {
@@ -493,6 +513,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                     if (command is null || string.IsNullOrWhiteSpace(command.Id) || string.IsNullOrWhiteSpace(command.Action))
                         throw new InvalidDataException("Ungültiger Bridge-Befehl.");
 
+                    if(command.Action is "plugin_update" or "plugin_rollback"){QueuePluginMaintenance(command);continue;}
                     Execute(command);
 
                     try
@@ -557,7 +578,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             case "private_message":
                 {
                     var target = ParseTarget(command);
-                    RequirePlayer(target).SendMessage(ToMessageType(GetString(p, "type", "chat")), GetString(p, "message", ""));
+                    RequirePlayer(target).SendLplkMessage(ToMessageType(GetString(p, "type", "chat")), GetString(p, "message", ""));
                     break;
                 }
             case "kick":
@@ -852,18 +873,8 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                 RefreshPluginInventory(force: true);
                 break;
             case "plugin_update":
-                UpdatePluginFromGitHub(
-                    GetString(p, "plugin_id", ""),
-                    GetString(p, "download_url", ""),
-                    GetString(p, "asset_name", ""),
-                    GetString(p, "expected_sha256", ""),
-                    GetString(p, "expected_version", ""),
-                    GetString(p, "install_subpath", ""));
-                break;
             case "plugin_rollback":
-                RollbackPlugin(
-                    GetString(p, "plugin_id", ""),
-                    GetString(p, "backup_id", ""));
+                QueuePluginMaintenance(command);
                 break;
             default:
                 throw new InvalidOperationException("Unbekannte Aktion: " + command.Action);
@@ -940,7 +951,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             if (!inGeneralScope && !isTarget)
                 continue;
 
-            player.SendChat(chatMessage);
+            player.SendLplkChat(chatMessage);
             delivered++;
         }
 
@@ -1060,7 +1071,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                 : command.RequestedBy!);
 
         var role = FormatAdminRole(command.RequestedByRole);
-        player.SendChat(BuildColoredAdminChatMessage(command, timestamp, actor, role));
+        player.SendLplkChat(BuildColoredAdminChatMessage(command, timestamp, actor, role));
     }
 
     private string BuildColoredAdminChatMessage(
@@ -1977,11 +1988,11 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             || !normalized.EndsWith("/whitelist.txt", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Ungültiger Whitelist-Dateipfad.");
 
-        var root = Path.GetFullPath(Path.Combine(Core.CSGODirectory, "addons", "swiftlys2", "plugins"))
+        var root = Path.GetFullPath(Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core), "addons", "swiftlys2", "plugins"))
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             + Path.DirectorySeparatorChar;
         var fullPath = Path.GetFullPath(Path.Combine(
-            Core.CSGODirectory,
+            LPLK.Common.RoundFileStore.GamePath(Core),
             normalized.Replace('/', Path.DirectorySeparatorChar)));
 
         if (!fullPath.StartsWith(root, StringComparison.Ordinal))
@@ -2528,7 +2539,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                     180);
 
                 if (!string.IsNullOrWhiteSpace(message))
-                    player.SendMessage(ToMessageType(notifyType), message);
+                    player.SendLplkMessage(ToMessageType(notifyType), message);
             }
         }
 
@@ -3391,7 +3402,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     {
         try
         {
-            string gameRoot = Directory.GetParent(Core.CSGODirectory)?.FullName ?? Core.CSGODirectory;
+            string gameRoot = Directory.GetParent(LPLK.Common.RoundFileStore.GamePath(Core))?.FullName ?? LPLK.Common.RoundFileStore.GamePath(Core);
             string publishData = Path.Combine(
                 gameRoot,
                 "bin",
@@ -3500,7 +3511,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     private void Broadcast(string type, string message)
     {
         if (string.IsNullOrWhiteSpace(message)) return;
-        Core.PlayerManager.SendMessage(ToMessageType(type), Limit(message, 500));
+        Core.PlayerManager.SendLplkMessage(ToMessageType(type), Limit(message, 500));
     }
 
     private static MessageType ToMessageType(string type) => type.ToLowerInvariant() switch
@@ -3553,57 +3564,6 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         catch(Exception ex){Core.Logger.LogWarning(ex,"SwiftlyS2 Plugin-Inventar konnte nicht gelesen werden.");}
     }
 
-    private void UpdatePluginFromGitHub(string pluginId,string downloadUrl,string assetName,string expectedSha256,string expectedVersion,string installSubpath)
-    {
-        pluginId=ValidatePluginId(pluginId);
-        if(string.Equals(pluginId,"lplk.serververwaltung.bridge",StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Die SerververwaltungBridge darf sich nicht selbst aktualisieren.");
-        Uri uri=ValidateGitHubReleaseUrl(downloadUrl);
-        string extension=Path.GetExtension(assetName).ToLowerInvariant();
-        if(extension is not ".zip" and not ".rar") throw new InvalidOperationException("Nur ZIP- und RAR-Release-Assets werden unterstützt.");
-        string pluginPath=ResolveManagedPluginPath(pluginId); string backupId=CreatePluginBackup(pluginId,pluginPath);
-        string tempRoot=Path.Combine(_root,"plugin_update_tmp",Guid.NewGuid().ToString("N")); string archivePath=Path.Combine(tempRoot,"release"+extension); string extractRoot=Path.Combine(tempRoot,"extract"); Directory.CreateDirectory(extractRoot);
-        bool unloaded=false;
-        bool filesReplaced=false;
-        try
-        {
-            DownloadReleaseArchive(uri,archivePath,expectedSha256); SafeExtractArchive(archivePath,extractRoot); string sourceRoot=ResolveInstallSource(extractRoot,installSubpath);
-            if(!Directory.EnumerateFiles(sourceRoot,"*.dll",SearchOption.AllDirectories).Any()) throw new InvalidOperationException("Das Release-Verzeichnis enthält keine DLL und sieht nicht wie ein SwiftlyS2 Publish aus.");
-            if(!Core.PluginManager.UnloadPlugin(pluginId,true)) throw new InvalidOperationException("Plugin konnte vor dem Update nicht kontrolliert entladen werden."); unloaded=true;
-            ClearDirectory(pluginPath); CopyDirectory(sourceRoot,pluginPath); filesReplaced=true;
-            if(!Core.PluginManager.LoadPlugin(pluginId,true)) throw new InvalidOperationException("Neue Plugin-Version konnte nicht geladen werden."); unloaded=false;
-            if(!string.IsNullOrWhiteSpace(expectedVersion))
-            {
-                var loadedMeta=Core.PluginManager.GetPluginMetadata(pluginId); string loadedVersion=loadedMeta?.Version ?? "";
-                if(!string.Equals(NormalizeVersion(loadedVersion),NormalizeVersion(expectedVersion),StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException($"Geladene Version '{loadedVersion}' entspricht nicht der erwarteten Version '{expectedVersion}'.");
-            }
-            RefreshPluginInventory(force:true); Core.Logger.LogInformation("Plugin {PluginId} erfolgreich aktualisiert. Backup={BackupId}, ErwarteteVersion={Version}.",pluginId,backupId,expectedVersion);
-        }
-        catch
-        {
-            if (unloaded || filesReplaced)
-            {
-                try{if(!unloaded)Core.PluginManager.UnloadPlugin(pluginId,true);}catch{}
-                try{RestorePluginBackup(pluginId,backupId,pluginPath);if(!Core.PluginManager.LoadPlugin(pluginId,true))Core.Logger.LogError("Rollback von {PluginId} wurde kopiert, Plugin konnte danach aber nicht geladen werden.",pluginId);else Core.Logger.LogWarning("Update von {PluginId} fehlgeschlagen; Backup {BackupId} wurde automatisch wiederhergestellt.",pluginId,backupId);}catch(Exception rollbackEx){Core.Logger.LogCritical(rollbackEx,"Automatischer Rollback für Plugin {PluginId} ist fehlgeschlagen.",pluginId);}
-            }
-            RefreshPluginInventory(force:true); throw;
-        }
-        finally{try{if(Directory.Exists(tempRoot))Directory.Delete(tempRoot,true);}catch{}}
-    }
-
-    private void RollbackPlugin(string pluginId,string backupId)
-    {
-        pluginId=ValidatePluginId(pluginId); if(string.Equals(pluginId,"lplk.serververwaltung.bridge",StringComparison.OrdinalIgnoreCase))throw new InvalidOperationException("Die Bridge kann nicht über sich selbst zurückgerollt werden.");
-        if(!Regex.IsMatch(backupId,@"^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}$",RegexOptions.IgnoreCase))throw new InvalidOperationException("Ungültige Backup-ID.");
-        string pluginPath=ResolveManagedPluginPath(pluginId); if(!Core.PluginManager.UnloadPlugin(pluginId,true))throw new InvalidOperationException("Plugin konnte vor dem Rollback nicht entladen werden.");
-        RestorePluginBackup(pluginId,backupId,pluginPath); if(!Core.PluginManager.LoadPlugin(pluginId,true))throw new InvalidOperationException("Rollback-Dateien wurden kopiert, Plugin konnte danach aber nicht geladen werden.");
-        RefreshPluginInventory(force:true); Core.Logger.LogInformation("Plugin {PluginId} auf Backup {BackupId} zurückgerollt.",pluginId,backupId);
-    }
-
-    private string CreatePluginBackup(string pluginId,string pluginPath)
-    {
-        string backupId=DateTime.UtcNow.ToString("yyyyMMdd'T'HHmmss'Z'")+"-"+Guid.NewGuid().ToString("N")[..8]; string destination=Path.Combine(_pluginBackupsRoot,SafePluginDirectory(pluginId),backupId); Directory.CreateDirectory(destination); CopyDirectory(pluginPath,destination);
-        var meta=Core.PluginManager.GetPluginMetadata(pluginId); AtomicWrite(Path.Combine(destination,"_serververwaltung_backup.json"),JsonSerializer.Serialize(new{plugin_id=pluginId,version=meta?.Version ?? "",created_at=DateTimeOffset.UtcNow},_json)); CleanupPluginBackups(pluginId,5); return backupId;
-    }
     private void RestorePluginBackup(string pluginId,string backupId,string pluginPath)
     {
         string source=Path.Combine(_pluginBackupsRoot,SafePluginDirectory(pluginId),backupId); if(!Directory.Exists(source))throw new InvalidOperationException("Plugin-Backup wurde nicht gefunden."); ClearDirectory(pluginPath);
@@ -3611,13 +3571,10 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     }
     private string? FindLatestPluginBackup(string pluginId)
     {try{string root=Path.Combine(_pluginBackupsRoot,SafePluginDirectory(pluginId));if(!Directory.Exists(root))return null;return Directory.GetDirectories(root).Select(Path.GetFileName).Where(x=>x is not null&&Regex.IsMatch(x,@"^[0-9]{8}T[0-9]{6}Z-[a-f0-9]{8}$",RegexOptions.IgnoreCase)).OrderByDescending(x=>x,StringComparer.Ordinal).FirstOrDefault();}catch{return null;}}
-    private void CleanupPluginBackups(string pluginId,int keep)
-    {try{string root=Path.Combine(_pluginBackupsRoot,SafePluginDirectory(pluginId));if(!Directory.Exists(root))return;foreach(string dir in Directory.GetDirectories(root).OrderByDescending(x=>Path.GetFileName(x),StringComparer.Ordinal).Skip(Math.Max(1,keep)))try{Directory.Delete(dir,true);}catch{}}catch{}}
-
     private string ResolveManagedPluginPath(string pluginId)
     {
         string? raw=Core.PluginManager.GetPluginPath(pluginId); if(string.IsNullOrWhiteSpace(raw))throw new InvalidOperationException("SwiftlyS2 meldet keinen Plugin-Pfad.");
-        string root=Path.GetFullPath(Path.Combine(Core.CSGODirectory,"addons","swiftlys2","plugins")).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar)+Path.DirectorySeparatorChar;
+        string root=Path.GetFullPath(Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"addons","swiftlys2","plugins")).TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar)+Path.DirectorySeparatorChar;
         string resolved=Path.GetFullPath(raw);
         string path=File.Exists(resolved) ? Path.GetDirectoryName(resolved)! : resolved;
         path=path.TrimEnd(Path.DirectorySeparatorChar,Path.AltDirectorySeparatorChar);
@@ -3629,7 +3586,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     }
     private static void DownloadReleaseArchive(Uri uri,string destination,string expectedSha256)
     {
-        using var handler=new HttpClientHandler{AllowAutoRedirect=true,MaxAutomaticRedirections=5};using var client=new HttpClient(handler){Timeout=TimeSpan.FromSeconds(60)};client.DefaultRequestHeaders.UserAgent.ParseAdd("LPLK-SerververwaltungBridge/1.5.4");using var response=client.GetAsync(uri,HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();response.EnsureSuccessStatusCode();const long maxBytes=200L*1024L*1024L;if(response.Content.Headers.ContentLength is long length&&length>maxBytes)throw new InvalidOperationException("Release-Asset ist größer als 200 MB.");using Stream input=response.Content.ReadAsStream();using FileStream output=File.Create(destination);using var sha=SHA256.Create();byte[] buffer=new byte[1024*128];long total=0;int read;while((read=input.Read(buffer,0,buffer.Length))>0){total+=read;if(total>maxBytes)throw new InvalidOperationException("Release-Asset überschreitet 200 MB.");output.Write(buffer,0,read);sha.TransformBlock(buffer,0,read,null,0);}sha.TransformFinalBlock(Array.Empty<byte>(),0,0);string actual=Convert.ToHexString(sha.Hash!).ToLowerInvariant();if(!string.IsNullOrWhiteSpace(expectedSha256)){string expected=expectedSha256.Trim().ToLowerInvariant();if(!Regex.IsMatch(expected,@"^[a-f0-9]{64}$"))throw new InvalidOperationException("Ungültiger erwarteter SHA-256-Wert.");if(!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(actual),Convert.FromHexString(expected)))throw new InvalidOperationException("SHA-256 des Release-Assets stimmt nicht mit GitHub überein.");}
+        using var handler=new HttpClientHandler{AllowAutoRedirect=true,MaxAutomaticRedirections=5};using var client=new HttpClient(handler){Timeout=TimeSpan.FromSeconds(60)};client.DefaultRequestHeaders.UserAgent.ParseAdd("LPLK-SerververwaltungBridge/1.5.4");using var response=client.GetAsync(uri,HttpCompletionOption.ResponseHeadersRead).GetAwaiter().GetResult();response.EnsureSuccessStatusCode();const long maxBytes=200L*1024L*1024L;if(response.Content.Headers.ContentLength is long length&&length>maxBytes)throw new InvalidOperationException("Release-Asset ist größer als 200 MB.");using Stream input=response.Content.ReadAsStream();using Stream output=File.Create(destination);using var sha=SHA256.Create();byte[] buffer=new byte[1024*128];long total=0;int read;while((read=input.Read(buffer,0,buffer.Length))>0){total+=read;if(total>maxBytes)throw new InvalidOperationException("Release-Asset überschreitet 200 MB.");output.Write(buffer,0,read);sha.TransformBlock(buffer,0,read,null,0);}sha.TransformFinalBlock(Array.Empty<byte>(),0,0);string actual=Convert.ToHexString(sha.Hash!).ToLowerInvariant();if(!string.IsNullOrWhiteSpace(expectedSha256)){string expected=expectedSha256.Trim().ToLowerInvariant();if(!Regex.IsMatch(expected,@"^[a-f0-9]{64}$"))throw new InvalidOperationException("Ungültiger erwarteter SHA-256-Wert.");if(!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(actual),Convert.FromHexString(expected)))throw new InvalidOperationException("SHA-256 des Release-Assets stimmt nicht mit GitHub überein.");}
     }
     private static void SafeExtractArchive(string archivePath,string destination)
     {
@@ -3679,7 +3636,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             using Stream input=reader.OpenEntryStream();
-            using FileStream output=new(target,FileMode.Create,FileAccess.Write,FileShare.None);
+            using Stream output=File.Open(target,FileMode.Create,FileAccess.Write,FileShare.None);
 
             byte[] buffer=new byte[128*1024];
             int read;
@@ -3829,7 +3786,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
             var status = new BridgeStatus
             {
-                Version = "1.7.0",
+                Version = "1.8.6",
                 UpdatedAt = DateTimeOffset.UtcNow,
                 Map = _currentMapName,
                 CtScore = ctScore,
@@ -3870,14 +3827,23 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                     ExpiresAt = x.Value.ExpiresAt
                 }).ToList()
             };
-            string serializedStatus = JsonSerializer.Serialize(status, _json);
-            AtomicWrite(_status, serializedStatus);
-            TryStartFastLiveExchange(status);
+            pendingWebStatus=status;
         }
         catch (Exception ex)
         {
             Core.Logger.LogError(ex, "Bridge-Status konnte nicht geschrieben werden.");
         }
+    }
+
+    private Task bridgeStatusWriter=Task.CompletedTask;
+    private long nextIdleStatusWrite;
+    private void PublishBridgeStatus()
+    {
+        if(pendingWebStatus is not {} snapshot||!bridgeStatusWriter.IsCompleted)return;
+        bool idle=!snapshot.Players.Any(p=>!p.IsBot&&(p.Team=="T"||p.Team=="CT"));
+        if(idle&&Environment.TickCount64<nextIdleStatusWrite)return;
+        nextIdleStatusWrite=Environment.TickCount64+5000;string path=_status;
+        bridgeStatusWriter=Task.Run(()=>{try{LPLK.Common.RoundFileStore.Physical(()=>{AtomicWrite(path,JsonSerializer.Serialize(snapshot,_json));return true;});}catch(Exception e){Core.Logger.LogError(e,"Bridge-Status im Hintergrund nicht gespeichert");}});
     }
 
     private void CaptureChatMessage(IPlayer player, string text, bool teamOnly)
@@ -3950,7 +3916,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             _fastLiveClient = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
             _fastLiveClient.DefaultRequestHeaders.UserAgent.ParseAdd("LPLK-SerververwaltungBridge/1.5.4");
             Core.Logger.LogInformation(
-                "Fast Live aktiviert/aktualisiert: Server-ID {ServerId}, Intervall {Seconds}s. Kein Bridge-Neustart erforderlich.",
+                "Fast Live aktiviert/aktualisiert: Server-ID {ServerId}, Intervall {Seconds}s. Konfiguration gilt bis zum Neuladen.",
                 cfg.ServerId,
                 cfg.PushIntervalSeconds);
         }
@@ -4005,12 +3971,13 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     {
         DeliverFleetResults();
         int processed = 0;
-        while (processed < 25 && _fastLiveCommands.TryDequeue(out BridgeCommand? command))
+        while (processed < 4 && _fastLiveCommands.TryDequeue(out BridgeCommand? command))
         {
             processed++;
             if (command is null || string.IsNullOrWhiteSpace(command.Id)) continue;
             try
             {
+                if(command.Action is "plugin_update" or "plugin_rollback"){QueuePluginMaintenance(command);continue;}
                 Execute(command);
                 try { RecordAdminAction(command, success: true, error: null, notifyInGame: true); } catch { }
                 AddFastLiveResult(command.Id, true, "OK");
@@ -4046,14 +4013,12 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         List<FastLiveResult> resultSnapshot;
         lock (_fastLiveResultSync) resultSnapshot = _pendingFastLiveResults.ToList();
         AntiAdOutboxBatch antiAdBatch = ReadAntiAdvertisementOutbox(100);
-        string body;
-        try { body = JsonSerializer.Serialize(new FastLiveExchangeRequest { Status = status, Results = resultSnapshot, AntiAdvertisementEvents = antiAdBatch.Events, FleetRequests=SafeFleetRequests() }, _json); }
-        catch { Interlocked.Exchange(ref _fastLiveInFlight, 0); return; }
-
+        var requestSnapshot=new FastLiveExchangeRequest { Status=status,Results=resultSnapshot,AntiAdvertisementEvents=antiAdBatch.Events,FleetRequests=LocalAdministrationOnly?[]:SafeFleetRequests() };
         _ = Task.Run(async () =>
         {
             try
             {
+                string body=JsonSerializer.Serialize(requestSnapshot,_json);
                 long unix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 string ts = unix.ToString(CultureInfo.InvariantCulture);
                 string signature;
@@ -4079,10 +4044,11 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                     }
                 }
 
-                ApplyGlobalBanSnapshot(data.GlobalBans ?? []);
-                ApplyGlobalCommunicationSnapshot(data.GlobalCommSanctions ?? []);
+                if(!LocalAdministrationOnly)ApplyGlobalBanSnapshot(data.GlobalBans ?? []);
+                if(!LocalAdministrationOnly)ApplyGlobalCommunicationSnapshot(data.GlobalCommSanctions ?? []);
                 ApplyGlobalAntiAdvertisementSnapshot(data.GlobalAntiAdvertisement);
-                try{ApplyFleetSnapshot(data.Fleet,data.FleetResults);}catch(Exception e){Core.Logger.LogWarning(e,"Verbundantwort nicht übernommen; zentrale Sperren und andere Befehle bleiben aktiv.");}
+                if(!LocalAdministrationOnly)GlobalSanctionsProtocol(data.GlobalSanctionProtocol);
+                try{if(!LocalAdministrationOnly)ApplyFleetSnapshot(data.Fleet,data.FleetResults);}catch(Exception e){Core.Logger.LogWarning(e,"Verbundantwort nicht übernommen; zentrale Sperren und andere Befehle bleiben aktiv.");}
                 AckAntiAdvertisementOutbox(antiAdBatch.Files);
 
                 foreach (var command in data.Commands ?? [])
@@ -4104,6 +4070,9 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
                     }
                     if (add) _fastLiveCommands.Enqueue(command);
                 }
+                // Arrival immediately schedules a bounded engine callback. The
+                // transport worker never executes engine code or reads files.
+                if(!_unloading&&!_fastLiveCommands.IsEmpty)Core.Scheduler.NextWorldUpdate(()=>{if(!_unloading)ProcessFastLiveCommands();});
             }
             catch (Exception ex)
             {
@@ -4158,9 +4127,9 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             };
             switch ((item.SanctionType ?? string.Empty).Trim().ToLowerInvariant())
             {
-                case "mute": nextMutes[steamId] = entry; break;
-                case "gag": nextGags[steamId] = entry; break;
-                case "silence": nextMutes[steamId] = entry; nextGags[steamId] = new CommEntry { Reason = entry.Reason, CreatedAt = entry.CreatedAt, ExpiresAt = entry.ExpiresAt }; break;
+                case "mute": StrongestComm(nextMutes,steamId,entry); break;
+                case "gag": StrongestComm(nextGags,steamId,entry); break;
+                case "silence": StrongestComm(nextMutes,steamId,entry);StrongestComm(nextGags,steamId,entry); break;
             }
         }
         lock (_globalCommSync)
@@ -4504,7 +4473,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
     private void ApplyGlobalAntiAdvertisementSnapshot(GlobalAntiAdvertisementPayload? payload)
     {
-        if (payload is null || string.IsNullOrWhiteSpace(_antiAdGlobalFile)) return;
+        if (LocalAdministrationOnly || payload is null || string.IsNullOrWhiteSpace(_antiAdGlobalFile)) return;
 
         var snapshot = new GlobalAntiAdvertisementPayload
         {
@@ -4673,6 +4642,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
     private static void AtomicWrite(string path, string content)
     {
+        if(LPLK.Common.RoundFileStore.Active){File.WriteAllText(path,content+Environment.NewLine);return;}
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var tmp = path + ".tmp";
         File.WriteAllText(tmp, content + Environment.NewLine);
@@ -4820,7 +4790,9 @@ public sealed class NicknameEntry
 
 public sealed class BridgeStatus
 {
-    public int FleetProtocol { get; set; }=1;
+    public int FleetProtocol { get; set; }=0;
+    public int GlobalSanctionProtocol { get; set; }=0;
+    public string AdministrationScope { get; set; }="local";
     public string Version { get; set; } = "1.5.6";
     public DateTimeOffset UpdatedAt { get; set; }
     public string Map { get; set; } = "";
@@ -4960,6 +4932,7 @@ public sealed class FastLiveExchangeResponse
 {
     public Dictionary<string,List<FleetServer>> Fleet { get; set; }=[];
     public List<FleetResult> FleetResults { get; set; }=[];
+    public int GlobalSanctionProtocol { get; set; }
     public bool Ok { get; set; }
     public string? Error { get; set; }
     public List<BridgeCommand> Commands { get; set; } = [];

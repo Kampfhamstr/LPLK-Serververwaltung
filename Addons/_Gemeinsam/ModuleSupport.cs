@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using SwiftlyS2.Core.Menus.OptionsBase;
@@ -119,7 +123,7 @@ public sealed class ModuleSupport(ISwiftlyCore core, string id, string title, st
                     catch (Exception e)
                     {
                         Core.Logger.LogError(e, "{Module}: Einstellung konnte nicht übernommen werden", id);
-                        args.SendChat("[LPLK] Änderung fehlgeschlagen; bitte Serverprotokoll prüfen.");
+                        args.SendLplkChat("[LPLK] Änderung fehlgeschlagen; bitte Serverprotokoll prüfen.");
                     }
                 }
             });
@@ -128,7 +132,7 @@ public sealed class ModuleSupport(ISwiftlyCore core, string id, string title, st
         var built=menu.Build();MenuPresentation.Apply(built);Core.MenusAPI.OpenMenuForPlayer(player,built);
     }
 
-    public string SettingsPath => Path.Combine(Core.PluginDataDirectory, "settings.json");
+    public string SettingsPath => Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "settings.json");
     public T ReadSettings<T>(Action<T> validate) where T : new()
     {
         T settings;
@@ -183,6 +187,7 @@ public static class AtomicJson
 {
     public static void Write<T>(string path, T value)
     {
+        if(RoundFileStore.Active&&!RoundFileStore.Direct){File.WriteAllText(path,JsonSerializer.Serialize(value,new JsonSerializerOptions{WriteIndented=true}));return;}
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try

@@ -2,4 +2,11 @@
   <PropertyGroup Condition="'$(LPLK_BUILD_ROOT)' != ''">
     <PublishDir>$(LPLK_BUILD_ROOT)\$(MSBuildProjectName)\publish\$(AssemblyName)\</PublishDir>
   </PropertyGroup>
+  <!-- The same small source is compiled into each Swiftly addon and its checks. -->
+  <ItemGroup Condition="'@(PackageReference->WithMetadataValue('Identity', 'SwiftlyS2.CS2'))' != '' and '$(MSBuildProjectName)' != 'IHanZriotAPI'">
+    <Compile Include="$(MSBuildThisFileDirectory)Addons/_Gemeinsam/ChatTheme.cs" Link="Shared/ChatTheme.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Addons/_Gemeinsam/DeferredJson.cs" Link="Shared/DeferredJson.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Addons/_Gemeinsam/RoundData.cs" Link="Shared/RoundData.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Addons/_Gemeinsam/RoundFileStore.cs" Link="Shared/RoundFileStore.cs" />
+  </ItemGroup>
 </Project>

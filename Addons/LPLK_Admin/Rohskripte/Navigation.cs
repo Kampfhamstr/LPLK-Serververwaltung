@@ -17,7 +17,7 @@ public sealed partial class Plugin
         Action<IPlayer>? back, Func<IPlayer, bool> allowed, int page = 0, Action<IPlayer, int>? changePage = null, bool scroll = true)
     {
         ReloadSettings();
-        if (!allowed(p)) { p.SendChat("[LPLK] Dieser Bereich ist nicht mehr freigegeben."); return; }
+        if (!allowed(p)) { p.SendLplkChat("[LPLK] Dieser Bereich ist nicht mehr freigegeben."); return; }
         var available = entries(p).ToArray();
         var slice = scroll ? new MenuPage<(string Label, Action<IPlayer> Action)>(available, 0, 1, 0) : MenuLayout.Page(available, page, back is not null);
         string title = caption + (slice.Count > 1 ? $" · {slice.Index + 1}/{slice.Count}" : "");
@@ -31,9 +31,9 @@ public sealed partial class Plugin
             var option = new ButtonMenuOption(navigation ? MenuColors.Back(MenuLayout.Label(label)) : numbers.Next(MenuLayout.Label(label))) { CloseAfterClick = false };
             GameThreadMenu.Bind(Core, option, p, () => active && serial == generation, a =>
             {
-                ReloadSettings();if(serial!=generation){a.SendChat("[LPLK] Einstellungen geändert; Menü neu öffnen.");return;}
-                if (allowed(a)) Guard(() => action(a), a.SendChat);
-                else a.SendChat("[LPLK] Berechtigung inzwischen entzogen.");
+                ReloadSettings();if(serial!=generation){a.SendLplkChat("[LPLK] Einstellungen geändert; Menü neu öffnen.");return;}
+                if (allowed(a)) Guard(() => action(a), a.SendLplkChat);
+                else a.SendLplkChat("[LPLK] Berechtigung inzwischen entzogen.");
             });
             builder.AddOption(option);
         }
@@ -55,7 +55,7 @@ public sealed partial class Plugin
     public void PlayerMenuCommand(ICommandContext context)
     {
         if (context.Sender is { } player && Connected(player)) OpenPlayerMenu(player);
-        else context.Reply("LPLK_Admin 0.10.5; Spielermenü: !menu; Administration: !admin / !adminmenu.");
+        else context.ReplyLplk("LPLK_Admin 0.11.5; Spielermenü: !menu; Administration: !admin / !adminmenu.");
     }
 
     private bool Loaded(string id) => active && Core.PluginManager.GetAllPlugins().Contains(id) && Core.PluginManager.GetPluginStatus(id)==SwiftlyS2.Shared.Plugins.PluginStatus.Loaded;
@@ -65,7 +65,7 @@ public sealed partial class Plugin
         api.TryGetValue("allowed",out var allowed)&&allowed is Func<IPlayer,string,bool> check&&check(p,command);
     private void PlayerCommand(IPlayer p, string id, string command)
     {
-        if (!Connected(p) || !PlayerFeatureAllowed(p,id,command)) { p.SendChat("[LPLK] Funktion derzeit nicht verfügbar."); return; }
+        if (!Connected(p) || !PlayerFeatureAllowed(p,id,command)) { p.SendLplkChat("[LPLK] Funktion derzeit nicht verfügbar."); return; }
         // Execute as this player; never promote a public menu action to server-console authority.
         p.ExecuteCommand(command);
     }
@@ -109,7 +109,7 @@ public sealed partial class Plugin
         string reason="Mapfunktion derzeit nicht verfügbar.";
         if(Loaded("LPLK_Maps")&&interfaces is not null&&interfaces.TryGetSharedInterface<IReadOnlyDictionary<string,Delegate>>("LPLK.Player.Maps.v1",out var api)
             &&api.TryGetValue("unavailable",out var check)&&check is Func<IPlayer,string,string> why)reason=why(p,command);
-        p.SendChat("[LPLK] "+reason);
+        p.SendLplkChat("[LPLK] "+reason);
     }
     [Command("mapmenu")]
     [CommandAlias("mapmenu",registerRaw:true)]
@@ -134,10 +134,10 @@ public sealed partial class Plugin
     {
         var entries = new List<(string, Action<IPlayer>)>
         {
-            ("Menübedienung", a => a.SendChat("[LPLK] Navigation und Auswahl: Tasten in der Menü-Fußzeile. !menu öffnet den Einstieg erneut."))
+            ("Menübedienung", a => a.SendLplkChat("[LPLK] Navigation und Auswahl: Tasten in der Menü-Fußzeile. !menu öffnet den Einstieg erneut."))
         };
-        if (Loaded("LPLK_Parachute")) entries.Add(("Fallschirm", a => a.SendChat("[LPLK] Fallschirm: beim Fallen E halten, sofern auf diesem Server aktiviert.")));
-        if (Loaded("LPLK_BombWires")) entries.Add(("Bombendrähte", a => a.SendChat("[LPLK] Das Drahtmenü erscheint beim Legen/Entschärfen. Hier erfolgt die Auswahl mit deiner Sprungtaste (+jump).")));
+        if (Loaded("LPLK_Parachute")) entries.Add(("Fallschirm", a => a.SendLplkChat("[LPLK] Fallschirm: beim Fallen E halten, sofern auf diesem Server aktiviert.")));
+        if (Loaded("LPLK_BombWires")) entries.Add(("Bombendrähte", a => a.SendLplkChat("[LPLK] Das Drahtmenü erscheint beim Legen/Entschärfen. Hier erfolgt die Auswahl mit deiner Sprungtaste (+jump).")));
         return entries;
     }, OpenPlayerMenu, Connected);
 
@@ -174,7 +174,6 @@ public sealed partial class Plugin
         var entries = new List<(string, Action<IPlayer>)>();
         Action<IPlayer> back = PlayerManagement;
         if (HasPlayerActions(a)) entries.Add(("Spieler", b => PlayerList(b, 0)));
-        if(FleetServers(a).Length>0)entries.Add(("Andere Server",OtherServers));
         if (Can(a, "unban")) entries.Add(("Entbannen", b => Input(b, "SteamID64 entsperren", (c, id) =>
         {
             if (!AdminActionPolicy.SteamId(id)) throw new ArgumentException("Ungültige SteamID64.");
@@ -195,29 +194,31 @@ public sealed partial class Plugin
         sections.TryGetValue("lotto", out var open) ? open as Action<IPlayer> : null;
     private void OpenLotteryAdministration(IPlayer p)
     {
-        if (LotteryAdministration(p) is not { } open) { p.SendChat("[LPLK] Lottoverwaltung nicht verfügbar oder Berechtigung entzogen."); return; }
+        if (LotteryAdministration(p) is not { } open) { p.SendLplkChat("[LPLK] Lottoverwaltung nicht verfügbar oder Berechtigung entzogen."); return; }
         open(p);
     }
     private void OpenModule(IPlayer p, string id, Action<IPlayer> back)
     {
         var api = Api(id);
-        if (api is null || !ModuleAllowed(p, id)) { p.SendChat("[LPLK] Modul nicht verfügbar oder Berechtigung entzogen."); return; }
+        if (api is null || !ModuleAllowed(p, id)) { p.SendLplkChat("[LPLK] Modul nicht verfügbar oder Berechtigung entzogen."); return; }
         var previous = Core.MenusAPI.GetCurrentMenu(p);
         ((Action<IPlayer>)api["open"])(p);
         var opened = Core.MenusAPI.GetCurrentMenu(p);
         if (opened is null || ReferenceEquals(previous, opened)) return;
         moduleReturns[p.PlayerID] = new(p.SteamID, p.SessionId.ToString(), id, opened.Configuration.Title, back);
         AddModuleReturn(p, opened, back);
+        ApplyMenuVisuals(opened);
+        RestoreMenuCursor(p,opened);
     }
 
     private void RightsMenu(IPlayer p, Action<IPlayer> back) => Menu(p, "LPLK · Rollen & Rechte", a =>
     {
         var entries = new List<(string, Action<IPlayer>)>
         {
-            ("Anzeigen", b => b.SendChat("[LPLK] " + string.Join(", ", Core.Permission.GetPlayerPermissions(b.SteamID)))),
-            ("Webpanel", b => b.SendChat("[LPLK] Rollenquelle: https://verwaltung.lplk.de – Spieler/Rollen, danach für diesen Server synchronisieren."))
+            ("Anzeigen", b => b.SendLplkChat("[LPLK] " + string.Join(", ", Core.Permission.GetPlayerPermissions(b.SteamID)))),
+            ("Webpanel", b => b.SendLplkChat("[LPLK] Rollenquelle: https://verwaltung.lplk.de – Spieler/Rollen, danach für diesen Server synchronisieren."))
         };
-        if (Has(a, "admin.root")) entries.Add(("Neuladen", b => { if (Has(b, "admin.root")) { LoadSettings(); b.SendChat("[LPLK] Konfiguration geladen."); } }));
+        if (Has(a, "admin.root")) entries.Add(("Neuladen", b => { if (Has(b, "admin.root")) { LoadSettings(); b.SendLplkChat("[LPLK] Konfiguration geladen."); } }));
         return entries;
     }, back, CanOpenAdmin);
 }

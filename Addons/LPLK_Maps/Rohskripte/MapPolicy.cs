@@ -51,6 +51,8 @@ public sealed partial record MapSettings
     public int CooldownMaps { get; init; } = 3;
     public int RtvDelaySeconds { get; init; } = 0;
     public int AutoVoteMinutes { get; init; } = 0;
+    public int IdleRotationMinutes { get; init; }
+    public bool RotateStartupMap { get; init; }
     public int ChangeDelaySeconds { get; init; } = 3;
     public bool RtvEnabled { get; init; } = true;
     public bool RtvInWarmup { get; init; }
@@ -77,13 +79,14 @@ public sealed partial record MapSettings
     public bool AutoMeasureEmptyServer { get; init; } = true;
     public int EmptySecondsBeforeProbe { get; init; } = 120;
     public int MinimumFreeDiskGiB { get; init; } = 10;
-    public int MaxWorkshopGiB { get; init; } = 25;
+    public int MaxWorkshopGiB { get; init; } = 0; // 0: no per-server workshop cap
+    public bool BuiltinMapsOnly { get; init; }
     public string[] ExcludedWorkshopIds { get; init; } = ["3797047889"];
     public static void Validate(MapSettings s)
     {
         ValidateParity(s);
         if(s.RtvPercent is < 1 or > 100 || s.VoteSeconds is < 5 or > 120 || s.CooldownMaps is < 0 or > 20 ||
-            s.RtvDelaySeconds is < 0 or > 3600 || s.AutoVoteMinutes is < 0 or > 240 || s.ChangeDelaySeconds is < 0 or > 60 ||
+            s.RtvDelaySeconds is < 0 or > 3600 || s.AutoVoteMinutes is < 0 or > 240 || s.IdleRotationMinutes is < 0 or > 1440 || s.ChangeDelaySeconds is < 0 or > 60 ||
             s.MapsToShow is < 1 or > 30 || s.RtvMinPlayers is < 0 or > 128 || s.RtvMinRounds is < 0 or > 100 ||
             s.TriggerRoundsBeforeEnd is < 1 or > 30 || s.MatchEndDelaySeconds is < 0 or > 60 || s.VerifySeconds is < 2 or > 60 ||
             s.MaxAttempts is < 1 or > 10 || s.WorkshopPath is null || s.WorkshopPath.Contains('\0') ||
@@ -91,7 +94,7 @@ public sealed partial record MapSettings
             s.ExcludedWorkshopIds is null || s.ExcludedWorkshopIds.Any(id=>WorkshopId(id) is null) ||
             s.WorkshopIds is null || s.WorkshopIds.Length>2000 || s.WorkshopIds.Any(id=>WorkshopId(id) is null) ||
             s.PoolRefreshMinutes is < 1 or > 1440 || s.EmptySecondsBeforeProbe is < 15 or > 3600 ||
-            s.MinimumFreeDiskGiB is < 5 or > 1000 || s.MaxWorkshopGiB is < 1 or > 1000)
+            s.MinimumFreeDiskGiB is < 5 or > 1000 || s.MaxWorkshopGiB is < 0 or > 1000)
             throw new InvalidDataException("Ungültige Map-Einstellungen.");
     }
     private static string? WorkshopId(string? value)=>MapPolicy.WorkshopId(value);
@@ -149,9 +152,10 @@ public static partial class MapPolicy
     public static bool Measured(MapEntry m)=>m.MeasurementVersion==2 && m.MeasuredAt is not null && m.TSpawns>0 && m.CtSpawns>0 && m.BombSites>=0 && m.Hostages>=0 && m.ProbeError is null;
     public static string VoteLabel(MapEntry m,bool nominated)
     {
-        string text=Escape($"{m.Name} [{m.MinPlayers}–{m.MaxPlayers} Spieler]"+(nominated?" · nominiert":""));
-        return nominated?"<font color='#55DD77'>"+text+"</font>":text;
+        return BlueName(m.Name)+Escape($" [{m.MinPlayers}–{m.MaxPlayers} Spieler]")+(nominated?"<font color='#55DD77'> · nominiert</font>":"");
     }
+    private static string BlueName(string name)=>"<font color='#6EA8FF'>"+Escape(name)+"</font>";
+    public static string SelectionLabel(MapEntry m)=>BlueName(m.Name)+Escape(Measured(m)?$" [{m.MinPlayers}–{m.MaxPlayers}]":" [Messung offen]");
     public static string Escape(string value)=>value.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;").Replace("\"","&quot;").Replace("'","&#39;");
     public static bool Matches(MapEntry m,string map,string workshop) => m.Workshop
         ? (!string.IsNullOrEmpty(workshop) ? workshop==m.Id : string.Equals(m.Name,Path.GetFileName(map),StringComparison.OrdinalIgnoreCase))

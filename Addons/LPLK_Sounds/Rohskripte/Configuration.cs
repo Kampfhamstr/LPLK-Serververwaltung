@@ -17,7 +17,7 @@ public sealed partial class Plugin
     private void ActivateCatalogSettings()
     {
         // Called only at initial load and the real precache hook, never by a menu/tick.
-        var next=config.AutoCatalogFromAddon?new WorkshopCatalogSync(config.WorkshopIds,Path.Combine(Core.PluginDataDirectory,"workshop-catalog-cache.json"),localCatalog):null;
+        var next=config.AutoCatalogFromAddon?new WorkshopCatalogSync(config.WorkshopIds,Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"workshop-catalog-cache.json"),localCatalog):null;
         workshopCatalog=next;catalog=next?.Current??localCatalog;
         assetKey=SoundConfigFile.AssetKey(config);assetReloadPending=false;
     }
@@ -42,7 +42,7 @@ public sealed partial class Plugin
     {
         if(!module.CanAdmin(p))return;
         try{ChangeConfiguration(change);}
-        catch(Exception e)when(ConfigFailure(e)){Logger.LogWarning(e,"LPLK_Sounds: Änderung nicht gespeichert.");p.SendChat("[LPLK Sounds] Nicht gespeichert. Aktuelle Konfiguration prüfen.");}
+        catch(Exception e)when(ConfigFailure(e)){Logger.LogWarning(e,"LPLK_Sounds: Änderung nicht gespeichert.");p.SendLplkChat("[LPLK Sounds] Nicht gespeichert. Aktuelle Konfiguration prüfen.");}
         SoundAdminSettings(p);
     }
     private void SoundPauseInput(IPlayer player)

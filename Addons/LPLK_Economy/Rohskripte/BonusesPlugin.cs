@@ -15,7 +15,7 @@ public sealed partial class Plugin
         bonusRound=id;bonusPeriod=bank!.Period;bonusRoundNumber=game.TotalRoundsPlayed+1;bonusRoundEnded=false;deathCash.Clear();
         var c=settings.Lotto.CashToSuperpot;
         foreach(string report in collectionReports)
-            foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(p=>Human(p)&&p.Controller.TeamNum is 2 or 3&&(!c.DebugMessageToAdminsOnly||module.CanAdmin(p))))if(c.SendDebugMessageNextRound)p.SendChat("[LPLK Lotto] "+report);
+            foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(p=>Human(p)&&p.Controller.TeamNum is 2 or 3&&(!c.DebugMessageToAdminsOnly||module.CanAdmin(p))))if(c.SendDebugMessageNextRound)p.SendLplkChat("[LPLK Lotto] "+report);
         collectionReports.Clear();
         if(c.BlockIfRoundStartCashAboveBankLimit)foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(p=>Human(p)&&p.Controller.TeamNum is 2 or 3&&!p.Controller.ControllingBot))
             try{if(Cash(p)>settings.MapCashBlockLimit)cashCollectionMapBlocked=true;}catch(BankRejected){cashCollectionMapBlocked=true;}
@@ -40,7 +40,7 @@ public sealed partial class Plugin
                 }
                 else paid=bank.ApplyLotteryBonus(lotRound,Id(p),n);
                 string text=bonus.Kind switch{"CashBonus"=>$"+{paid:N0} $ Cash","BankBonus"=>$"+{paid:N0} $ Bank","FreeTicket"=>$"+{paid} Gratislose für diese Ziehung",_=>$"Nächster gegnerischer Kill in dieser Runde: +{paid:N0} $ Bank"};
-                if(settings.LottoAbilityBonus.AnnounceToPlayer&&!bank.Muted(Id(p)))p.SendChat("[LPLK Lotto] Bonus: "+text);
+                if(settings.LottoAbilityBonus.AnnounceToPlayer&&!bank.Muted(Id(p)))p.SendLplkChat("[LPLK Lotto] Bonus: "+text);
                 if(settings.LottoAbilityBonus.ShowCenterMessage)p.SendCenter("Lotto-Bonus: "+text);
                 if(settings.LottoAbilityBonus.AnnouncePublic)LottoBroadcast(Ledger.SafeName(p.Name)+": "+text);
             }
@@ -56,7 +56,7 @@ public sealed partial class Plugin
         }
         if(victim is null||attacker is null||!Human(victim)||!Human(attacker)||attacker.Controller.ControllingBot||victim.Controller.ControllingBot||lotRound is null)return;
         bool opposing=attacker.Controller.TeamNum is 2 or 3&&victim.Controller.TeamNum is 2 or 3&&attacker.Controller.TeamNum!=victim.Controller.TeamNum;
-        long paid=bank.ClaimLotteryKill(lotRound,Id(attacker),Id(victim),opposing);if(paid>0)attacker.SendChat($"[LPLK Lotto] Killbonus: +{paid:N0} $ Bank.");
+        long paid=bank.DeferLotteryKill(lotRound,Id(attacker),Id(victim),opposing);if(paid>0)attacker.SendLplkChat($"[LPLK Lotto] Killbonus vorgemerkt: +{paid:N0} $ Bank am Rundenende.");
     }
     private void EndBonusRound(int winner)
     {
@@ -80,9 +80,9 @@ public sealed partial class Plugin
                     bank.Open(account,p.Name);string id="collect:"+bonusRound+":"+account;
                     var intent=bank.PrepareCashCollection(id,bonusPeriod,account,p.SessionId.ToString(),before,amount,c.SetPlayerCashToZero);
                     if(intent is not null)ExecuteBetCash(p,intent,handle,team,()=>ready&&bonusPeriod==bank.Period&&settings.Lotto.CashToSuperpot.Enabled);
-                    total+=amount;count++;if(c.NotifyAffectedPlayers&&!bank.Muted(account))p.SendChat($"[LPLK Lotto] {amount:N0} $ Rest-Cash wegen {reason} in den Superpot eingezahlt.");
+                    total+=amount;count++;if(c.NotifyAffectedPlayers&&!bank.Muted(account))p.SendLplkChat($"[LPLK Lotto] {amount:N0} $ Rest-Cash wegen {reason} in den Superpot eingezahlt.");
                 }
-                catch(BankRejected e){p.SendChat("[LPLK Lotto] Rest-Cash nicht bestätigt: "+e.Message);}
+                catch(BankRejected e){p.SendLplkChat("[LPLK Lotto] Rest-Cash nicht bestätigt: "+e.Message);}
             }
             if(c.CollectDisconnectedDeathSnapshots)foreach(var item in deathCash.Where(x=>!processed.Contains(x.Key)&&!online.Any(p=>Id(p)==x.Key)))
             {
@@ -96,19 +96,19 @@ public sealed partial class Plugin
     }
     private void LottoRules(IPlayer p)=>Page(p,"Lotto · Regeln",_=>
     {
-        var rows=new List<(string,Action<IPlayer>)>{("Gewinne",a=>{if(!LottoAvailable(a))throw new BankRejected("Lotto nicht verfügbar.");a.SendChat($"[LPLK Lotto] Los {settings.Lotto.TicketPrice:N0} $ Bank; {settings.Lotto.RoundPrizePercent}% Gewinn, {settings.Lotto.SuperpotPercent}% Superpot, {settings.Lotto.HouseCutPercent}% Hausanteil. Jedes Los gleiche Chance. Gratislose sind finanziert; bei Abbruch werden nur selbst bezahlte Lose erstattet.");})};
+        var rows=new List<(string,Action<IPlayer>)>{("Gewinne",a=>{if(!LottoAvailable(a))throw new BankRejected("Lotto nicht verfügbar.");a.SendLplkChat($"[LPLK Lotto] Los {settings.Lotto.TicketPrice:N0} $ Bank; {settings.Lotto.RoundPrizePercent}% Gewinn, {settings.Lotto.SuperpotPercent}% Superpot, {settings.Lotto.HouseCutPercent}% Hausanteil. Jedes Los gleiche Chance. Gratislose sind finanziert; bei Abbruch werden nur selbst bezahlte Lose erstattet.");})};
         if(settings.LottoAbilityBonus.Enabled||settings.Lotto.PermanentTicketUpgradeDiscountEnabled||settings.Lotto.CashToSuperpot.Enabled||bank!.UpgradeDiscount(Id(p))>0)rows.Add(("Boni",LottoBonusInfo));return rows;
     },OpenLotto);
     private void LottoBonusInfo(IPlayer p)
     {
         if(!LottoAvailable(p))throw new BankRejected("Lotto nicht verfügbar.");
         var s=settings.LottoAbilityBonus;
-        if(s.Enabled)p.SendChat($"[LPLK Lotto] Rundenstart-Bonus: {s.ChancePerTicketBasisPoints/100m:0.##}% je vorhandenem Los, höchstens {s.MaxBonusesPerPlayerPerRound}. Cash, Bank, Gratislose oder nächster gegnerischer Kill; kein Cashbonus in Pistolenrunden, keine Heilung/Rüstung.");
-        int discount=bank!.UpgradeDiscount(Id(p));if(settings.Lotto.PermanentTicketUpgradeDiscountEnabled||discount>0)p.SendChat($"[LPLK Lotto] Einmaliger Ausbaurabatt: {discount}%. Gilt für den nächsten Tresor-, Schutz-, Spion- oder Räuberausbau; bis Bankreset.");
-        if(settings.Lotto.CashToSuperpot.Enabled)p.SendChat($"[LPLK Lotto] Rest-Cash-Sammlung gemäß Regeln am Ende von Runde {settings.MaxRounds/2} / {settings.MaxRounds}; Status im Adminmenü. Todessnapshots werden getrennt von live abgezogenem Cash verbucht.");
+        if(s.Enabled)p.SendLplkChat($"[LPLK Lotto] Rundenstart-Bonus: {s.ChancePerTicketBasisPoints/100m:0.##}% je vorhandenem Los, höchstens {s.MaxBonusesPerPlayerPerRound}. Cash, Bank, Gratislose oder nächster gegnerischer Kill; kein Cashbonus in Pistolenrunden, keine Heilung/Rüstung.");
+        int discount=bank!.UpgradeDiscount(Id(p));if(settings.Lotto.PermanentTicketUpgradeDiscountEnabled||discount>0)p.SendLplkChat($"[LPLK Lotto] Einmaliger Ausbaurabatt: {discount}%. Gilt für den nächsten Tresor-, Schutz-, Spion- oder Räuberausbau; bis Bankreset.");
+        if(settings.Lotto.CashToSuperpot.Enabled)p.SendLplkChat($"[LPLK Lotto] Rest-Cash-Sammlung gemäß Regeln am Ende von Runde {settings.MaxRounds/2} / {settings.MaxRounds}; Status im Adminmenü. Todessnapshots werden getrennt von live abgezogenem Cash verbucht.");
     }
     private void LottoBonusMenu(IPlayer p) => LottoAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> LottoBonusMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>[
-        ($"Lottofähigkeiten: {(settings.LottoAbilityBonus.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{LottoAbilityBonus=current.LottoAbilityBonus with{Enabled=!current.LottoAbilityBonus.Enabled}});LottoBonusMenu(a);}),        ($"Dauerlos-Rabatte: {(settings.Lotto.PermanentTicketUpgradeDiscountEnabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Lotto=current.Lotto with{PermanentTicketUpgradeDiscountEnabled=!current.Lotto.PermanentTicketUpgradeDiscountEnabled}});LottoBonusMenu(a);}),        ($"Rest-Cash-Sammlung: {(settings.Lotto.CashToSuperpot.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Lotto=current.Lotto with{CashToSuperpot=current.Lotto.CashToSuperpot with{Enabled=!current.Lotto.CashToSuperpot.Enabled}}});LottoBonusMenu(a);}),        ("Details",a=>a.SendChat($"[LPLK Lotto] Bonuschance {settings.LottoAbilityBonus.ChancePerTicketBasisPoints/100m:0.##}%, Rabattchance {settings.Lotto.PermanentTicketUpgradeDiscountChanceBasisPoints/100m:0.##}% je Dauerlos. Rest-Cash-Mapsperre {cashCollectionMapBlocked}, offene Cashvorgänge {bank?.PendingCount}. Zahlenregeln unter LottoAbilityBonus und Lotto in settings.json."))]))(p);
+        ($"Lottofähigkeiten: {(settings.LottoAbilityBonus.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{LottoAbilityBonus=current.LottoAbilityBonus with{Enabled=!current.LottoAbilityBonus.Enabled}});LottoBonusMenu(a);}),        ($"Dauerlos-Rabatte: {(settings.Lotto.PermanentTicketUpgradeDiscountEnabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Lotto=current.Lotto with{PermanentTicketUpgradeDiscountEnabled=!current.Lotto.PermanentTicketUpgradeDiscountEnabled}});LottoBonusMenu(a);}),        ($"Rest-Cash-Sammlung: {(settings.Lotto.CashToSuperpot.Enabled?"AN":"AUS")}",a=>{Save(a,current=>current with{Lotto=current.Lotto with{CashToSuperpot=current.Lotto.CashToSuperpot with{Enabled=!current.Lotto.CashToSuperpot.Enabled}}});LottoBonusMenu(a);}),        ("Details",a=>a.SendLplkChat($"[LPLK Lotto] Bonuschance {settings.LottoAbilityBonus.ChancePerTicketBasisPoints/100m:0.##}%, Rabattchance {settings.Lotto.PermanentTicketUpgradeDiscountChanceBasisPoints/100m:0.##}% je Dauerlos. Rest-Cash-Mapsperre {cashCollectionMapBlocked}, offene Cashvorgänge {bank?.PendingCount}. Zahlenregeln unter LottoAbilityBonus und Lotto in settings.json."))]))(p);
 }
 

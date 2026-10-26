@@ -42,12 +42,12 @@ public sealed class NativeCurseWorld(ISwiftlyCore core,Func<IPlayer,bool> admin)
         if(Player(owner.Slot) is not {} p||p.Owner!=owner)return;var player=core.PlayerManager.GetPlayer(owner.Slot)!;
         if(kind=="start")
         {
-            if(s.NotifyTargetInChat)player.SendChat("[LPLK] Du wurdest mit dem Hühnerfluch belegt.");
+            if(s.NotifyTargetInChat)player.SendLplkChat("[LPLK] Du wurdest mit dem Hühnerfluch belegt.");
             if(s.ShowStartCenterMessage)player.SendCenterHTML($"<font color='orange'>Hühnerfluch!</font><br>{value:0} Hühner kreisen um deinen Kopf.",s.StartCenterMessageMs);
         }
         else if(kind=="end")
         {
-            player.SendChat($"[LPLK] Der Hühnerfluch ist explodiert. Vorgesehener Schaden: {value:0.#}.");
+            player.SendLplkChat($"[LPLK] Der Hühnerfluch ist explodiert. Vorgesehener Schaden: {value:0.#}.");
             if(s.ShowExplosionCenterMessage)player.SendCenterHTML("<font color='red'>BOOM!</font><br>Der Hühnerfluch ist beendet.",s.ExplosionCenterMessageMs);
         }
         else if(kind=="progress")player.SendCenterHTML($"Hühnerfluch: noch {value:0.0} s",s.OrbitProgressMessageMs);

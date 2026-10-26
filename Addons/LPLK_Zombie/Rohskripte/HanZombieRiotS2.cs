@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using HanZombieRiotS2;
@@ -12,7 +16,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_Zombie;
 
-[PluginMetadata(Id="LPLK_Zombie",Name="LPLK_Zombie",Version="0.1.0",Author="LPLK; gameplay derived from H-AN (GPL-3.0)",Description="Zombie waves with LPLK lifecycle, administration and validated profiles",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Zombie",Name="LPLK_Zombie",Version="0.1.6",Author="LPLK; gameplay derived from H-AN (GPL-3.0)",Description="Zombie waves with LPLK lifecycle, administration and validated profiles",MinimumAPIVersion="1.4.14")]
 public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ServiceProvider? services;
@@ -28,7 +32,13 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
     private long nextStatus;
     public override void Load(bool hotReload)
     {
-        configPath=Core.Configuration.GetConfigPath("HanZriotCFG.jsonc");
+        LPLK.Common.RoundFileStore.BeginLoad(Core);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_Zombie",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
+        configPath=LPLK.Common.RoundFileStore.ConfigPath(Core,"HanZriotCFG.jsonc");
         settings=new(ZombieProfile.ReadMain(File.ReadAllText(configPath)));
         configSignature=JsonSerializer.Serialize(settings.CurrentValue);
         profiles=new();profiles.Reload(Path.GetDirectoryName(configPath)!,"unknown",false);
@@ -44,15 +54,20 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
             globals.Scheduler.Scope.Start();Core.Event.OnMapLoad+=MapLoaded;events.HookEvents();commands.Command();
             globals.Scheduler.NextTick(()=>{string current;try{current=Core.Engine.GlobalVars.MapName;}catch{return;}LoadMap(current);});
         }
-        WriteStatus();Core.Logger.LogInformation("LPLK_Zombie 0.1.0 loaded; Enabled={Enabled}",settings.CurrentValue.Enabled);
+        WriteStatus();Core.Logger.LogInformation("LPLK_Zombie 0.1.6 loaded; Enabled={Enabled}",settings.CurrentValue.Enabled);
     }
     public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore()
     {
         loaded=false;if(module is not null)module.Active=false;
         if(globals is not null){globals.Ready=false;globals.Scheduler.Dispose();}
         Core.Event.OnWorldUpdate-=Maintenance;Core.Event.OnMapLoad-=MapLoaded;
         events?.Dispose();commands?.Dispose();services?.Dispose();WriteStatus();
-    }
+     LPLK.Common.DeferredJson.Drain(); }
     private void MapLoaded(IOnMapLoadEvent e)=>LoadMap(e.MapName);
     private void LoadMap(string name)
     {
@@ -88,11 +103,11 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void WriteStatus()
     {
         if(globals is null||settings is null)return;
-        try{AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{plugin="LPLK_Zombie",version="0.1.0",updated_at=DateTimeOffset.UtcNow,active=loaded,enabled=settings.CurrentValue.Enabled,ready=globals.Ready,map,high=globals.CurrentMapIsHighDiff,day=globals.RiotDay,waves=profiles.Days.Days.Count,zombie_types=profiles.Zombies.ZombieList.Count,killed=globals.ZombieKill,required=globals.NeedKillZombie,timers=globals.Scheduler.Pending,configuration_error=error});}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{plugin="LPLK_Zombie",version="0.1.6",updated_at=DateTimeOffset.UtcNow,active=loaded,enabled=settings.CurrentValue.Enabled,ready=globals.Ready,map,high=globals.CurrentMapIsHighDiff,day=globals.RiotDay,waves=profiles.Days.Days.Count,zombie_types=profiles.Zombies.ZombieList.Count,killed=globals.ZombieKill,required=globals.NeedKillZombie,timers=globals.Scheduler.Pending,configuration_error=error});}
         catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Zombie: Statusdatei konnte nicht geschrieben werden.");}
     }
     [Command("lplk_zombie_status")]
-    public void Status(ICommandContext c){if(c.Sender is {} p&&!commands.Allowed(p))return;c.Reply($"LPLK_Zombie 0.1.0; enabled={settings.CurrentValue.Enabled}; ready={globals.Ready}; day={globals.RiotDay}; waves={profiles.Days.Days.Count}; error={error??"none"}");}
+    public void Status(ICommandContext c){if(c.Sender is {} p&&!commands.Allowed(p))return;c.ReplyLplk($"LPLK_Zombie 0.1.6; enabled={settings.CurrentValue.Enabled}; ready={globals.Ready}; day={globals.RiotDay}; waves={profiles.Days.Days.Count}; error={error??"none"}");}
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
         module.ConfigureSharedInterface(manager);
@@ -111,7 +126,7 @@ public sealed class Plugin(ISwiftlyCore core):BasePlugin(core)
             ("Nächste Welle",p=>{if(commands.Allowed(p)&&globals.Ready){commands.SetDay(Math.Min(globals.RiotDay+1,profiles.Days.Days.Count));OpenAdmin(p);}}),
             ("Erste Welle",p=>{if(commands.Allowed(p)&&globals.Ready){commands.SetDay(1);OpenAdmin(p);}}),
             ("Schwierigkeit für nächste Map erhöhen",p=>{if(commands.Allowed(p)&&globals.Ready){globals.KillCount=1000;globals.KillPercent=100;OpenAdmin(p);}}),
-            ("Status",p=>p.SendChat($"[LPLK] Zombie: bereit={globals.Ready}; Welle {globals.RiotDay}; Fehler={error??"keine"}")));
+            ("Status",p=>p.SendLplkChat($"[LPLK] Zombie: bereit={globals.Ready}; Welle {globals.RiotDay}; Fehler={error??"keine"}")));
     }
     private void OpenPlayer(IPlayer player)
     {

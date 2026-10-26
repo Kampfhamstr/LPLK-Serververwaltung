@@ -7,7 +7,7 @@ public sealed partial class Plugin
         if(!ready||!Active||settings.Profile!="standard-test-89450e53"||Core.PlayerManager.GetAllValidPlayers().Any(p=>!p.IsFakeClient))throw new InvalidOperationException("Isolated test profile required");
         const string a="76561198000000001";
         var rules=settings with{Profile="legacy-commands-probe-89450e53",StartBank=0,ResetMode="Never",MaxBank=200000,MaxManualBankSet=50000};
-        using var probe=new Ledger(Path.Combine(Core.PluginDataDirectory,"legacy-commands-probe.sqlite3"),rules);
+        using var probe=new Ledger(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"legacy-commands-probe.sqlite3"),rules);
         string id="probe:"+Guid.NewGuid().ToString("N");probe.Open(a,"Befehlsprüfkonto");int checks=0;
         void Balance(long expected){if(probe.Balance(a)!=expected)throw new InvalidDataException("Legacy admin probe balance mismatch");checks++;}
         probe.AdjustLegacy(id+":set",probe.Period,a,a,100000,"set",50000);Balance(50000);

@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Parachute;
 
-[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.6", Author = "LPLK / schwarper", Description = "Fallschirm mit Benutzen-Aktion; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.12", Author = "LPLK / schwarper", Description = "Fallschirm mit Benutzen-Aktion; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private WatchedSettings<ParachuteSettings> config = null!;
@@ -27,17 +27,28 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     public override void ConfigureSharedInterface(IInterfaceManager manager) => module.ConfigureSharedInterface(manager);
     public override void Load(bool hotReload)
     {
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_Parachute",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         module = new(Core, "LPLK_Parachute", "Fallschirm", "lplk.parachute.admin", OpenAdmin);
         config = new(module.SettingsPath,ParachuteSettings.Validate);
         enabledConvar = Core.ConVar.Find<bool>("sv_parachute") ?? Core.ConVar.Create("sv_parachute", "LPLK Fallschirm aktiv", true);
         Core.GameEvent.HookPre<EventPlayerDeath>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         Core.GameEvent.HookPre<EventPlayerSpawn>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         module.Active = true;
-        Core.Logger.LogInformation("LPLK_Parachute 0.1.6 bereit; Parachute-v5-Mechanik: +use, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
+        Core.Logger.LogInformation("LPLK_Parachute 0.1.12 bereit; Parachute-v5-Mechanik: +use, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
         WriteStatus();
     }
 
-    public override void Unload() { if (module is not null) module.Active = false; ReleaseAll(); }
+    public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore() { if (module is not null) module.Active = false; ReleaseAll();  LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnMapUnload>] public void MapUnload(IOnMapUnloadEvent e) => ReleaseAll();
     [EventListener<EventDelegates.OnClientDisconnected>] public void Disconnect(IOnClientDisconnectedEvent e) => Release(e.PlayerId);
     private void ReleaseAll() { foreach(int id in flights.Keys.ToArray()) Release(id); }
@@ -82,11 +93,11 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     public void Command(ICommandContext ctx)
     {
         if (ctx.IsSentByPlayer && ctx.Sender is { } player) OpenAdmin(player);
-        else ctx.Reply($"LPLK_Parachute 0.1.6: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored; reloadError={config.Error??"none"}");
+        else ctx.ReplyLplk($"LPLK_Parachute 0.1.12: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored; reloadError={config.Error??"none"}");
     }
     private void WriteStatus()
     {
-        try { AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.6",settings.Enabled,settings.FallSpeed,settings.BrakePerTick,settings.Linear,settings.DisableWhenCarryingHostage,useRestricted=settings.UsePermission.Length>0,activeFlights=flights.Count,reloadError=config.Error}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.12",settings.Enabled,settings.FallSpeed,settings.BrakePerTick,settings.Linear,settings.DisableWhenCarryingHostage,useRestricted=settings.UsePermission.Length>0,activeFlights=flights.Count,reloadError=config.Error}); statusWriteFailed=false; }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException)
         { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_Parachute: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }
@@ -94,6 +105,6 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     {
         ParachuteSettings? before=null;config.Change(s=>{before=s;return edit(s);});ReleaseAll();WriteStatus();
         Core.Logger.LogInformation("LPLK_Parachute: Admin {Actor}; vorher={Before}; nachher={After}",player.SteamID,System.Text.Json.JsonSerializer.Serialize(before),System.Text.Json.JsonSerializer.Serialize(settings));
-        player.SendChat("[LPLK] Fallschirm-Einstellung gespeichert.");
+        player.SendLplkChat("[LPLK] Fallschirm-Einstellung gespeichert.");
     }
 }

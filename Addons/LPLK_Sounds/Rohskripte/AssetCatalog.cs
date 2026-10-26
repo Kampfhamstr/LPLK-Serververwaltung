@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -124,14 +128,15 @@ public static class DataFiles
     }
     public static void WriteAtomic(string path, string text)
     {
+        if(LPLK.Common.RoundFileStore.Active){File.WriteAllText(path,text);return;}
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         string temp = path + ".tmp-" + Guid.NewGuid().ToString("N");
         try
         {
-            using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var stream = LPLK.Common.RamFile.Open(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
                 byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text);
-                stream.Write(bytes); stream.Flush(true);
+                stream.Write(bytes); stream.Flush();
             }
             File.Move(temp, path, true);
         }

@@ -10,7 +10,7 @@ public sealed partial class Plugin
 {
     private int generation;
     private AdminSettings settings=new();
-    private string SettingsPath=>Path.Combine(Core.PluginDataDirectory,"settings.json");
+    private string SettingsPath=>Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"settings.json");
     private bool Has(IPlayer p,string permission)=>active&&p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&Core.Permission.PlayerHasPermission(p.SteamID,permission);
     private bool Can(IPlayer p,string action)=>active&&p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&AdminActionPolicy.Allowed(action,s=>Has(p,s));
     private bool CanManage(IPlayer p)=>Has(p,"admin.menu")||Has(p,"admin.map")||AdminActionPolicy.Permissions.Keys.Any(a=>Can(p,a));
@@ -20,6 +20,7 @@ public sealed partial class Plugin
     {
         if(actor is not null&&!Can(actor,action))throw new InvalidOperationException("Keine Berechtigung.");
         var execute=Backend()??throw new InvalidOperationException("SerververwaltungBridge 1.6.2 ist nicht bereit.");
+        RequireLocalSanctions(action);
         using var result=JsonDocument.Parse(execute(actor?.SteamID??0,action,JsonSerializer.Serialize(new {target,payload=payload??[]})));
         bool success=result.RootElement.GetProperty("success").GetBoolean();string message=result.RootElement.GetProperty("message").GetString()??"Keine Rückmeldung.";
         if(!success)throw new InvalidOperationException(message);
@@ -29,6 +30,11 @@ public sealed partial class Plugin
     {
         try{if(active)action();}catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Admin: Aktion abgewiesen/fehlgeschlagen");reply("[LPLK] "+e.Message);}
     }
+    private static bool GlobalAction(string action)=>action is "ban" or "unban" or "mute" or "unmute" or "gag" or "ungag" or "silence" or "unsilence";
+    private void RequireLocalSanctions(string action)
+    {
+        if(GlobalAction(action)&&(interfaces is null||!interfaces.TryGetSharedInterface<IReadOnlyDictionary<string,Delegate>>("LPLK.Bridge.Admin.v1",out var api)||!api.TryGetValue("localSanctions",out var capability)||capability is not Func<bool> ready||!ready()))throw new InvalidOperationException("Lokale Sperrverwaltung nicht bereit; Aktion nicht ausgeführt.");
+    }
     private void Input(IPlayer p, string title, Action<IPlayer, string> accept, Action<IPlayer> back, int length = 150)
     {
         if (!CanManage(p)) return;
@@ -36,7 +42,7 @@ public sealed partial class Plugin
         var input = new InputMenuOption(new MenuNumbers().Next(MenuLayout.Label(title)), maxLength: length,
             validator: v => !string.IsNullOrWhiteSpace(v) && v.Length <= length, hintMessage: "Text in den Chat eingeben.");
         GameThreadMenu.BindInput(Core, input, p, () => active && serial == generation, (a, value) =>
-        { ReloadSettings();if(serial!=generation){a.SendChat("[LPLK] Einstellungen geändert; Menü neu öffnen.");return;} if (CanManage(a)) Guard(() => accept(a, AdminActionPolicy.Text(value, length)), a.SendChat); });
+        { ReloadSettings();if(serial!=generation){a.SendLplkChat("[LPLK] Einstellungen geändert; Menü neu öffnen.");return;} if (CanManage(a)) Guard(() => accept(a, AdminActionPolicy.Text(value, length)), a.SendLplkChat); });
         var cancel = new ButtonMenuOption(MenuColors.Back("Zurück")) { CloseAfterClick = false };
         GameThreadMenu.Bind(Core, cancel, p, () => active && serial == generation, back);
         OpenOwnedMenu(p, Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false)
@@ -145,12 +151,12 @@ public sealed partial class Plugin
     {
         if (!Can(p, action)) return;
         string targetName = target is not null && session is not null ? Target(target, session).Name : target ?? "Server";
-        Menu(p, "LPLK · " + label + " → " + targetName, _ => new (string, Action<IPlayer>)[]
+        Menu(p, "LPLK · " + (action is "ban" or "unban" or "mute" or "unmute" or "gag" or "ungag" or "silence" or "unsilence"?"Lokal: ":"") + label + " → " + targetName, _ => new (string, Action<IPlayer>)[]
         {
             ("Bestätigen", a =>
             {
                 if (target is not null && session is not null) Target(target, session);
-                Run(a, action, target, payload, a.SendChat);
+                Run(a, action, target, payload, a.SendLplkChat);
                 // Kick/ban can remove the target. Return to a valid player list after execution.
                 if (target is not null && session is not null) PlayerList(a, 0); else OpenAdministration(a);
             })

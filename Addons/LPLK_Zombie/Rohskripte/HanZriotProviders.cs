@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 // LPLK: parse and validate the complete wave/zombie pair before publishing either half.
 using System.Text.Json;
 using System.Text.RegularExpressions;

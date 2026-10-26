@@ -10,3 +10,6 @@ https://github.com/K4ryuu/K4-DamageInfo-SwiftlyS2
 https://github.com/chycken/K4-GOTV-SwiftlyS2
 Map-unload native access avoided; recordings confirmed on disk, no invented duration.
 No production statistics, player identities, integrations or credentials included.
+
+SourceTV console-kick guard informed by SlynxCZ/GameFixes_mm, src/fixes/demo_record.cpp (GPL-3.0, copyright 2026 Michal Slynx Prikryl). Native layout follows SwiftlyS2 serversideclient.h and installed gamedata.
+https://github.com/SlynxCZ/GameFixes_mm

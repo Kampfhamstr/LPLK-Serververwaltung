@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
@@ -22,7 +26,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Surf;
 
-[PluginMetadata(Id = "LPLK_Surf", Version = "0.1.0", Name = "LPLK_Surf", Author = "Michael Zauche / OpenAI", Description = "Surf/KZ timer with courses, practice, records, replays and categorized map voting for SwiftlyS2")]
+[PluginMetadata(Id = "LPLK_Surf", Version = "0.1.11", Name = "LPLK_Surf", Author = "Michael Zauche / OpenAI", Description = "Surf/KZ timer with courses, practice, records, replays and categorized map voting for SwiftlyS2")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private const string ConfigFile = "config.jsonc";
@@ -96,27 +100,41 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
     public override void Load(bool hotReload)
     {
-        LoadConfig();
-        Directory.CreateDirectory(Core.PluginDataDirectory);
+        LPLK.Common.RoundFileStore.BeginLoad(Core,this);
+        try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
+        catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
+    }
+    private void LoadCore(bool hotReload)
+    { ChatTheme.Initialize("LPLK_Surf",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
+        RoundData.Attach(Core);LoadConfig();
+        Directory.CreateDirectory(LPLK.Common.RoundFileStore.DataPath(Core));
         InitializeSqliteProvider();
-        Directory.CreateDirectory(Path.Combine(Core.PluginDataDirectory, "zones"));
-        _dbFile = Path.Combine(Core.PluginDataDirectory, "records.db");
-        _prefsFile = Path.Combine(Core.PluginDataDirectory, "player_preferences.json");
-        _historyFile = Path.Combine(Core.PluginDataDirectory, "map_history.json");
-        InitializeDatabase(); LoadPrefs(); LoadHistory(); _lifetime.Start();
+        Directory.CreateDirectory(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "zones"));
+        _dbFile = Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "records.db");
+        _prefsFile = Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "player_preferences.json");
+        _historyFile = Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "map_history.json");
+        InitializeDatabase(); InitializeMemoryRecords(); LoadPrefs(); LoadHistory(); _lifetime.Start();
         if(_config.Enabled){RegisterCommands(); RegisterTriggerHooks(); RegisterGameHooks();
         Next(() => { _map = CurrentMap(); LoadZones(); ScanWorkshopMaps(); _currentWorkshopId=CurrentWorkshopId(); ApplyServerSettings(); ApplyTransparentPlayers(); ScanNativeMapTriggers(); });}
         WriteStatus();
-        Core.Logger.LogInformation("[LPLK_Surf] v0.1.0 geladen. Map={Map}, Zonen={Zones}, Workshopmaps={Maps}, HotReload={HotReload}", _map, _zones.Stages.Count + (_zones.Start is null ? 0 : 1) + (_zones.End is null ? 0 : 1), _workshopMaps.Count, hotReload);
+        Core.Logger.LogInformation("[LPLK_Surf] v0.1.8 geladen. Map={Map}, Zonen={Zones}, Workshopmaps={Maps}, HotReload={HotReload}", _map, _zones.Stages.Count + (_zones.Start is null ? 0 : 1) + (_zones.End is null ? 0 : 1), _workshopMaps.Count, hotReload);
     }
 
-    public override void Unload() { _lifetime.Stop(); CancelDelayed(); UnregisterGameHooks(); UnregisterTriggerHooks(); UnregisterCommands(); _voteActive=false; _mapChangeScheduled=false; _runs.Clear(); _replayViewers.Clear(); SavePrefs(); SqliteConnection.ClearAllPools(); WriteStatus(); }
+    public override void Unload()
+    {
+        try { UnloadCore(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+    }
+    private void UnloadCore() { CloseMemoryRecords(); storageWork.GetAwaiter().GetResult(); _lifetime.Stop(); CancelDelayed(); UnregisterGameHooks(); UnregisterTriggerHooks(); UnregisterCommands(); _voteActive=false; _mapChangeScheduled=false; _runs.Clear(); _replayViewers.Clear(); SavePrefs(); RoundData.Drain(); SqliteConnection.ClearAllPools(); WriteStatus();  LPLK.Common.DeferredJson.Drain(); }
 
     [EventListener<EventDelegates.OnTick>]
     public void OnTick()
     {
         if (!_lifetime.Active || !_config.Enabled || !_zonesValid) return;
-        CheckEndOfMapVoteAndChange();
+        // The world is temporarily absent during cold start, hibernation and map
+        // transitions. Check GlobalVars before dereferencing any old game rules.
+        float gameTime;try{gameTime=Core.Engine.GlobalVars.CurrentTime;}catch(InvalidOperationException){return;}
+        CheckEndOfMapVoteAndChange(gameTime);
         foreach (IPlayer p in Core.PlayerManager.GetAllValidPlayers())
         {
             if (!Usable(p) || p.IsFakeClient) continue;
@@ -128,7 +146,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     [EventListener<EventDelegates.OnMapLoad>]
     public void OnMapLoad(IOnMapLoadEvent e)
     {
-        if(!_lifetime.Active||!_config.Enabled)return; _lifetime.Advance(); CancelDelayed();
+        if(!_lifetime.Active||!_config.Enabled)return; RoundData.Flush();_lifetime.Advance(); CancelDelayed();
         _map = NormalizeMap(e.MapName); _runs.Clear(); _replayViewers.Clear(); _spectatorHudTargets.Clear(); _rtv.Clear(); _votes.Clear(); _nominations.Clear(); _voteNominatedIds.Clear(); _voteActive = false; _nextMap = null;
         _endOfMapVoteStarted=false;_endOfMapChangeScheduled=false;_voteChangesAtMapEnd=false;_voteEndsAtMs=0;_nextEndOfMapCheckMs=0;
         if(!_mapChangeScheduled){_mapChangeAttempt=0;_mapChangeOriginMapName=string.Empty;_mapChangeOriginWorkshopId=string.Empty;}
@@ -421,12 +439,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     {
         double time = Elapsed(r); r.Running = false; r.Armed = false;
         if (!r.Ranked) { Reply(p, r.InvalidReason is null ? $"[gray]Practice-Ziel: {Format(time)} – nicht gespeichert." : $"[red]Ziel: {Format(time)} – nicht gespeichert ({r.InvalidReason})."); return; }
-        RecordResult result = SaveCourseRecord(p, r.Course, time, r.StageTimes);
-        string delta = result.OldPb is null ? "erste Zeit" : Signed(time - result.OldPb.Value);
-        Reply(p, $"[green]Ziel! [default]{Format(time)} [gray]({delta}) – Rang #{result.Rank}/{result.Total}");
-        if (result.IsWorldRecord) SaveWorldRecordReplay(p, r, time);
-        if (result.IsWorldRecord && _config.Rankings.AnnounceWorldRecord) Broadcast($"[gold]NEUER WELTREKORD! [default]{p.Name} – {Format(time)} auf {_map} ({r.Course})");
-        else if (result.IsPb && _config.Rankings.AnnouncePersonalBest) Broadcast($"[green]Neue Bestzeit: [default]{p.Name} – {Format(time)} ({r.Course}, #{result.Rank})");
+        StoreFinishedRun(p,r,time);
     }
 
     private RecordResult SaveRecord(IPlayer p, double seconds, List<double> stages)
@@ -514,9 +527,9 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         return option;
     }
 
-    private ButtonMenuOption MenuButton(string text)
+    private ButtonMenuOption MenuButton(string text,string? formatted=null)
     {
-        ButtonMenuOption option = new(text);
+        ButtonMenuOption option = new(formatted??text);
         _menuLeases.Add(option,new(_lifetime.Generation));
         if (text.Length > 34) option.TextStyle = MenuOptionTextStyle.ScrollLeftLoop;
         return option;
@@ -791,7 +804,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         List<WorkshopMap> maps = GetNominatableMaps().Where(x => x.Category == category).ToList();
         foreach (WorkshopMap map in maps)
         {
-            WorkshopMap selected = map; ButtonMenuOption button = MenuButton(map.Title);
+            WorkshopMap selected = map; ButtonMenuOption button = MenuButton(map.Title,"<font color='#6EA8FF'>"+System.Net.WebUtility.HtmlEncode(map.Title)+"</font>");
             button.Click += (sender,a)=>QueueMenuAction(sender,a.Player, () =>
             {
                 WorkshopMap? current=_workshopMaps.FirstOrDefault(x=>x.Id.Equals(selected.Id,StringComparison.OrdinalIgnoreCase));
@@ -821,7 +834,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             WorkshopMap selected = map;
             int votes = _votes.Values.Count(x => x == map.Id);
             bool ownVote = _votes.GetValueOrDefault(player.SteamID) == map.Id;
-            ButtonMenuOption button = MenuButton($"{map.Title} [{votes}]{(ownVote?" ✓":"")}");
+            ButtonMenuOption button = MenuButton($"{map.Title} [{votes}]{(ownVote?" ✓":"")}","<font color='#6EA8FF'>"+System.Net.WebUtility.HtmlEncode(map.Title)+$"</font> [{votes}]{(ownVote?" ✓":"")}");
             button.Click += (sender,a)=>QueueMenuAction(sender,a.Player, () =>
             {
                 bool accepted=TryCastMapVote(a.Player,selected.Id);CloseSurfMenu(a.Player);
@@ -918,7 +931,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     private IMenuAPI BuildCategoryMapChangeMenu(IPlayer player, MapCategory category)
     {
         IMenuBuilderAPI b = MenuBuilder($"Map wechseln: {CategoryLabel(category)}");
-        foreach (WorkshopMap map in _workshopMaps.Where(x => x.Category == category)) { WorkshopMap selected = map; ButtonMenuOption button = MenuButton(map.Title); button.Click += (sender,a)=>QueueMenuAction(sender,a.Player, () => { if (!Admin(a.Player)) return;CloseSurfMenu(a.Player);ScheduleMapChange(selected,0); }); b.AddOption(button); }
+        foreach (WorkshopMap map in _workshopMaps.Where(x => x.Category == category)) { WorkshopMap selected = map; ButtonMenuOption button = MenuButton(map.Title,"<font color='#6EA8FF'>"+System.Net.WebUtility.HtmlEncode(map.Title)+"</font>"); button.Click += (sender,a)=>QueueMenuAction(sender,a.Player, () => { if (!Admin(a.Player)) return;CloseSurfMenu(a.Player);ScheduleMapChange(selected,0); }); b.AddOption(button); }
         return Tagged(b.Build());
     }
 
@@ -948,7 +961,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     private Zone? GetOrCreateZone(string[] a) { if(a[0].Equals("start",StringComparison.OrdinalIgnoreCase)) return _zones.Start ??= new(); if(a[0].Equals("end",StringComparison.OrdinalIgnoreCase)) return _zones.End ??= new(); if(a[0].Equals("stage",StringComparison.OrdinalIgnoreCase)&&a.Length>=3&&int.TryParse(a[1],out int n)&&n>0){while(_zones.Stages.Count<n)_zones.Stages.Add(new());return _zones.Stages[n-1];} return null; }
     private Zone? GetZone(string[] a,int offset) { if(a[offset].Equals("start",StringComparison.OrdinalIgnoreCase)) return _zones.Start; if(a[offset].Equals("end",StringComparison.OrdinalIgnoreCase)) return _zones.End; if(a[offset].Equals("stage",StringComparison.OrdinalIgnoreCase)&&a.Length>offset+1&&int.TryParse(a[offset+1],out int n)&&n>0) return _zones.Stages.ElementAtOrDefault(n-1); return null; }
 
-    private void CheckEndOfMapVoteAndChange()
+    private void CheckEndOfMapVoteAndChange(float gameTime)
     {
         if(!_config.MapVote.Enabled||!_config.MapVote.EndOfMapVoteEnabled)return;
         long now=Environment.TickCount64;if(now<_nextEndOfMapCheckMs)return;_nextEndOfMapCheckMs=now+1000;
@@ -956,7 +969,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         if(timeLimitMinutes<=0)return;
         CCSGameRules? gameRules;try{gameRules=Core.EntitySystem.GetGameRules();}catch{return;}
         if(gameRules is null||gameRules.WarmupPeriod)return;
-        double elapsedSeconds=Math.Max(0,Core.Engine.GlobalVars.CurrentTime-gameRules.GameStartTime);
+        double elapsedSeconds=Math.Max(0,gameTime-gameRules.GameStartTime);
         double remainingSeconds=timeLimitMinutes*60.0-elapsedSeconds;
 
         if(_endOfMapVoteStarted&&_nextMap is not null&&!_voteActive&&!_endOfMapChangeScheduled&&remainingSeconds<=1.0)
@@ -992,7 +1005,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     private void NextMapCommand(ICommandContext c) { IPlayer? p=Player(c); if(p is not null) Reply(p,_nextMap is null?"Noch keine nächste Map gewählt.":$"Nextmap: [green]{_nextMap.Title}"); }
     private bool StartVote(MapCategory? categoryRestriction=null,bool changeAtMapEnd=false)
     {
-        if(_voteActive)return false;ScanWorkshopMaps();HashSet<string> cool=_history.TakeLast(_config.MapVote.MapsInCooldown).ToHashSet();
+        if(_voteActive)return false;HashSet<string> cool=_history.TakeLast(_config.MapVote.MapsInCooldown).ToHashSet();
         List<WorkshopMap> eligible=_workshopMaps.Where(x=>!IsCurrentWorkshopMap(x)&&(categoryRestriction is null||x.Category==categoryRestriction)).ToList();
         List<WorkshopMap> pool=eligible.Where(x=>!cool.Contains(x.Id)).OrderBy(_=>Random.Shared.Next()).ToList();
         if(pool.Count<2)pool=eligible.OrderBy(_=>Random.Shared.Next()).ToList();
@@ -1029,9 +1042,12 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         if(!_voteActive){Reply(player,"[red]Der Mapvote ist bereits beendet.");return false;}
         WorkshopMap? map=_voteCandidates.FirstOrDefault(x=>x.Id.Equals(mapId,StringComparison.OrdinalIgnoreCase));
         if(map is null){Reply(player,"[red]Diese Map gehört nicht zum laufenden Vote.");return false;}
+        bool changed=_votes.TryGetValue(player.SteamID,out var previous);
+        if(string.Equals(previous,map.Id,StringComparison.OrdinalIgnoreCase)){Reply(player,$"Deine Stimme für {map.Title} ist bereits gespeichert.");return true;}
         _votes[player.SteamID]=map.Id;int count=_votes.Values.Count(x=>x.Equals(map.Id,StringComparison.OrdinalIgnoreCase));
         Core.Logger.LogInformation("[LPLK_Surf] Mapvote-Stimme: Spieler={Player} SteamID={SteamId}, Map={Title} ({Id}), Stimmen={Votes}",player.Name,player.SteamID,map.Title,map.Id,count);
-        Reply(player,$"Stimme gespeichert: [green]{map.Title}[default] ({count}).");return true;
+        Core.PlayerManager.SendChat($"[blue]{ChatTheme.Plain(player.Name)}[yellow] {(changed?"ändert seine Stimme auf":"stimmt für")} [blue]{ChatTheme.Plain(map.Title)}[yellow] ({count}).[default]");
+        return true;
     }
     private void FinishVote()
     {
@@ -1160,13 +1176,13 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     private string CurrentWorkshopIdForComparison(){string current=CurrentWorkshopId();return !string.IsNullOrWhiteSpace(current)?current:_currentWorkshopId;}
     private static string TryReadWorkshopValue(string publishDataPath,string key){try{string text=File.ReadAllText(publishDataPath);Match match=Regex.Match(text,$"\"{Regex.Escape(key)}\"\\s+\"(?<value>[^\"]+)\"",RegexOptions.IgnoreCase|RegexOptions.CultureInvariant);return match.Success?match.Groups["value"].Value.Trim():string.Empty;}catch{return string.Empty;}}
     private static string CategoryLabel(MapCategory category) => category switch { MapCategory.Surf => "Surf", MapCategory.Kz => "KZ", _ => "Sonstige" };
-    private string ResolveWorkshopPath(string p) { string[] c=[p,"/home/container"+p,"/home/container/game/bin/linuxsteamrt64/steamapps/workshop/content/730","/game/bin/linuxsteamrt64/steamapps/workshop/content/730",Path.Combine(Core.GameFilesDirectory,"..","bin","linuxsteamrt64","steamapps","workshop","content","730")]; return c.Select(Path.GetFullPath).FirstOrDefault(Directory.Exists)??p; }
+    private string ResolveWorkshopPath(string p) { string[] c=[p,"/home/container"+p,"/home/container/game/bin/linuxsteamrt64/steamapps/workshop/content/730","/game/bin/linuxsteamrt64/steamapps/workshop/content/730",Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"..","bin","linuxsteamrt64","steamapps","workshop","content","730")]; return c.Select(Path.GetFullPath).FirstOrDefault(Directory.Exists)??p; }
 
     private bool _zonesValid=true;
     private string? _zonesError;
     private void LoadZones()
     {
-        _zonesFile=Path.Combine(Core.PluginDataDirectory,"zones",Safe(_map)+".json");
+        _zonesFile=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"zones",Safe(_map)+".json");
         try
         {
             var candidate=File.Exists(_zonesFile)?JsonSerializer.Deserialize<MapZones>(File.ReadAllText(_zonesFile),Json)??throw new InvalidDataException("Leere Zonendatei."):new();
@@ -1185,7 +1201,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         if(data.Values.Any(p=>p is null))throw new InvalidDataException("Ungültige Spielereinstellungen.");
         foreach(var item in data)_prefs.Add(item.Key,item.Value);
     }
-    private void SavePrefs(){if(string.IsNullOrEmpty(_prefsFile))return;AtomicJson.Write(_prefsFile,_prefs);}
+    private void SavePrefs(){if(string.IsNullOrEmpty(_prefsFile))return;RoundData.Save(_prefsFile,_prefs);}
     private void LoadHistory(){try{if(File.Exists(_historyFile))_history=JsonSerializer.Deserialize<List<string>>(File.ReadAllText(_historyFile),Json)??[];}catch(Exception ex){throw new InvalidDataException("Maphistorie ist ungültig; Originaldatei bleibt erhalten.",ex);}}
     private void RecordCurrentMap()
     {
@@ -1193,11 +1209,11 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         WorkshopMap? map=!string.IsNullOrWhiteSpace(liveWorkshopId)?_workshopMaps.FirstOrDefault(x=>x.Id.Equals(liveWorkshopId,StringComparison.OrdinalIgnoreCase)):null;
         map??=_workshopMaps.FirstOrDefault(x=>(!string.IsNullOrWhiteSpace(x.SourceFolder)&&NormalizeMap(x.SourceFolder)==_map)||NormalizeMap(x.Title)==_map);
         if(map is null)return;
-        _currentWorkshopId=map.Id;_history.RemoveAll(x=>x.Equals(map.Id,StringComparison.OrdinalIgnoreCase));_history.Add(map.Id);_history=_history.TakeLast(Math.Max(10,_config.MapVote.MapsInCooldown+5)).ToList();AtomicJson.Write(_historyFile,_history);
+        _currentWorkshopId=map.Id;_history.RemoveAll(x=>x.Equals(map.Id,StringComparison.OrdinalIgnoreCase));_history.Add(map.Id);_history=_history.TakeLast(Math.Max(10,_config.MapVote.MapsInCooldown+5)).ToList();DeferredJson.Queue(_historyFile,_history.ToArray());
         if(_pendingWorkshopId.Equals(map.Id,StringComparison.OrdinalIgnoreCase))_pendingWorkshopId=string.Empty;
     }
     private void InitializeDatabase(){using SqliteConnection db=OpenDb();using SqliteCommand cmd=db.CreateCommand();cmd.CommandText="PRAGMA journal_mode=WAL; CREATE TABLE IF NOT EXISTS records(map TEXT NOT NULL,steam_id TEXT NOT NULL,player_name TEXT NOT NULL,best_seconds REAL NOT NULL,finishes INTEGER NOT NULL DEFAULT 1,stage_times TEXT NOT NULL DEFAULT '[]',updated_at TEXT NOT NULL,PRIMARY KEY(map,steam_id)); CREATE INDEX IF NOT EXISTS ix_records_map_time ON records(map,best_seconds); CREATE TABLE IF NOT EXISTS runs(id INTEGER PRIMARY KEY AUTOINCREMENT,map TEXT NOT NULL,steam_id TEXT NOT NULL,player_name TEXT NOT NULL,seconds REAL NOT NULL,finished_at TEXT NOT NULL); CREATE TABLE IF NOT EXISTS course_records(map TEXT NOT NULL,course TEXT NOT NULL,steam_id TEXT NOT NULL,player_name TEXT NOT NULL,best_seconds REAL NOT NULL,finishes INTEGER NOT NULL DEFAULT 1,stage_times TEXT NOT NULL DEFAULT '[]',updated_at TEXT NOT NULL,PRIMARY KEY(map,course,steam_id)); CREATE INDEX IF NOT EXISTS ix_course_records_map_course_time ON course_records(map,course,best_seconds); CREATE TABLE IF NOT EXISTS course_runs(id INTEGER PRIMARY KEY AUTOINCREMENT,map TEXT NOT NULL,course TEXT NOT NULL,steam_id TEXT NOT NULL,player_name TEXT NOT NULL,seconds REAL NOT NULL,finished_at TEXT NOT NULL); INSERT OR IGNORE INTO course_records(map,course,steam_id,player_name,best_seconds,finishes,stage_times,updated_at) SELECT map,'main',steam_id,player_name,best_seconds,finishes,stage_times,updated_at FROM records;";cmd.ExecuteNonQuery();}
-    private SqliteConnection OpenDb(){var db=new SqliteConnection($"Data Source={_dbFile}");db.Open();return db;}
+    private SqliteConnection OpenDb(){var db=new SqliteConnection(surfMemory is null?new SqliteConnectionStringBuilder{DataSource=_dbFile}.ToString():surfMemoryConnection);db.Open();using(var c=db.CreateCommand()){c.CommandText="PRAGMA temp_store=MEMORY";c.ExecuteNonQuery();}return db;}
     private static void InitializeSqliteProvider() => SQLitePCL.Batteries_V2.Init();
     private static double? ScalarDouble(SqliteConnection db,string sql,params (string,object)[] p){using var c=db.CreateCommand();c.CommandText=sql;foreach(var x in p)c.Parameters.AddWithValue(x.Item1,x.Item2);object? v=c.ExecuteScalar();return v is null or DBNull?null:Convert.ToDouble(v,CultureInfo.InvariantCulture);}
     private static long ScalarLong(SqliteConnection db,string sql,params (string,object)[] p){using var c=db.CreateCommand();c.CommandText=sql;foreach(var x in p)c.Parameters.AddWithValue(x.Item1,x.Item2);return Convert.ToInt64(c.ExecuteScalar()??0);}
@@ -1290,8 +1306,10 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         return $"<pre transform='translateY(-7px)'><span class='fontSize-xs'>{pbHtml}{gap}{wrHtml}</span></pre>";
     }
     private static string Signed(double d)=>$"{(d<0?"-":"+")}{Format(Math.Abs(d))}";
-    private void Reply(IPlayer p,string s)=>p.SendChat($"{_config.Prefix} [default]{s}");
-    private void Broadcast(string s)=>Core.PlayerManager.SendChat($"{_config.Prefix} [default]{s}");
+    private void Reply(IPlayer p,string s)=>p.SendLplkChat(s);
+    private void Reply(IPlayer p,ref ChatText s)=>p.SendLplkChat(ref s);
+    private void Broadcast(string s)=>Core.PlayerManager.SendLplkChat(s);
+    private void Broadcast(ref ChatText s)=>Core.PlayerManager.SendLplkChat(ref s);
     private Vec Position(IPlayer p){Vector v=p.PlayerPawn!.AbsOrigin!.Value;return new(v.X,v.Y,v.Z);}
     private static void Teleport(IPlayer p,Vec v)=>p.Teleport(new Vector(v.X,v.Y,v.Z),null,new Vector(0,0,0));
     private string CurrentMap(){try{return NormalizeMap(Core.Engine.GlobalVars.MapName);}catch{return "unknown";}}

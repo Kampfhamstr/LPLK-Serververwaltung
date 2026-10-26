@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using LPLK.Common;
 using System.Diagnostics;
 using System.Globalization;
@@ -70,20 +74,25 @@ public sealed partial class Plugin
 
     private void LoadHudReferences(IPlayer player, RunState run)
     {
-        run.ReferencesLoaded = true;
-        using SqliteConnection db = OpenDb();
-        run.PbSeconds = ScalarDouble(db, "SELECT best_seconds FROM course_records WHERE map=$m AND course=$c AND steam_id=$s", ("$m", _map), ("$c", run.Course), ("$s", player.SteamID.ToString()));
-        run.WrSeconds = ScalarDouble(db, "SELECT MIN(best_seconds) FROM course_records WHERE map=$m AND course=$c", ("$m", _map), ("$c", run.Course));
-        using (SqliteCommand wr = db.CreateCommand()) { wr.CommandText = "SELECT player_name FROM course_records WHERE map=$m AND course=$c ORDER BY best_seconds LIMIT 1"; wr.Parameters.AddWithValue("$m", _map); wr.Parameters.AddWithValue("$c", run.Course); run.WrPlayerName = wr.ExecuteScalar() as string; }
-        run.PbStageTimes = LoadStageReference(db, run.Course, "steam_id=$s", ("$s", player.SteamID.ToString()));
-        run.WrStageTimes = LoadStageReference(db, run.Course, "best_seconds=(SELECT MIN(best_seconds) FROM course_records WHERE map=$m AND course=$c)");
+        run.ReferencesLoaded=true;
+        string path=surfMemoryConnection,map=_map,course=run.Course;ulong steam=player.SteamID;
+        QueueStorage(()=>{
+            using var db=OpenWorkerDb(path);
+            double? pb=ScalarDouble(db,"SELECT best_seconds FROM course_records WHERE map=$m AND course=$c AND steam_id=$s",("$m",map),("$c",course),("$s",steam.ToString()));
+            double? wr=ScalarDouble(db,"SELECT MIN(best_seconds) FROM course_records WHERE map=$m AND course=$c",("$m",map),("$c",course));
+            using var command=db.CreateCommand();command.CommandText="SELECT player_name FROM course_records WHERE map=$m AND course=$c ORDER BY best_seconds LIMIT 1";command.Parameters.AddWithValue("$m",map);command.Parameters.AddWithValue("$c",course);
+            return (pb,wr,name:command.ExecuteScalar() as string,pbStages:LoadStageReference(db,map,course,"steam_id=$s",("$s",steam.ToString())),wrStages:LoadStageReference(db,map,course,"best_seconds=(SELECT MIN(best_seconds) FROM course_records WHERE map=$m AND course=$c)"));
+        },result=>{
+            if(!_lifetime.Active||_map!=map||!_runs.TryGetValue(steam,out var current)||!ReferenceEquals(current,run))return;
+            run.PbSeconds=result.pb;run.WrSeconds=result.wr;run.WrPlayerName=result.name;run.PbStageTimes=result.pbStages;run.WrStageTimes=result.wrStages;
+        });
     }
 
-    private List<double> LoadStageReference(SqliteConnection db, string course, string where, params (string,object)[] extra)
+    private static List<double> LoadStageReference(SqliteConnection db, string map, string course, string where, params (string,object)[] extra)
     {
         using SqliteCommand cmd = db.CreateCommand();
         cmd.CommandText = $"SELECT stage_times FROM course_records WHERE map=$m AND course=$c AND {where} LIMIT 1";
-        cmd.Parameters.AddWithValue("$m", _map); cmd.Parameters.AddWithValue("$c", course);
+        cmd.Parameters.AddWithValue("$m", map); cmd.Parameters.AddWithValue("$c", course);
         foreach ((string key, object value) in extra) cmd.Parameters.AddWithValue(key, value);
         string? json = cmd.ExecuteScalar() as string;
         try { return json is null ? [] : JsonSerializer.Deserialize<List<double>>(json, Json) ?? []; } catch { return []; }
@@ -167,29 +176,29 @@ public sealed partial class Plugin
         Core.Logger.LogInformation("[LPLK_Surf] Sicherer Stage-Teleport gespeichert: Map={Map}, Stage={Stage}", _map, stage);
     }
 
-    private RecordResult SaveCourseRecord(IPlayer player, string course, double seconds, List<double> stages)
+    private static RecordResult SaveCourseRecord(string dbPath,string map,ulong steam,string playerName, string course, double seconds, List<double> stages)
     {
         if(!double.IsFinite(seconds)||seconds<=0||stages.Any(t=>!double.IsFinite(t)||t<0))throw new InvalidDataException("Ungültige Laufzeit.");
-        using SqliteConnection db = OpenDb();
-        double? old = ScalarDouble(db, "SELECT best_seconds FROM course_records WHERE map=$m AND course=$c AND steam_id=$s", ("$m",_map),("$c",course),("$s",player.SteamID.ToString()));
-        bool pb = old is null || seconds < old;
+        using SqliteConnection db = OpenWorkerDb(dbPath);
         using var transaction=db.BeginTransaction();
+        double? old = ScalarDouble(db, "SELECT best_seconds FROM course_records WHERE map=$m AND course=$c AND steam_id=$s", ("$m",map),("$c",course),("$s",steam.ToString()));
+        bool pb = old is null || seconds < old;
         using (SqliteCommand cmd = db.CreateCommand())
         {
             cmd.Transaction=transaction;
             cmd.CommandText = "INSERT INTO course_runs(map,course,steam_id,player_name,seconds,finished_at) VALUES($m,$c,$s,$n,$t,$d)";
-            cmd.Parameters.AddWithValue("$m",_map);cmd.Parameters.AddWithValue("$c",course);cmd.Parameters.AddWithValue("$s",player.SteamID.ToString());cmd.Parameters.AddWithValue("$n",player.Name);cmd.Parameters.AddWithValue("$t",seconds);cmd.Parameters.AddWithValue("$d",DateTimeOffset.UtcNow.ToString("O"));cmd.ExecuteNonQuery();
+            cmd.Parameters.AddWithValue("$m",map);cmd.Parameters.AddWithValue("$c",course);cmd.Parameters.AddWithValue("$s",steam.ToString());cmd.Parameters.AddWithValue("$n",playerName);cmd.Parameters.AddWithValue("$t",seconds);cmd.Parameters.AddWithValue("$d",DateTimeOffset.UtcNow.ToString("O"));cmd.ExecuteNonQuery();
         }
         if (pb)
         {
             using SqliteCommand cmd=db.CreateCommand();cmd.Transaction=transaction;
             cmd.CommandText="INSERT INTO course_records(map,course,steam_id,player_name,best_seconds,finishes,stage_times,updated_at) VALUES($m,$c,$s,$n,$t,1,$g,$d) ON CONFLICT(map,course,steam_id) DO UPDATE SET player_name=$n,best_seconds=$t,finishes=course_records.finishes+1,stage_times=$g,updated_at=$d";
-            cmd.Parameters.AddWithValue("$m",_map);cmd.Parameters.AddWithValue("$c",course);cmd.Parameters.AddWithValue("$s",player.SteamID.ToString());cmd.Parameters.AddWithValue("$n",player.Name);cmd.Parameters.AddWithValue("$t",seconds);cmd.Parameters.AddWithValue("$g",JsonSerializer.Serialize(stages));cmd.Parameters.AddWithValue("$d",DateTimeOffset.UtcNow.ToString("O"));cmd.ExecuteNonQuery();
+            cmd.Parameters.AddWithValue("$m",map);cmd.Parameters.AddWithValue("$c",course);cmd.Parameters.AddWithValue("$s",steam.ToString());cmd.Parameters.AddWithValue("$n",playerName);cmd.Parameters.AddWithValue("$t",seconds);cmd.Parameters.AddWithValue("$g",JsonSerializer.Serialize(stages));cmd.Parameters.AddWithValue("$d",DateTimeOffset.UtcNow.ToString("O"));cmd.ExecuteNonQuery();
         }
-        else { using SqliteCommand cmd=db.CreateCommand();cmd.Transaction=transaction;cmd.CommandText="UPDATE course_records SET finishes=finishes+1,player_name=$n WHERE map=$m AND course=$c AND steam_id=$s";cmd.Parameters.AddWithValue("$n",player.Name);cmd.Parameters.AddWithValue("$m",_map);cmd.Parameters.AddWithValue("$c",course);cmd.Parameters.AddWithValue("$s",player.SteamID.ToString());cmd.ExecuteNonQuery(); }
+        else { using SqliteCommand cmd=db.CreateCommand();cmd.Transaction=transaction;cmd.CommandText="UPDATE course_records SET finishes=finishes+1,player_name=$n WHERE map=$m AND course=$c AND steam_id=$s";cmd.Parameters.AddWithValue("$n",playerName);cmd.Parameters.AddWithValue("$m",map);cmd.Parameters.AddWithValue("$c",course);cmd.Parameters.AddWithValue("$s",steam.ToString());cmd.ExecuteNonQuery(); }
         transaction.Commit();
-        int rank=Convert.ToInt32(ScalarLong(db,"SELECT COUNT(*)+1 FROM course_records WHERE map=$m AND course=$c AND best_seconds<$t",("$m",_map),("$c",course),("$t",seconds)));
-        int total=Convert.ToInt32(ScalarLong(db,"SELECT COUNT(*) FROM course_records WHERE map=$m AND course=$c",("$m",_map),("$c",course)));
+        int rank=Convert.ToInt32(ScalarLong(db,"SELECT COUNT(*)+1 FROM course_records WHERE map=$m AND course=$c AND best_seconds<$t",("$m",map),("$c",course),("$t",seconds)));
+        int total=Convert.ToInt32(ScalarLong(db,"SELECT COUNT(*) FROM course_records WHERE map=$m AND course=$c",("$m",map),("$c",course)));
         return new(old,pb,rank==1,rank,total);
     }
 
@@ -267,16 +276,16 @@ public sealed partial class Plugin
     {
         List<(string Map,string Course,double Time)> records=[];using(SqliteCommand cmd=db.CreateCommand()){cmd.CommandText="SELECT map,course,best_seconds FROM course_records WHERE steam_id=$s";cmd.Parameters.AddWithValue("$s",steamId.ToString());using SqliteDataReader reader=cmd.ExecuteReader();while(reader.Read())records.Add((reader.GetString(0),reader.GetString(1),reader.GetDouble(2)));}double points=0;foreach((string map,string course,double time) in records){int rank=Convert.ToInt32(ScalarLong(db,"SELECT COUNT(*)+1 FROM course_records WHERE map=$m AND course=$c AND best_seconds<$t",("$m",map),("$c",course),("$t",time)));points+=Math.Max(10,TierForMap(map)*100.0/Math.Sqrt(rank));}return points;
     }
-    private int TierForMap(string map){if(map.Equals(_map,StringComparison.OrdinalIgnoreCase))return _zones.Tier;string path=Path.Combine(Core.PluginDataDirectory,"zones",Safe(map)+".json");try{return Math.Clamp((JsonSerializer.Deserialize<MapZones>(File.ReadAllText(path),Json)??new()).Tier,1,8);}catch{return 1;}}
+    private int TierForMap(string map){if(map.Equals(_map,StringComparison.OrdinalIgnoreCase))return _zones.Tier;string path=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"zones",Safe(map)+".json");try{return Math.Clamp((JsonSerializer.Deserialize<MapZones>(File.ReadAllText(path),Json)??new()).Tier,1,8);}catch{return 1;}}
 
     private void CaptureReplayFrame(IPlayer player,RunState run)
     {
         if(!run.Running||!run.Ranked)return;long now=Environment.TickCount64;if(now<run.NextReplayCaptureMs)return;run.NextReplayCaptureMs=now+50;Vector? position=player.PlayerPawn?.AbsOrigin;if(position is null)return;QAngle? angle=player.PlayerPawn?.AbsRotation;run.ReplayFrames.Add(new ReplayFrame(Elapsed(run),new Vec(position.Value.X,position.Value.Y,position.Value.Z),angle is null?new Vec(0,0,0):new Vec(angle.Value.X,angle.Value.Y,angle.Value.Z)));
     }
-    private string ReplayPath(string course)=>Path.Combine(Core.PluginDataDirectory,"replays",Safe(_map)+"_"+Safe(course)+"_wr.json");
+    private string ReplayPath(string course)=>Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"replays",Safe(_map)+"_"+Safe(course)+"_wr.json");
     private void SaveWorldRecordReplay(IPlayer player,RunState run,double seconds)
     {
-        Directory.CreateDirectory(Path.Combine(Core.PluginDataDirectory,"replays"));ReplayFile replay=new(_map,run.Course,player.SteamID,player.Name,seconds,run.ReplayFrames);AtomicJson.Write(ReplayPath(run.Course),replay);
+        Directory.CreateDirectory(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"replays"));ReplayFile replay=new(_map,run.Course,player.SteamID,player.Name,seconds,run.ReplayFrames);AtomicJson.Write(ReplayPath(run.Course),replay);
     }
     private void ReplayCommand(ICommandContext context)
     {

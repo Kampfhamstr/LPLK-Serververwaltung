@@ -7,7 +7,7 @@ public sealed partial class Plugin
     private void OpenAdmin(IPlayer p) => Page(p,"LPLK · Bombendrähte",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor))));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
-        ("Status",a=>a.SendChat($"[LPLK] Bombendrähte: {(settings.Enabled?"AN":"AUS")}; Menüzeit={settings.MenuSeconds}s; gemischt={settings.RandomizeOrder}; Bombe={round.Planted}; Konfiguration={config.Error??"gültig"}."))
+        ("Status",a=>a.SendLplkChat($"[LPLK] Bombendrähte: {(settings.Enabled?"AN":"AUS")}; Menüzeit={settings.MenuSeconds}s; gemischt={settings.RandomizeOrder}; Bombe={round.Planted}; Konfiguration={config.Error??"gültig"}."))
     }))(p);
     private void SettingsMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]

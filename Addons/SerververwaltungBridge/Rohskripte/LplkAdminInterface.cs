@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using LPLK.Common;
 using SwiftlyS2.Shared;
 using SwiftlyS2.Shared.Plugins;
@@ -13,6 +17,8 @@ public sealed partial class Plugin
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Bridge.Admin.v1",new()
         {
             ["execute"]=(Func<ulong,string,string,string>)ExecuteLplkAdmin,
+            ["globalSanctions"]=(Func<bool>)GlobalSanctionsReady,
+            ["localSanctions"]=(Func<bool>)(()=>LocalAdministrationOnly&&!_unloading),
             ["teamsReady"]=(Func<bool>)TeamsReady,
             ["chatguardReady"]=(Func<bool>)(()=>FilterWithChatGuard(-1,"",false)==SwiftlyS2.Shared.Misc.HookResult.Continue)
         });
@@ -42,13 +48,14 @@ public sealed partial class Plugin
                 if(!AdminActionPolicy.CanTarget(actor,targetId,AdminActionPolicy.Rank(p=>Core.Permission.PlayerHasPermission(actor,p)),AdminActionPolicy.Rank(p=>Core.Permission.PlayerHasPermission(targetId,p))))throw new InvalidOperationException("Ziel hat gleiche oder höhere Adminrechte.");
             }
             var payload=root.TryGetProperty("payload",out var v)?v.Deserialize<Dictionary<string,JsonElement>>()??[]:[];
+            if(!LocalAdministrationOnly&&GlobalSanctionActions.Contains(action))return JsonSerializer.Serialize(new{success=true,message=QueueGlobalSanction(actor,sender?.SessionId.ToString()??"console",action,target,payload)});
             if(action is "goto_player" or "bring_player")
             {
                 if(sender is null)throw new InvalidOperationException("Teleport benötigt einen Spieler als Absender.");
                 payload["admin_steamid"]=JsonSerializer.SerializeToElement(actor.ToString());
             }
             var command=new BridgeCommand { Id="lplk_"+Guid.NewGuid().ToString("N"),Action=action,TargetSteamid=target,
-                Payload=payload,RequestedBy=sender?.Controller.PlayerName??"LPLK-Konsole",RequestedByRole="admin",RequestedAt=DateTimeOffset.UtcNow,NotifyScope="admins",NotifyTarget=true };
+                Payload=payload,RequestedBy=sender?.Name??"LPLK-Konsole",RequestedByRole="admin",RequestedAt=DateTimeOffset.UtcNow,NotifyScope="admins",NotifyTarget=true };
             Execute(command);
             try { RecordAdminAction(command,true,null,true); } catch(Exception e) { Core.Logger.LogWarning(e,"LPLK-Adminaktion ausgeführt, Protokollierung fehlgeschlagen"); }
             return JsonSerializer.Serialize(new { success=true,message="Aktion ausgeführt." });

@@ -1,3 +1,7 @@
+using File = LPLK.Common.RamFile;
+using Directory = LPLK.Common.RamDirectory;
+using FileInfo = LPLK.Common.RamFileInfo;
+using DirectoryInfo = LPLK.Common.RamDirectoryInfo;
 using System.Text.Json;
 using LPLK.Common;
 using SwiftlyS2.Shared.Commands;
@@ -9,11 +13,11 @@ public sealed partial class Plugin
     // server 89450e53. This never runs automatically or from a player command.
     private void ParityProbe(ICommandContext ctx)
     {
-        if(ctx.IsSentByPlayer||ctx.Sender is not null||AnyHuman()||voteEnds>0||pending is not null||nextMap is not null||probeId is not null||extensions!=0||originalLimits is not null){ctx.Reply("[LPLK] Isolierter, leerer Testzustand erforderlich.");return;}
-        string path=Path.Combine(Core.PluginDataDirectory,"parity-test-authorization.json");
-        if(!File.Exists(path)||new FileInfo(path).Length>2048){ctx.Reply("[LPLK] Einmalige Testfreigabe fehlt.");return;}
+        if(ctx.IsSentByPlayer||ctx.Sender is not null||AnyHuman()||voteEnds>0||pending is not null||nextMap is not null||probeId is not null||extensions!=0||originalLimits is not null){ctx.ReplyLplk("[LPLK] Isolierter, leerer Testzustand erforderlich.");return;}
+        string path=Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"parity-test-authorization.json");
+        if(!File.Exists(path)||new FileInfo(path).Length>2048){ctx.ReplyLplk("[LPLK] Einmalige Testfreigabe fehlt.");return;}
         using var authorization=JsonDocument.Parse(File.ReadAllText(path));
-        if(authorization.RootElement.GetProperty("server").GetString()!="89450e53-b4c5-4511-a4f6-82696809154b"||authorization.RootElement.GetProperty("expires").GetDateTimeOffset()<DateTimeOffset.UtcNow||authorization.RootElement.GetProperty("expires").GetDateTimeOffset()>DateTimeOffset.UtcNow.AddMinutes(5)){ctx.Reply("[LPLK] Testfreigabe ungültig.");return;}
+        if(authorization.RootElement.GetProperty("server").GetString()!="89450e53-b4c5-4511-a4f6-82696809154b"||authorization.RootElement.GetProperty("expires").GetDateTimeOffset()<DateTimeOffset.UtcNow||authorization.RootElement.GetProperty("expires").GetDateTimeOffset()>DateTimeOffset.UtcNow.AddMinutes(5)){ctx.ReplyLplk("[LPLK] Testfreigabe ungültig.");return;}
         File.Delete(path);var oldSettings=settings;bool oldWarmup=warmup,oldEnd=endVoteStarted;long oldWait=nextVoteAllowed,oldAutoWait=autoVotePostponedUntil;int oldRound=earliestEndRound;
         var before=Limits();var seed=new MapExtension(30,24,13);MapExtension? extended=null;bool success=false;string? error=null;
         try
@@ -31,9 +35,9 @@ public sealed partial class Plugin
             catch{success=false;error="Original limit restore failed";}
             settings=oldSettings;warmup=oldWarmup;endVoteStarted=oldEnd;nextVoteAllowed=oldWait;autoVotePostponedUntil=oldAutoWait;earliestEndRound=oldRound;
         }
-        string assemblySha256=Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(Core.PluginPath,"LPLK_Maps.dll"))));
-        AtomicJson.Write(Path.Combine(Core.PluginDataDirectory,"parity-probe.json"),new{at=DateTimeOffset.UtcNow,version="0.4.2",assemblySha256,success,error,before,seed,extended,restored=Limits(),measurementOnly=settings.MeasurementOnly,humans=Humans().Count,clientGameplayTested=false});
-        WriteStatus();ctx.Reply(success?"[LPLK] Native Mapverlängerung und Rücksetzung bestätigt.":"[LPLK] Mapprüfung fehlgeschlagen; Prüfbericht beachten.");
+        string assemblySha256=Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(LPLK.Common.RoundFileStore.PluginPath(Core),"LPLK_Maps.dll"))));
+        AtomicJson.Write(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"parity-probe.json"),new{at=DateTimeOffset.UtcNow,version="0.4.4",assemblySha256,success,error,before,seed,extended,restored=Limits(),measurementOnly=settings.MeasurementOnly,humans=Humans().Count,clientGameplayTested=false});
+        WriteStatus();ctx.ReplyLplk(success?"[LPLK] Native Mapverlängerung und Rücksetzung bestätigt.":"[LPLK] Mapprüfung fehlgeschlagen; Prüfbericht beachten.");
     }
 }
 

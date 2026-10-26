@@ -7,6 +7,22 @@ public sealed record PanelBankRequest(string Id,string Profile,long Period,strin
 public sealed record PanelBankReceipt(PanelBankRequest Request,long Before,long After,DateTimeOffset AppliedAt);
 public sealed partial class Ledger
 {
+    private Ledger(string path,string server,EconomySettings settings)
+    {
+        scope=server;Profile=settings.Profile;Limit=settings.Limit;StartBank=settings.StartBank;
+        titleRules=settings;robberyRules=settings.BankRobbery;
+        db=new(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder{DataSource=path,Mode=Microsoft.Data.Sqlite.SqliteOpenMode.ReadOnly,Pooling=false,DefaultTimeout=1}.ToString());
+        try{db.Open();}catch{db.Dispose();throw;}
+    }
+    public Func<DateTimeOffset,Dictionary<string,object>> CreateWebSnapshotReader()
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);
+            string path=SnapshotReadPath,server=scope;var rules=titleRules;
+            return at=>{using var reader=new Ledger(path,server,rules);return reader.WebRoundSnapshot(at);};
+        }
+    }
     public long AccountRevision(string account){lock(gate)return Number("SELECT coalesce(max(seq),0) FROM entries WHERE account=$p0",account);}
     public PanelBankReceipt? PanelReceipt(string id,long period)
     {
@@ -38,12 +54,34 @@ public sealed partial class Ledger
             return receipt;
         });
     }
+    public Dictionary<string,object> WebRoundSnapshot(DateTimeOffset now)
+    {
+        lock(gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed,this);
+            Dictionary<string,object> Capture()
+            {
+                var accounts=Accounts(int.MaxValue);
+                fault?.Invoke("web-snapshot-read");
+                var files=new Dictionary<string,object>();
+                foreach(var account in accounts)files[account.Id+".json"]=WebPlayer(account.Id,now);
+                files["ranking.json"]=WebRanking(now);return files;
+            }
+            if(transaction is not null)return Capture();
+            // A process-local lock cannot prevent another game server booking.
+            // A read-only WAL snapshot keeps all exported files consistent while
+            // allowing other connections to commit without waiting for this read.
+            using var tx=db.BeginTransaction(deferred:true);transaction=tx;
+            try{var files=Capture();tx.Commit();return files;}
+            finally{transaction=null;}
+        }
+    }
     public object WebPlayer(string account,DateTimeOffset now)
     {
         lock(gate)
         {
             if(!BankPolicy.Steam(account)||!Exists(account))throw new BankRejected("Konto nicht vorhanden.");
-            return new{schema=1,profile=Profile,steamId=account,generatedAt=now,period=Period,revision=AccountRevision(account),
+            return new{schema=1,profile=Profile,steamId=account,exportPolicy="RoundEnd",generatedAt=now,period=Period,revision=AccountRevision(account),
                 balance=Balance(account),pendingCash=Blocked(account),betClaims=PlayerBetClaims(account),
                 permanentTickets=LotteryPlan(account).Count,purchasedTickets=LotteryPlan(account).Bought,
                 vaultLevel=Security(account,robberyRules,now.ToUnixTimeSeconds()).Vault,
@@ -54,7 +92,7 @@ public sealed partial class Ledger
     }
     public object WebRanking(DateTimeOffset now)
     {
-        lock(gate)return new{schema=1,profile=Profile,generatedAt=now,period=Period,scope=Networked?"network":"server",databaseIdentity=NetworkIdentity,totalAccounts=AccountCount,
+        lock(gate)return new{schema=1,profile=Profile,exportPolicy="RoundEnd",generatedAt=now,period=Period,scope=Networked?"network":"server",databaseIdentity=NetworkIdentity,totalAccounts=AccountCount,
             rows=Accounts(100).Select(a=>new{steamId=a.Id,name=a.Name,balance=a.Balance}).ToArray()};
     }
 }

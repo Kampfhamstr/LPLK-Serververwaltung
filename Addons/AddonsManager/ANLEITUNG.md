@@ -1,21 +1,9 @@
-# AddonsManager – Workshop-Inhalte laden
+# AddonsManager 2.0.3-lplk.6
 
-**Download:** [AddonsManager.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/test-2026.10.14-menus/AddonsManager.zip) · [Ausgabe, Prüfsummen und Teststatus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/test-2026.10.14-menus). Diese Ausgabe ist als Teststand gekennzeichnet.
+Workshop-Ressourcen und technische Infrastruktur; angepasste Fremdkomponente.
 
-Quellstand **2.0.3-lplk.3**, SwiftlyS2-API **1.4.13**. [Alle Addons](../../docs/ADDONS.md).
+[Fertiges Pluginpaket](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/AddonsManager.zip) · [Vollständige Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/LPLK-Plugins-Source.zip) · [Installation und Build](../../docs/INSTALLATION-ADDONS.md) · [Änderungen und Prüfstand](../../docs/RELEASE-20261026.md)
 
-## Funktion
+Aktuelle Ausgabe vom 26.10.2026. Einstellungen und Daten sind nicht im ZIP enthalten; vorhandene Daten bei Updates erhalten. Das Paket enthält die für dieses Plugin vorgesehenen Ressourcen, Abhängigkeiten und Lizenzhinweise. Laufende Addondaten werden im RAM verarbeitet; reguläre Persistenz und Exporte erfolgen verzögert am Rundenende. Initialisierung/Entladen und native Enginezugriffe bleiben gesondert.
 
-AddonsManager kümmert sich um die Einbindung benötigter Workshop-Addons und deren Bereitstellung für Spieler. Das ist beispielsweise für die Audiodateien von LPLK_Sounds erforderlich. Es ist weder das zentrale LPLK-Adminmenü noch ein Installer für das SwiftlyS2-Framework.
-
-## Installation und Einrichtung
-
-`AddonsManager.zip` nach der [gemeinsamen Anleitung](../../docs/INSTALLATION-ADDONS.md) installieren. Ziel: `game/csgo/addons/swiftlys2/plugins/AddonsManager/AddonsManager.dll`. Mitgelieferte Ressourcen und Lizenzdatei vollständig übernehmen.
-
-Konfiguration: `game/csgo/addons/swiftlys2/configs/plugins/AddonsManager/config.jsonc`. Unter **`Main.Addons`** die benötigten Workshop-IDs gemäß erzeugter Konfigurationsstruktur eintragen. Bereits vorhandene servereigene Inhalte erhalten; nicht pauschal durch eine fremde Liste ersetzen. Ein Workshop-Eintrag muss zum benötigten Inhalt passen und verfügbar sein.
-
-## Kompatibilität und Prüfung
-
-Diese LPLK-Ausgabe enthält eine Gamedata-Korrektur für den damals geprüften **CS2-Build 2000930**. Das ist keine Zusage für jede spätere CS2-/SwiftlyS2-Version. Nach einem Spielupdate Kompatibilität und tatsächliche Ladefunktion erneut prüfen.
-
-Serverstart, Workshop-Mount und Clientdownload kontrollieren. Bei Sounds zusätzlich hörbar testen; ein vorhandener Katalogeintrag reicht nicht. Es gibt hier keinen allgemeinen Spielerbefehl zum Installieren beliebiger Addons. Drittanbieter-Herkunft und `LICENSE-AddonsManager.txt` bei der Weitergabe erhalten.
+Das Plugin entsprechend dem eigenen Serverprofil aktivieren. Die Anwesenheit in dieser Sammlung bedeutet nicht, dass es auf jedem Server installiert werden soll. Funktionen und Prüfgrenzen dieser Veröffentlichung stehen in den oben verlinkten Releasehinweisen. Lizenz-/Autorenhinweise unter `Rohskripte/` beziehungsweise im Pluginverzeichnis beachten.

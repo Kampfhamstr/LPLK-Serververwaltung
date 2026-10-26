@@ -18,14 +18,14 @@ public sealed record CashIntent(string Id,string Account,string Session,long Per
 public sealed partial class Ledger : IDisposable
 {
     private readonly object gate=new();
-    private readonly SqliteConnection db;
+    private SqliteConnection db;
     private SqliteTransaction? transaction;
     private readonly Action<string>? fault;
     private bool disposed;
     public long Limit { get; private set; }
     public long StartBank { get; private set; }
     public string Profile { get; }
-    public Ledger(string path,EconomySettings settings,Action<string>? fault=null,string? server=null,bool provision=false)
+    public Ledger(string path,EconomySettings settings,Action<string>? fault=null,string? server=null,bool provision=false,bool roundMemory=false)
     {
         EconomySettings.Validate(settings);Limit=settings.Limit;StartBank=settings.StartBank;Profile=settings.Profile;this.fault=fault;robberyRules=settings.BankRobbery;titleRules=settings;
         scope=server??"";ValidateScope(scope);
@@ -60,7 +60,7 @@ public sealed partial class Ledger : IDisposable
             });
             if(Text("SELECT value FROM meta WHERE key='profile'")!=Profile)throw new InvalidDataException("Bankdatei gehört zu anderem Profil.");
             if(version<2)UpgradeBettingSchema(); if(version<3)UpgradeLotterySchema();
-            Verify();
+            Verify();if(roundMemory)EnableRoundMemory(path);
         }
         catch{db.Dispose();networkLease?.Dispose();throw;}
     }
@@ -79,8 +79,9 @@ public sealed partial class Ledger : IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed,this);
             if(transaction is not null)return work();
+            long changes=InMemory?Number("SELECT total_changes()"):0;
             using var tx=db.BeginTransaction(deferred:false);transaction=tx;
-            try{T value=work();fault?.Invoke("before-commit");tx.Commit();return value;}
+            try{T value=work();fault?.Invoke("before-commit");bool changed=InMemory&&Number("SELECT total_changes()")!=changes;tx.Commit();if(changed)memoryRevision++;return value;}
             finally{transaction=null;}
         }
     }
@@ -283,6 +284,7 @@ public sealed partial class Ledger : IDisposable
     });
     private void ResetInside(string id,long expectedPeriod,string reason,string mode,string key,LotterySettings lottery)
     {
+        if(QueuedKillCount>0)throw new BankRejected("Bankreset wartet auf die Kill-Abrechnung am Rundenende.");
         if(Networked){ResetNetworkInside(id,expectedPeriod,reason,mode,key);return;}
         if(expectedPeriod!=Period)throw new BankRejected("Reset-Ansicht veraltet; nicht erneut ausgeführt.");
         if(PendingCount>0||Number("SELECT count(*) FROM bet_tickets WHERE status='accepted'")>0||BetClaims>0)throw new BankRejected("Vor dem Reset offene Cash-Buchungen, Wetteinsätze und Auszahlungen abschließen.");
@@ -370,7 +372,7 @@ public sealed partial class Ledger : IDisposable
             Put("migration",migrationId);return 0;
         });
     }
-    public void Dispose(){lock(gate){if(disposed)return;disposed=true;db.Dispose();networkLease?.Dispose();}}
+    public void Dispose(){lock(gate){if(disposed)return;FlushPersistence();disposed=true;db.Dispose();networkLease?.Dispose();}}
 }
 
 

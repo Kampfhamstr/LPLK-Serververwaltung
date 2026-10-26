@@ -24,11 +24,17 @@ public static class FallPolicy
 {
     public static float Brake(float currentZ, ParachuteSettings settings)
     {
-        // Match Parachute v5, including its step before the next linear-speed tick.
-        // ActualGravityScale=0.1 during deployment is part of that same mechanic.
+        // Preserve v5's gradual braking and reduced gravity, but stop the brake
+        // at the target. Overshooting it made the next tick snap back repeatedly
+        // (especially with Atlas' fall speed 30 / brake step 30).
         if (!float.IsFinite(currentZ) || currentZ >= 0) return currentZ;
-        return (settings.Linear && currentZ >= -settings.FallSpeed) || settings.BrakePerTick == 0
-            ? -settings.FallSpeed : currentZ + settings.BrakePerTick;
+        float terminal = -settings.FallSpeed;
+        if (settings.BrakePerTick == 0) return Math.Max(currentZ, terminal);
+        if (settings.Linear)
+            return currentZ >= terminal ? currentZ : Math.Min(terminal, currentZ + settings.BrakePerTick);
+        // The optional floating mode must never turn braking into an upward
+        // impulse, which would repeatedly release and redeploy the parachute.
+        return Math.Min(-1f, currentZ + settings.BrakePerTick);
     }
 
     public const float DeployedGravity = 0.1f;

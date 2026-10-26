@@ -5,6 +5,7 @@ namespace LPLK_Teams;
 public sealed record TeamSettings
 {
     public bool Enabled { get; init; } // Actual Inner Circle configuration: disabled.
+    public int BotFillSlots { get; init; } // Independent of team-switch protection; 0 disables management.
     public ulong[] ConfiguredSteamIds { get; init; } = [];
     public bool AutoDetectMaxRounds { get; init; } = true;
     public int FallbackMaxRounds { get; init; } = 20;
@@ -37,6 +38,7 @@ public sealed record TeamSettings
     public static bool MessageText(string text,int max)=>text is not null && text.Length<=max && !text.Any(char.IsControl);
     public static void Validate(TeamSettings s)
     {
+        if(s.BotFillSlots is <0 or >30)throw new InvalidDataException("Bot-Füllziel muss 0 bis 30 sein.");
         if(s.ConfiguredSteamIds is null || s.ConfiguredSteamIds.Length>256 || s.ConfiguredSteamIds.Distinct().Count()!=s.ConfiguredSteamIds.Length || s.ConfiguredSteamIds.Any(id=>id<76561197960265728UL||id>76561202255233023UL))throw new InvalidDataException("Ungültige konfigurierte Team-Auswahl.");
         if(s.BlockedCommands is null || s.BlockedCommands.Length>32 || s.BlockedCommands.Any(c=>c is null||!CommandName(c)) || s.BlockedCommands.Distinct(StringComparer.OrdinalIgnoreCase).Count()!=s.BlockedCommands.Length || !MessageText(s.ChatPrefix,128)||!MessageText(s.BlockedMessage,512)||!MessageText(s.CenterMessage,512))throw new InvalidDataException("Ungültige Team-Befehle oder Meldungen.");
         if(s.FallbackMaxRounds is <2 or >1000 || !double.IsFinite(s.BlockAtMaxRoundsPercent) ||
