@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_Economy;
 
-[PluginMetadata(Id="LPLK_Economy",Name="LPLK_Economy",Version="0.12.12",Author="LPLK; BetBank reference Michael Zauche",Description="Gemeinsame Kontoführung, Bank und nachvollziehbare Buchungen",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Economy",Name="LPLK_Economy",Version="0.12.13",Author="LPLK; BetBank reference Michael Zauche",Description="Gemeinsame Kontoführung, Bank und nachvollziehbare Buchungen",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -56,7 +56,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPre<EventPlayerDisconnect>(e=>{BettingWork(()=>BountyDisconnected(e.UserIdPlayer));BettingWork(()=>PublishBankPlayers(e.UserIdPlayer?.SteamID??0));return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p&&Human(p))bountyLives[p.SteamID]=bountyLives.GetValueOrDefault(p.SteamID)+1;return HookResult.Continue;});
         amountChatHook=Core.Command.HookClientChat(AmountChat);
-        WriteStatus();Core.Logger.LogInformation("LPLK_Economy 0.12.12 geladen; profil={Profile}; bereit={Healthy}",settings.Profile,failure is null);
+        WriteStatus();Core.Logger.LogInformation("LPLK_Economy 0.12.13 geladen; profil={Profile}; bereit={Healthy}",settings.Profile,failure is null);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
@@ -68,6 +68,12 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Economy.v1",new()
         {
             ["ready"]=(Func<bool>)(()=>Active),
+            ["modelsReady"]=(Func<bool>)(()=>Active&&settings.BankEnabled&&settings.ModelRentalsEnabled&&bank is {Networked:false,InMemory:true}),
+            ["modelPrice"]=(Func<long>)(()=>settings.ModelRentalDailyPrice),
+            ["registerModels"]=(Action<string>)RegisterModelProducts,
+            ["modelProgress"]=(Func<string,string,long>)((id,metric)=>Active?bank!.ModelProgress(id,metric):0),
+            ["modelLease"]=(Func<string,string,long>)((id,model)=>Active&&bank is {Networked:false}?bank.ModelLease(id,model):0),
+            ["rentModel"]=(Func<IPlayer,string,int,string,long,long,long>)RentPlayerModel,
             ["optionalMessages"]=(Func<string,bool>)(id=>Active&&BankPolicy.Steam(id)&&!bank!.Muted(id)),
             ["period"]=(Func<long>)(()=>Active?bank!.Period:throw new InvalidOperationException("Bank nicht bereit.")),
             ["balance"]=(Func<string,long>)(id=>Active&&BankPolicy.Steam(id)?bank!.Balance(id):throw new InvalidOperationException("Bank nicht bereit / ungültiges Konto."))
@@ -171,7 +177,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void WriteStatus()
     {
         RefreshDisplay();
-        try{DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.12.12",settings,persistence=new{policy=bank?.PersistencePolicy,memoryRevision=bank?.MemoryRevision,savedRevision=bank?.PersistedRevision,running=bank?.PersistenceRunning,error=bank?.PersistenceError,snapshotMs=bank?.SnapshotMilliseconds,writeMs=bank?.PersistenceMilliseconds},ready,effective=Active,healthy=failure is null,period=bank?.Period,accounts=display?.Accounts,transactions=display?.Transactions,pending=display?.Pending,profile=settings.Profile,mapBlocked,blockedPlayers=blocked.Count,errors,failure,reloadError,resetDelay,web=new{settings.WebBank.ExportEnabled,settings.WebBank.AdminChangesEnabled,exportPolicy="RoundEnd",lastExportAt=lastWebExportAt,error=webError,webExportMs,webExportRunning=webExportTask is not null},betting=new{activeRound=betActive,openRounds=display?.OpenBetRounds,claims=display?.BetClaims},lottery=new{activeRound=lotRound is not null,openRounds=display?.OpenLotteryRounds,superpot=display?.Superpot,refunds=display?.LotteryRefunds,abilities=settings.LottoAbilityBonus.Enabled,upgradeDiscounts=settings.Lotto.PermanentTicketUpgradeDiscountEnabled,cashCollection=settings.Lotto.CashToSuperpot.Enabled},titles=new{enabled=settings.TitleSystem.Enabled,catalog=TitleCatalog.All.Length,interest=settings.InterestSystem.Enabled,tax=settings.LuxuryTax.Enabled,rulerSlots=true,progressPeriod=bank?.Period},robbery=new{openOrders=display?.OpenRobberies,claims=display?.RobberyClaims},bounty=new{active=display?.ActiveBounties,pending=display?.PendingBounties,claims=display?.BountyClaims,marker=settings.BountyMarker.Enabled},displayError,displayRefreshSeconds=15,roundEndMs,roundEndPhases,roundSettlementPending=roundSettlement.Pending,settlementDelayMs=RoundSettlementQueue.DelayMilliseconds,lastRoundEndAt,lastRoundSettlementAt,queuedKillEvents=bank?.QueuedKillCount,killSavePolicy="RoundEnd",killReward=new{enabled=settings.KillReward.Enabled,claims=display?.KillClaims},features=new{killReward=Active&&settings.KillReward.Enabled,bounty=Active&&settings.BankEnabled&&settings.Bounty.Enabled,bank=Active&&settings.BankEnabled,betting=Active&&settings.Betting.Enabled,lottery=Active&&settings.Lotto.Enabled,robbery=Active&&settings.BankEnabled&&settings.BankRobbery.Enabled,titles=Active&&settings.BankEnabled&&settings.TitleSystem.Enabled}});statusWriteFailed=false;}
+        try{DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.12.13",settings,persistence=new{policy=bank?.PersistencePolicy,memoryRevision=bank?.MemoryRevision,savedRevision=bank?.PersistedRevision,running=bank?.PersistenceRunning,error=bank?.PersistenceError,snapshotMs=bank?.SnapshotMilliseconds,writeMs=bank?.PersistenceMilliseconds},ready,effective=Active,healthy=failure is null,period=bank?.Period,accounts=display?.Accounts,transactions=display?.Transactions,pending=display?.Pending,profile=settings.Profile,mapBlocked,blockedPlayers=blocked.Count,errors,failure,reloadError,resetDelay,web=new{settings.WebBank.ExportEnabled,settings.WebBank.AdminChangesEnabled,exportPolicy="RoundEnd",lastExportAt=lastWebExportAt,error=webError,webExportMs,webExportRunning=webExportTask is not null},betting=new{activeRound=betActive,openRounds=display?.OpenBetRounds,claims=display?.BetClaims},lottery=new{activeRound=lotRound is not null,openRounds=display?.OpenLotteryRounds,superpot=display?.Superpot,refunds=display?.LotteryRefunds,abilities=settings.LottoAbilityBonus.Enabled,upgradeDiscounts=settings.Lotto.PermanentTicketUpgradeDiscountEnabled,cashCollection=settings.Lotto.CashToSuperpot.Enabled},titles=new{enabled=settings.TitleSystem.Enabled,catalog=TitleCatalog.All.Length,interest=settings.InterestSystem.Enabled,tax=settings.LuxuryTax.Enabled,rulerSlots=true,progressPeriod=bank?.Period},robbery=new{openOrders=display?.OpenRobberies,claims=display?.RobberyClaims},bounty=new{active=display?.ActiveBounties,pending=display?.PendingBounties,claims=display?.BountyClaims,marker=settings.BountyMarker.Enabled},displayError,displayRefreshSeconds=15,roundEndMs,roundEndPhases,roundSettlementPending=roundSettlement.Pending,settlementDelayMs=RoundSettlementQueue.DelayMilliseconds,lastRoundEndAt,lastRoundSettlementAt,queuedKillEvents=bank?.QueuedKillCount,killSavePolicy="RoundEnd",killReward=new{enabled=settings.KillReward.Enabled,claims=display?.KillClaims},features=new{killReward=Active&&settings.KillReward.Enabled,bounty=Active&&settings.BankEnabled&&settings.Bounty.Enabled,bank=Active&&settings.BankEnabled,betting=Active&&settings.Betting.Enabled,lottery=Active&&settings.Lotto.Enabled,robbery=Active&&settings.BankEnabled&&settings.BankRobbery.Enabled,titles=Active&&settings.BankEnabled&&settings.TitleSystem.Enabled}});statusWriteFailed=false;}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException)
         {if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Economy: Status nicht schreibbar; Kontoführung bleibt aktiv.");statusWriteFailed=true;}
     }
@@ -183,6 +189,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         reloadError=config.Error;
     }
 }
+
 
 
 

@@ -1,4 +1,4 @@
-# LPLK_Admin 0.11.5
+**GitHub-Ausgabe 28.10.2026: 0.11.7.** [Pluginpaket](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/models-0.1.5-2026.10.28/LPLK_Admin.zip) · [Release und Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/models-0.1.5-2026.10.28). Direkter Modelle-Einstieg unter !admin und !menu sowie Ein-/Ausschalten mit Standard AUS. [Modell-Anleitung und offener Clientbefund](../LPLK_Models/README.md). Ältere Versionsangaben unten sind historische Stände.
 
 Gemeinsames Admin- und Spielermenü, lokale Verwaltung und Zielrechte.
 

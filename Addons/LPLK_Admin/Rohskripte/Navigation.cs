@@ -55,7 +55,7 @@ public sealed partial class Plugin
     public void PlayerMenuCommand(ICommandContext context)
     {
         if (context.Sender is { } player && Connected(player)) OpenPlayerMenu(player);
-        else context.ReplyLplk("LPLK_Admin 0.11.5; Spielermenü: !menu; Administration: !admin / !adminmenu.");
+        else context.ReplyLplk("LPLK_Admin 0.11.7; Spielermenü: !menu; Administration: !admin / !adminmenu.");
     }
 
     private bool Loaded(string id) => active && Core.PluginManager.GetAllPlugins().Contains(id) && Core.PluginManager.GetPluginStatus(id)==SwiftlyS2.Shared.Plugins.PluginStatus.Loaded;
@@ -74,6 +74,7 @@ public sealed partial class Plugin
         var entries = new List<(string, Action<IPlayer>)>();
         if (PublicMapsAvailable(a)) entries.Add(("Mapmenü", PlayerMaps));
         entries.AddRange(EconomyEntries(a));
+        if(PublicFeatureAllowed(a,"LPLK_Models","sw_models"))entries.Add(("Modelle",b=>PublicCommand(b,"LPLK_Models","sw_models")));
         if(ModeApi(a,"Surf","main") is not null)entries.Add(("Surf / KZ",b=>OpenMode(b,"Surf","main")));
         if(ModeApi(a,"Zombie","main") is not null)entries.Add(("Zombie",b=>OpenMode(b,"Zombie","main")));
         if (PublicFeatureAllowed(a,"LPLK_Sounds","sound")) entries.Add(("Sounds",b=>PublicCommand(b,"LPLK_Sounds","sound")));
@@ -151,6 +152,7 @@ public sealed partial class Plugin
         else if(!Loaded("LPLK_Maps")&&LegacyMapAllowed(a)&&settings.LegacyGameMaps.Count>0)entries.Add(("Maps",LegacyAdminMaps));
         if (ModuleAllowed(a, "LPLK_Sounds")) entries.Add(("Sound", b => OpenModule(b, "LPLK_Sounds", OpenAdministration)));
         if (ModuleAllowed(a, "LPLK_Economy")) entries.Add(("Bank", b => OpenModule(b, "LPLK_Economy", OpenAdministration)));
+        if (ModuleAllowed(a, "LPLK_Models")) entries.Add(("Modelle", b => OpenModule(b, "LPLK_Models", OpenAdministration)));
         if (LotteryAdministration(a) is not null) entries.Add(("Lotto", OpenLotteryAdministration));
         return entries;
     }, OpenPlayerMenu, CanOpenAdmin, scroll: true);

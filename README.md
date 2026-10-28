@@ -1,5 +1,7 @@
 # LPLK CS2-Plugins
 
+Ergänzung 28.10.2026: [LPLK Models 0.1.5 – Halloween](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/models-0.1.5-2026.10.28) mit Admin 0.11.7 und Economy 0.12.13. [Modell-Anleitung](Addons/LPLK_Models/README.md). Vorabversion mit offenem Client-Absturzbefund; standardmäßig ausgeschaltet. Die übrigen Pakete bleiben bei der folgenden Gesamtausgabe.
+
 Aktuelle Veröffentlichung: [26.10.2026 – RAM, Demos, Maps und Botkorrektur](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/fleet-2026.10.26-current). 22 Pluginpakete plus vollständiger zugehöriger Quellcode. Der aktuelle Pluginstand ist eine Vorabversion mit dokumentierten produktiven Nachweisen und offenen Grenzen.
 
 - [Downloads und Versionen](docs/DOWNLOADS.md)

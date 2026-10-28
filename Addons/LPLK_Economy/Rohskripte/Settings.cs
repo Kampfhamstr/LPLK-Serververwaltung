@@ -3,6 +3,8 @@ namespace LPLK_Economy;
 
 public sealed record EconomySettings
 {
+    public bool ModelRentalsEnabled {get;init;}
+    public long ModelRentalDailyPrice {get;init;}=100000;
     public WebBankSettings WebBank {get;init;}=new();
     public int MenuAutoCloseSeconds {get;init;}=25;
     public long[] AdminAddButtons {get;init;}=[1000,5000,10000];
@@ -74,6 +76,7 @@ public sealed record EconomySettings
     public long Limit => MaxBank < 0 ? UnlimitedLimit : MaxBank;
     public static void Validate(EconomySettings s)
     {
+        if(s.ModelRentalDailyPrice is <1 or >1_000_000_000)throw new InvalidDataException("Ungültiger Modellpreis.");
         if(s.WebBank is null||s.MenuAutoCloseSeconds is <0 or >600)throw new InvalidDataException("Ungültige Web-/Menüeinstellungen.");
         foreach(var values in new[]{s.AdminAddButtons,s.AdminRemoveButtons,s.AdminSetButtons})if(values is null||values.Length is <1 or >20||values.Any(v=>v<0||v>s.UnlimitedLimit))throw new InvalidDataException("Ungültige Adminbeträge.");
         KillRewardPolicy.Validate(s.KillReward);

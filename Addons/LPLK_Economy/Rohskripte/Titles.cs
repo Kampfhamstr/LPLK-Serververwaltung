@@ -19,6 +19,7 @@ public sealed partial class Ledger
     }
     private void TitleAddInside(string account,params (string Metric,long Delta)[] changes)
     {
+        ModelProgressInside(account,changes);
         if(!titleRules.TitleSystem.Enabled||!BankPolicy.Steam(account))return;
         var p=TitlesProgress(account);long reached=Number("SELECT coalesce(max(rowid),0) FROM transactions");
         foreach(var (metric,delta) in changes){if(delta<0)throw new InvalidDataException("Negativer Titelfortschritt.");if(delta==0)continue;p.Values[metric]=checked(p.Values.GetValueOrDefault(metric)+delta);p.Reached[metric]=reached;}

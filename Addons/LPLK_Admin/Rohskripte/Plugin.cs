@@ -7,7 +7,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_Admin;
 
-[PluginMetadata(Id = "LPLK_Admin", Name = "LPLK_Admin", Version = "0.11.5", Author = "LPLK", Description = "Einfache Spieler- und Adminmenüs", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_Admin", Name = "LPLK_Admin", Version = "0.11.7", Author = "LPLK", Description = "Einfache Spieler- und Adminmenüs", MinimumAPIVersion = "1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private IInterfaceManager? interfaces;
@@ -18,7 +18,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         try { LoadCore(hotReload); LPLK.Common.RoundFileStore.EndLoad(); }
         catch { LPLK.Common.RoundFileStore.AbortLoad(); throw; }
     }
-    private void LoadCore(bool hotReload) { ChatTheme.Initialize("LPLK_Admin",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name)); LoadSettings(); active = true; Core.MenusAPI.MenuOpened += ModuleMenuOpened; ReconcileAdminCommands(); WriteSettingsStatus(); Core.Logger.LogInformation("LPLK_Admin 0.11.5: !menu, !admin und !adminmenu bereit."); }
+    private void LoadCore(bool hotReload) { ChatTheme.Initialize("LPLK_Admin",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name)); LoadSettings(); active = true; Core.MenusAPI.MenuOpened += ModuleMenuOpened; ReconcileAdminCommands(); WriteSettingsStatus(); Core.Logger.LogInformation("LPLK_Admin 0.11.7: !menu, !admin und !adminmenu bereit."); }
     public override void Unload()
     {
         try { UnloadCore(); }
@@ -40,11 +40,12 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         if (!ctx.IsSentByPlayer || ctx.Sender is not { } player)
         {
             ReloadSettings();WriteSettingsStatus();
-            ctx.ReplyLplk("LPLK_Admin 0.11.5; Gründe="+settings.Reasons.Length+"; Dauern="+settings.Durations.Length+"; reloadError="+(settingsError??"none")+"; Backend="+(Backend() is not null)+"; Module: " + string.Join(", ", Core.PluginManager.GetAllPlugins().Where(id => Api(id) is not null)));
+            ctx.ReplyLplk("LPLK_Admin 0.11.7; Gründe="+settings.Reasons.Length+"; Dauern="+settings.Durations.Length+"; reloadError="+(settingsError??"none")+"; Backend="+(Backend() is not null)+"; Module: " + string.Join(", ", Core.PluginManager.GetAllPlugins().Where(id => Api(id) is not null)));
             return;
         }
         OpenAdministration(player);
     }
 }
+
 
 

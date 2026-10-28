@@ -1,4 +1,4 @@
-# LPLK_Economy 0.12.12
+**GitHub-Ausgabe 28.10.2026: 0.12.13.** [Pluginpaket](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/models-0.1.5-2026.10.28/LPLK_Economy.zip) · [Release und Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/models-0.1.5-2026.10.28). Modellmieten mit atomarer RAM-Abbuchung, Laufzeiten und Bankraub-/Lotto-/Kopfgeld-Freischaltungen. [Modell-Anleitung und offener Clientbefund](../LPLK_Models/README.md). Ältere Versionsangaben unten sind historische Stände.
 
 Lokale Bank, Wetten, Lotto, Bankraub, Kopfgeld und Titel mit RAM-Buchungsschicht.
 

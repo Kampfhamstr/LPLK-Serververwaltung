@@ -17,6 +17,7 @@ public static class MenuLayout
     public static string ModuleGroup(string id) => id switch
     {
         "LPLK_Demos" or "LPLK_Statistics" => "server",
+        "LPLK_Models" => "economy",
         "LPLK_Whitelist" or "LPLK_ChatGuard" or "LPLK_Teams" => "players",
         "LPLK_Parachute" or "LPLK_AntiCamp" or "LPLK_ThirdPerson" or "LPLK_BombWires" or "LPLK_AntiTeamFlash" or "LPLK_Weapons" or "LPLK_CombatRules" => "rules",
         "LPLK_Fluch" or "LPLK_NadeEffects" => "effects",

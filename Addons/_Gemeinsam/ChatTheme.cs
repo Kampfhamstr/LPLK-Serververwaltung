@@ -21,6 +21,7 @@ internal static class ChatTheme
     {
         "LPLK_Admin" or "SerververwaltungBridge"=>("LPLK Admin","white","red"),
         "LPLK_Economy"=>("LPLK Bank","gold","green"),
+        "LPLK_Models"=>("LPLK Modelle","gold","purple"),
         "LPLK_Maps"=>("LPLK Maps","yellow","blue"),
         "LPLK_Sounds"=>("LPLK Sounds","yellow","purple"),
         "LPLK_Surf"=>("LPLK Surf","yellow","lightblue"),

@@ -60,7 +60,7 @@ public sealed partial class Ledger : IDisposable
             });
             if(Text("SELECT value FROM meta WHERE key='profile'")!=Profile)throw new InvalidDataException("Bankdatei gehört zu anderem Profil.");
             if(version<2)UpgradeBettingSchema(); if(version<3)UpgradeLotterySchema();
-            Verify();if(roundMemory)EnableRoundMemory(path);
+            InitializeModelRentals();Verify();if(roundMemory)EnableRoundMemory(path);
         }
         catch{db.Dispose();networkLease?.Dispose();throw;}
     }
