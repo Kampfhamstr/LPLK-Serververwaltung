@@ -33,11 +33,25 @@ public sealed record KillRewardPayment(string Claim,string Account,string Sessio
 public sealed partial class Ledger
 {
     private const string KillRewardOwner="LPLK_Economy.KillReward";
+    // Completed receipts remain available for audit and duplicate detection. Keep
+    // the gameplay lookup proportional to outstanding claims, not monthly history.
+    private bool killRewardLookupIndexed;
+    private void InitializeKillRewardLookup()
+    {
+        Exec("""
+        CREATE INDEX IF NOT EXISTS module_state_open_kill_claims ON module_state(period)
+        WHERE owner='LPLK_Economy.KillReward' AND key GLOB 'claim:*' AND json_extract(json,'$.Remaining')>0;
+        """);
+        killRewardLookupIndexed=true;
+    }
     private T? KillState<T>(string key) where T:class=>State(KillRewardOwner,key).Json is {} json?JsonSerializer.Deserialize<T>(json)??throw new InvalidDataException("Kill-Belohnung beschädigt."):null;
     private void KillStateInside(string key,object value)=>Exec("INSERT INTO module_state VALUES($p0,$p1,$p2,1,$p3) ON CONFLICT(period,owner,key) DO UPDATE SET revision=revision+1,json=excluded.json",Period,KillRewardOwner,key,JsonSerializer.Serialize(value));
     public KillRewardClaim[] KillRewardClaims(bool openOnly=true)
     {
-        lock(gate){var result=new List<KillRewardClaim>();using var c=Command("SELECT json FROM module_state WHERE period=$p0 AND owner=$p1 AND key GLOB 'claim:*' ORDER BY rowid",Period,KillRewardOwner);using var r=c.ExecuteReader();while(r.Read()){var claim=JsonSerializer.Deserialize<KillRewardClaim>(r.GetString(0))??throw new InvalidDataException("Kill-Belohnung fehlt.");if(!openOnly||claim.Remaining>0)result.Add(claim);}return result.ToArray();}
+        lock(gate){var result=new List<KillRewardClaim>();string sql=openOnly
+            ?"SELECT json FROM module_state "+(killRewardLookupIndexed?"INDEXED BY module_state_open_kill_claims ":"")+"WHERE period=$p0 AND owner='LPLK_Economy.KillReward' AND key GLOB 'claim:*' AND json_extract(json,'$.Remaining')>0 ORDER BY rowid"
+            :"SELECT json FROM module_state WHERE period=$p0 AND owner='LPLK_Economy.KillReward' AND key GLOB 'claim:*' ORDER BY rowid";
+            using var c=Command(sql,Period);using var r=c.ExecuteReader();while(r.Read()){var claim=JsonSerializer.Deserialize<KillRewardClaim>(r.GetString(0))??throw new InvalidDataException("Kill-Belohnung fehlt.");result.Add(claim);}return result.ToArray();}
     }
     public long AwardKillReward(string eventId,string attacker,string victim,string victimName,int victimCash,bool sameTeam)=>Atomic(()=>
     {

@@ -26,7 +26,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Surf;
 
-[PluginMetadata(Id = "LPLK_Surf", Version = "0.1.11", Name = "LPLK_Surf", Author = "Michael Zauche / OpenAI", Description = "Surf/KZ timer with courses, practice, records, replays and categorized map voting for SwiftlyS2")]
+[PluginMetadata(Id = "LPLK_Surf", Version = "0.1.13", Name = "LPLK_Surf", Author = "Michael Zauche / OpenAI", Description = "Surf/KZ timer with courses, practice, records, replays and categorized map voting for SwiftlyS2")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private const string ConfigFile = "config.jsonc";
@@ -113,7 +113,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         _dbFile = Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "records.db");
         _prefsFile = Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "player_preferences.json");
         _historyFile = Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core), "map_history.json");
-        InitializeDatabase(); InitializeMemoryRecords(); LoadPrefs(); LoadHistory(); _lifetime.Start();
+        InitializeDatabase(); InitializeMemoryRecords(); LoadPrefs(); LoadHistory(); LoadExtraWorkshopMaps(); _lifetime.Start();
         if(_config.Enabled){RegisterCommands(); RegisterTriggerHooks(); RegisterGameHooks();
         Next(() => { _map = CurrentMap(); LoadZones(); ScanWorkshopMaps(); _currentWorkshopId=CurrentWorkshopId(); ApplyServerSettings(); ApplyTransparentPlayers(); ScanNativeMapTriggers(); });}
         WriteStatus();
@@ -125,12 +125,14 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         try { UnloadCore(); }
         finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
     }
-    private void UnloadCore() { CloseMemoryRecords(); storageWork.GetAwaiter().GetResult(); _lifetime.Stop(); CancelDelayed(); UnregisterGameHooks(); UnregisterTriggerHooks(); UnregisterCommands(); _voteActive=false; _mapChangeScheduled=false; _runs.Clear(); _replayViewers.Clear(); SavePrefs(); RoundData.Drain(); SqliteConnection.ClearAllPools(); WriteStatus();  LPLK.Common.DeferredJson.Drain(); }
+    private void UnloadCore() { extraMapMaintenance?.Dispose(); CloseMemoryRecords(); storageWork.GetAwaiter().GetResult(); _lifetime.Stop(); CancelDelayed(); UnregisterGameHooks(); UnregisterTriggerHooks(); UnregisterCommands(); _voteActive=false; _mapChangeScheduled=false; _runs.Clear(); _replayViewers.Clear(); SavePrefs(); RoundData.Drain(); SqliteConnection.ClearAllPools(); WriteStatus();  LPLK.Common.DeferredJson.Drain(); }
 
     [EventListener<EventDelegates.OnTick>]
     public void OnTick()
     {
-        if (!_lifetime.Active || !_config.Enabled || !_zonesValid) return;
+        if (!_lifetime.Active || !_config.Enabled) return;
+        TickExtraWorkshopMaps(Environment.TickCount64);
+        if(!_zonesValid)return;
         // The world is temporarily absent during cold start, hibernation and map
         // transitions. Check GlobalVars before dereferencing any old game rules.
         float gameTime;try{gameTime=Core.Engine.GlobalVars.CurrentTime;}catch(InvalidOperationException){return;}
@@ -474,7 +476,13 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Add(["bonus"], BonusCommand, "Bonus-Ranglisten"); Add(["profile", "stats"], ProfileCommand, "Spielerprofil"); Add(["replay", "ghost"], ReplayCommand, "WR-Replay ansehen"); Add(["specsurf"], SpectatorHudCommand, "HUD eines Spielers verfolgen");
     }
 
-    private void Add(string[] names, ICommandService.CommandListener fn, string help) { foreach (string n in names) _commands.Add(Core.Command.RegisterCommand(n, c => { if(_lifetime.Active && _config.Enabled)fn(c); }, true, string.Empty, help)); }
+    private void Add(string[] names, ICommandService.CommandListener fn, string help)
+    {
+        foreach (string name in names)
+            SurfCommandRegistration.Register(name, n => Core.Command.IsCommandRegistered(n),
+                n => _commands.Add(Core.Command.RegisterCommand(n, c => { if(_lifetime.Active && _config.Enabled)fn(c); }, true, string.Empty, help)),
+                n => Core.Logger.LogWarning("LPLK_Surf: Befehlsname bereits belegt/reserviert: {Command}", n));
+    }
     private void UnregisterCommands() { foreach (Guid id in _commands) try { Core.Command.UnregisterCommand(id); } catch { } _commands.Clear(); }
     private static IPlayer? Player(ICommandContext c) => c.Sender;
     private string Args(ICommandContext c) => string.Join(' ', c.Args).Trim();
@@ -1319,7 +1327,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 
 public sealed class Config { public bool Enabled{get;set;}=true; public string AdminPermission{get;set;}="swiftsurf.admin"; public ulong[] AdminSteamIds{get;set;}=[]; public string Prefix{get;set;}="[gold][Surf]"; public TimerConfig Timer{get;set;}=new(); public ServerConfig Server{get;set;}=new(); public RankingConfig Rankings{get;set;}=new(); public MapVoteConfig MapVote{get;set;}=new(); }
 public sealed class TimerConfig { public bool HudEnabledByDefault{get;set;}=true; public int HudIntervalMs{get;set;}=25; public bool RequireStagesInOrder{get;set;}=true; public int MaxRunMinutes{get;set;}=60; public bool TeleportToStartOnSpawn{get;set;} public double StartSpeedCapMetersPerMinute{get;set;}=285; }
-public sealed class ServerConfig { public bool ApplySurfConvars{get;set;}=true; public double AirAccelerate{get;set;}=150; public double Accelerate{get;set;}=6.5; public int MaxVelocity{get;set;}=3500; public bool EnableBhop{get;set;}=true; public bool RespawnOnDeath{get;set;}=true; public bool DisableFallDamage{get;set;}=true; public bool NoBlock{get;set;}=true; public bool DisableWeaponDamage{get;set;}=true; public bool TransparentPlayers{get;set;}=true; public int PlayerTransparencyAlpha{get;set;}=100; public bool KzCheckpointsEnabled{get;set;}=true; public int KzCheckpointSlots{get;set;}=20; }
+public sealed class ServerConfig { public bool ApplySurfConvars{get;set;}=true; public double AirAccelerate{get;set;}=150; public double Accelerate{get;set;}=6.5; [System.Text.Json.Serialization.JsonConverter(typeof(IntegralInt32Converter))] public int MaxVelocity{get;set;}=3500; public bool EnableBhop{get;set;}=true; public bool RespawnOnDeath{get;set;}=true; public bool DisableFallDamage{get;set;}=true; public bool NoBlock{get;set;}=true; public bool DisableWeaponDamage{get;set;}=true; public bool TransparentPlayers{get;set;}=true; public int PlayerTransparencyAlpha{get;set;}=100; public bool KzCheckpointsEnabled{get;set;}=true; public int KzCheckpointSlots{get;set;}=20; }
 public sealed class RankingConfig { public int TopCount{get;set;}=10; public bool AnnouncePersonalBest{get;set;}=true; public bool AnnounceWorldRecord{get;set;}=true; }
 public sealed class MapVoteConfig { public bool Enabled{get;set;}=true; public string WorkshopPath{get;set;}=""; public bool RequireVpkFile{get;set;}=true; public int MapsToShow{get;set;}=8; public int VoteDurationSeconds{get;set;}=45; public int MapsInCooldown{get;set;}=3; public int RtvPercentage{get;set;}=60; public int RtvMinPlayers{get;set;}=1; public bool RescanOnMapLoad{get;set;}=true; public int ChangeDelaySeconds{get;set;}=3; public int MapChangeVerifySeconds{get;set;}=8; public int MapChangeMaxAttempts{get;set;}=3; public bool SetNextLevelBeforeWorkshopChange{get;set;}=true; public bool EndOfMapVoteEnabled{get;set;}=true; public int EndOfMapVoteMinutesBeforeEnd{get;set;}=4; public bool EndOfMapSameCategoryOnly{get;set;}=true; }
 public sealed class MapZones { public Zone? Start{get;set;} public Zone? End{get;set;} public List<Zone> Stages{get;set;}=[]; public Dictionary<int,Vec> NativeStageTeleports{get;set;}=[]; public int Tier{get;set;}=1; }

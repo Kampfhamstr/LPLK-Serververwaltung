@@ -40,7 +40,8 @@ public static class WorkshopDetails
     public static List<MapEntry> Merge(IReadOnlyList<MapEntry> previous,IReadOnlyList<WorkshopItem> items)
     {
         var membership=items.Select(i=>i.Id).ToHashSet();
-        var merged=previous.Select(m=>m with{InPool=membership.Contains(m.Id)}).ToDictionary(m=>m.Id);
+        // Workshop membership does not own the explicitly configured built-in pool.
+        var merged=previous.Select(m=>m.Workshop?m with{InPool=membership.Contains(m.Id)}:m).ToDictionary(m=>m.Id);
         foreach(var item in items)
         {
             if(merged.TryGetValue(item.Id,out var old))

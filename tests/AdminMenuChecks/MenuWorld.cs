@@ -29,6 +29,7 @@ public sealed class MenuWorld
     public int ModuleOpens;
     public string DataDirectory = Path.Combine(Environment.GetEnvironmentVariable("LPLK_BUILD_ROOT")!, "AdminMenuChecks", "test-data");
     public bool WeaponsEnabled;
+    public bool GlobalSanctionsReady=true;
     public bool MapsEnabled=true,SoundsEnabled=true;
     public bool StatisticsEnabled=true,DemosEnabled;
     public bool ThirdPersonEnabled;
@@ -57,7 +58,9 @@ public sealed class MenuWorld
         return found[0];
     }
     public async Task Click(string label) => await Click(Find(label));
-    public async Task Click(IMenuOption option) { await option.OnClickAsync(Player); }
+    public async Task Click(IMenuOption option) { if(Current?.Options.Contains(option)==true){Current.MoveToOption(Player,option);selected.GetValueOrDefault(Current)?.Invoke(Current,new MenuEventArgs{Player=Player,Options=[option]});} await option.OnClickAsync(Player); }
+    private readonly Dictionary<IMenuAPI,EventHandler<MenuEventArgs>?> hovered=[],selected=[];
+    public int Cursor=>Current?.GetCurrentOptionIndex(Player)??-1;
     public MenuWorld()
     {
         Player = Proxy.Make<IPlayer>((m, a) => m.Name switch
@@ -73,7 +76,7 @@ public sealed class MenuWorld
           if (m.Name == "AddSharedInterface") { modules[(string)a![0]!] = (IReadOnlyDictionary<string, Delegate>)a[1]!; }
           return Proxy.Empty(m.ReturnType); });
         modules["LPLK.Player.Maps.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>MapsEnabled)};
-        modules["LPLK.Bridge.Admin.v1"]=new Dictionary<string,Delegate>{["execute"]=(Func<ulong,string,string,string>)((_,action,payload)=>{AdminCalls.Add(action+":"+payload);return "{\"success\":true,\"message\":\"geprüft\"}";})};
+        modules["LPLK.Bridge.Admin.v1"]=new Dictionary<string,Delegate>{["localSanctions"]=(Func<bool>)(()=>GlobalSanctionsReady),["execute"]=(Func<ulong,string,string,string>)((_,action,payload)=>{AdminCalls.Add(action+":"+payload);return "{\"success\":true,\"message\":\"geprüft\"}";})};
         modules["LPLK.Player.Sounds.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>SoundsEnabled)};
         modules["LPLK.Player.Statistics.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>StatisticsEnabled)};
         modules["LPLK.Player.Demos.v1"]=new Dictionary<string,Delegate>{["allowed"]=(Func<IPlayer,string,bool>)((_,_)=>DemosEnabled)};
@@ -95,6 +98,7 @@ public sealed class MenuWorld
     {
         switch (m.Name)
         {
+            case "GetConfigPath": return Path.Combine(DataDirectory,"configs",(string)a![0]!);
             case "add_MenuOpened": menuOpened += (EventHandler<MenuManagerEventArgs>)a![0]!; return null;
             case "remove_MenuOpened": menuOpened -= (EventHandler<MenuManagerEventArgs>)a![0]!; return null;
             case "GetGameRules": EntityAccesses++;if(RejectEntityAccess)throw new InvalidOperationException("Entity system not ready");return null;
@@ -114,18 +118,18 @@ public sealed class MenuWorld
             case "NextWorldUpdate": ((Action)a![0]!)(); return Proxy.Empty(m.ReturnType);
             case "CreateBuilder": return Builder();
             case "GetCurrentMenu": return Current;
-            case "OpenMenuForPlayer": Current = (IMenuAPI)a![1]!; return null;
+            case "OpenMenuForPlayer": Current = (IMenuAPI)a![1]!; menuOpened?.Invoke(this,new MenuManagerEventArgs{Player=Player,Menu=Current});return null;
         }
         return Proxy.Empty(m.ReturnType);
     }
-    public void AddModule(string id, string title)
+    public void AddModule(string id, string title,Action<IPlayer>? open=null)
     {
         if (!Plugins.Contains(id)) Plugins.Add(id);
         modules["LPLK.Admin." + id + ".v1"] = new Dictionary<string, Delegate>
         {
             ["title"] = (Func<string>)(() => title),
             ["allowed"] = (Func<IPlayer, bool>)(_ => Permissions.Contains("lplk.admin") || Permissions.Contains("lplk." + id[5..].ToLowerInvariant() + ".admin")),
-            ["open"] = (Action<IPlayer>)(_ => { ModuleOpens++; Current = Builder().Build(); })
+            ["open"] = (Action<IPlayer>)(p => { ModuleOpens++;if(open is not null)open(p);else Current = Builder().Build(); })
         };
     }
     public void AddWeaponsPlayerApi()
@@ -139,7 +143,7 @@ public sealed class MenuWorld
     public IMenuAPI ReopenRoot(string? title)
     {
         Current = Builder().Build();
-        Current.Configuration.Title = title;
+        Current.Configuration.Title = title??"";
         menuOpened?.Invoke(this, new MenuManagerEventArgs { Player = Player, Menu = Current });
         return Current;
     }
@@ -153,10 +157,16 @@ public sealed class MenuWorld
     {
         var options = new List<IMenuOption>(); var config = new MenuConfiguration();var bindings=new Dictionary<string,string>();var scroll=MenuOptionScrollStyle.CenterFixed;
         IMenuBuilderAPI builder = null!;
-        var menu = Proxy.Make<IMenuAPI>((m, a) => m.Name switch
+        int cursor=0;IMenuAPI menu=null!;
+        menu = Proxy.Make<IMenuAPI>((m,a)=>
         {
-            "get_Options" => options, "get_Configuration" => config,"get_OptionScrollStyle"=>scroll,
-            "AddOption" => Add(options, (IMenuOption)a![0]!), _ => Proxy.Empty(m.ReturnType)
+            if(m.Name=="add_OptionHovered"){hovered[menu]=hovered.GetValueOrDefault(menu)+(EventHandler<MenuEventArgs>)a![0]!;return null;}
+            if(m.Name=="add_OptionSelected"){selected[menu]=selected.GetValueOrDefault(menu)+(EventHandler<MenuEventArgs>)a![0]!;return null;}
+            if(m.Name is "MoveToOptionIndex" or "MoveToOption"){
+                int index=m.Name=="MoveToOptionIndex"?(int)a![1]!:options.IndexOf((IMenuOption)a![1]!);
+                if(index<0||index>=options.Count)return false;cursor=index;hovered.GetValueOrDefault(menu)?.Invoke(menu,new MenuEventArgs{Player=(IPlayer)a![0]!,Options=[options[index]]});return true;
+            }
+            return m.Name switch {"get_Options"=>options,"get_Configuration"=>config,"get_OptionScrollStyle"=>scroll,"GetCurrentOptionIndex"=>cursor,"GetCurrentOption"=>options.ElementAtOrDefault(cursor),"AddOption"=>Add(options,(IMenuOption)a![0]!),_=>Proxy.Empty(m.ReturnType)};
         });
         var design = Proxy.Make<IMenuDesignAPI>((m, a) =>
         {

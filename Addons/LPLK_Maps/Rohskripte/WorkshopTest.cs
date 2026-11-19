@@ -165,17 +165,17 @@ public sealed partial class Plugin
         module.Menu(p,"Map jetzt starten? · "+MapPolicy.Escape(job.Name),1,("Jetzt starten",a=>
         {
             RefreshSettings();if(!module.CanAdmin(a)||!ReferenceEquals(testDownload,job))return;
-            try{StartTestMap(job);}catch(InvalidDataException e){a.SendLplkChat("[LPLK] "+e.Message);}
+            try{StartTestMap(job,a);}catch(InvalidDataException e){a.SendLplkChat("[LPLK] "+e.Message);}
         }),("Später",ShowWorkshopTest));
     }
-    private void StartTestMap(TestDownload job)
+    private void StartTestMap(TestDownload job,IPlayer? actor=null)
     {
         RefreshSettings();Scan();var map=maps.FirstOrDefault(m=>m.Id==job.Id);
         if(!module.Active||!ReferenceEquals(testDownload,job)||!job.Ready||job.Failed||map is null||map.Removed||settings.ExcludedWorkshopIds.Contains(job.Id)
             ||!workshopBackend.Connected||!WorkshopTestPolicy.Complete(workshopBackend.Read(job.Id),job.Confirmed,TestMapFileReady(job.Id)))
             throw new InvalidDataException("Download nicht mehr vollständig verfügbar. Status neu prüfen.");
         if(pending is not null)throw new InvalidDataException("Ein anderer Mapwechsel läuft bereits.");
-        Schedule(map,settings.ChangeDelaySeconds,manualTest:true);
+        Schedule(map,settings.ChangeDelaySeconds,manualTest:true,actor:actor,adminSource:"workshop_test_menu");
     }
     private void WriteTestDownload()
     {

@@ -11,7 +11,7 @@ using AddonsManager.Clients;
 
 namespace AddonsManager;
 
-[PluginMetadata(Id = "AddonsManager", Version = "2.0.3-lplk.6", Name = "Addons Manager", Author = "Swiftly Development Team; LPLK", Description = "Workshop mounts and game-data correction for CS2 2000930", MinimumAPIVersion = "1.4.13")]
+[PluginMetadata(Id = "AddonsManager", Version = "2.0.3-lplk.7", Name = "Addons Manager", Author = "Swiftly Development Team; LPLK", Description = "Workshop mounts and game-data correction for CS2 2000930", MinimumAPIVersion = "1.4.13")]
 public class AddonsManager(ISwiftlyCore core) : BasePlugin(core)
 {
     public IServiceProvider? ServiceProvider;

@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Parachute;
 
-[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.12", Author = "LPLK / schwarper", Description = "Fallschirm mit Benutzen-Aktion; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.13", Author = "LPLK / schwarper", Description = "Fallschirm mit Benutzen-Aktion; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private WatchedSettings<ParachuteSettings> config = null!;
@@ -22,8 +22,9 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     private bool statusWriteFailed;
     private ModuleSupport module = null!;
     private IConVar<bool>? enabledConvar;
-    private sealed record Flight(CHandle<CCSPlayerPawn> Pawn, float OriginalGravity);
-    private readonly Dictionary<int, Flight> flights = [];
+    private sealed record Flight(CHandle<CCSPlayerPawn> Pawn, float OriginalGravity, int Owner);
+    private readonly Dictionary<uint, Flight> flights = [];
+    private int botDeployments, humanDeployments, takeoverDeployments;
     public override void ConfigureSharedInterface(IInterfaceManager manager) => module.ConfigureSharedInterface(manager);
     public override void Load(bool hotReload)
     {
@@ -39,7 +40,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Core.GameEvent.HookPre<EventPlayerDeath>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         Core.GameEvent.HookPre<EventPlayerSpawn>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         module.Active = true;
-        Core.Logger.LogInformation("LPLK_Parachute 0.1.12 bereit; Parachute-v5-Mechanik: +use, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
+        Core.Logger.LogInformation("LPLK_Parachute 0.1.13 bereit; Parachute-v5-Mechanik: +use, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
         WriteStatus();
     }
 
@@ -51,8 +52,9 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     private void UnloadCore() { if (module is not null) module.Active = false; ReleaseAll();  LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnMapUnload>] public void MapUnload(IOnMapUnloadEvent e) => ReleaseAll();
     [EventListener<EventDelegates.OnClientDisconnected>] public void Disconnect(IOnClientDisconnectedEvent e) => Release(e.PlayerId);
-    private void ReleaseAll() { foreach(int id in flights.Keys.ToArray()) Release(id); }
-    private void Release(int id)
+    private void ReleaseAll() { foreach(uint id in flights.Keys.ToArray()) ReleasePawn(id); takeovers.Clear(); }
+    private void Release(int slot) { foreach(var id in flights.Where(x=>x.Value.Owner==slot).Select(x=>x.Key).ToArray())ReleasePawn(id); }
+    private void ReleasePawn(uint id)
     {
         if(flights.Remove(id, out var flight) && flight.Pawn.Value is { IsValid: true } pawn)
             pawn.ActualGravityScale = FallPolicy.ReleaseGravity(pawn.ActualGravityScale, flight.OriginalGravity);
@@ -68,36 +70,52 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
             WriteStatus();
         }
         if (module?.Active != true || !settings.Enabled || enabledConvar?.Value != true) { ReleaseAll(); return; }
-        HashSet<int> active = [];
+        HashSet<uint> active = [], seen = [];
+        HashSet<(int,ulong,uint)> controlled = [];
         foreach (var player in Core.PlayerManager.GetAllPlayers())
         {
-            if (!player.IsValid || !player.IsAlive || (player.PressedButtons & GameButtonFlags.E) == 0 ||
-                player.PlayerPawn is not { IsValid: true } pawn || pawn.GroundEntity.IsValid ||
-                pawn.MoveType != MoveType_t.MOVETYPE_WALK || pawn.AbsVelocity.Z >= 0) continue;
-            if (settings.UsePermission.Length > 0 && !Core.Permission.PlayerHasPermission(player.SteamID, settings.UsePermission)) continue;
-            if (settings.DisableWhenCarryingHostage && pawn.HostageServices?.CarriedHostageProp.Value is not null) continue;
-            int id=player.PlayerID; active.Add(id);
-            // CHandle includes the entity serial: never restore a previous pawn's gravity onto a respawn.
-            if(flights.TryGetValue(id,out var existing) && (existing.Pawn.Value is not { IsValid: true } previous || previous.Index!=pawn.Index)) Release(id);
+            if (ControlledPawn(player) is not {} pawn) continue;
+            uint id=Core.EntitySystem.GetRefEHandle(pawn).Raw;
+            if(!seen.Add(id))continue;
+            bool bot=player.IsFakeClient;
+            var buttons=(GameButtonFlags)(pawn.MovementServices?.Buttons.ButtonStates[0]??0UL);
+            if(!bot&&player.Controller.ControllingBot&&settings.TakeoverRecovery)
+            {
+                var key=(player.PlayerID,player.SessionId,id);controlled.Add(key);
+                CheckTakeover(key,pawn,buttons);
+            }
+            bool allowed=bot||settings.UsePermission.Length==0||Core.Permission.PlayerHasPermission(player.SteamID,settings.UsePermission);
+            if(!ControlPolicy.Deploy(bot,settings.BotsAutoDeploy,(buttons&GameButtonFlags.E)!=0,allowed,
+                pawn.LifeState==0&&pawn.Health>0,pawn.GroundEntity.IsValid,pawn.MoveType==MoveType_t.MOVETYPE_WALK,
+                pawn.AbsVelocity.Z,settings.DisableWhenCarryingHostage&&pawn.HostageServices?.CarriedHostageProp.Value is not null))continue;
+            active.Add(id);
+            // Ownership follows the actual controlled pawn, including its entity serial.
+            // A takeover may change controller without creating a new pawn/gravity baseline.
+            if(flights.TryGetValue(id,out var existing))flights[id]=existing with{Owner=player.PlayerID};
             if(!flights.ContainsKey(id))
             {
-                flights[id]=new(new CHandle<CCSPlayerPawn>{Value=pawn},pawn.ActualGravityScale);
+                flights[id]=new(new CHandle<CCSPlayerPawn>{Raw=id},pawn.ActualGravityScale,player.PlayerID);
                 pawn.ActualGravityScale=FallPolicy.DeployedGravity;
+                if(bot)botDeployments++;else if(player.Controller.ControllingBot)takeoverDeployments++;else humanDeployments++;
             }
             pawn.AbsVelocity.Z = FallPolicy.Brake(pawn.AbsVelocity.Z, settings);
         }
-        foreach(int id in flights.Keys.Where(id=>!active.Contains(id)).ToArray()) Release(id);
+        foreach(uint id in flights.Keys.Where(id=>!active.Contains(id)).ToArray()) ReleasePawn(id);
+        foreach(var key in takeovers.Keys.Where(k=>!controlled.Contains(k)).ToArray())takeovers.Remove(key);
+        TickBotProbe();
     }
 
     [Command("lplk_parachute", permission: "lplk.parachute.admin")]
     public void Command(ICommandContext ctx)
     {
+        if(!ctx.IsSentByPlayer&&ctx.Args.Length==1&&ctx.Args[0]=="probe"){ctx.Reply("LPLK_PARACHUTE_PROBE "+System.Text.Json.JsonSerializer.Serialize(ProbeSnapshot()));return;}
+        if(!ctx.IsSentByPlayer&&ctx.Args.Length==1&&ctx.Args[0]=="botfall-test"){ctx.Reply("LPLK_PARACHUTE_TEST "+StartBotProbe());return;}
         if (ctx.IsSentByPlayer && ctx.Sender is { } player) OpenAdmin(player);
-        else ctx.ReplyLplk($"LPLK_Parachute 0.1.12: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored; reloadError={config.Error??"none"}");
+        else ctx.ReplyLplk($"LPLK_Parachute 0.1.13: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored; reloadError={config.Error??"none"}");
     }
     private void WriteStatus()
     {
-        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.12",settings.Enabled,settings.FallSpeed,settings.BrakePerTick,settings.Linear,settings.DisableWhenCarryingHostage,useRestricted=settings.UsePermission.Length>0,activeFlights=flights.Count,reloadError=config.Error}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.13",settings.Enabled,settings.FallSpeed,settings.BrakePerTick,settings.Linear,settings.DisableWhenCarryingHostage,settings.BotsAutoDeploy,settings.TakeoverRecovery,useRestricted=settings.UsePermission.Length>0,activeFlights=flights.Count,botDeployments,humanDeployments,takeoverDeployments,takeoverChecks,takeoverRecoveries,takeoverBlocked,recoveryError,botProbeResult,reloadError=config.Error}); statusWriteFailed=false; }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException)
         { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_Parachute: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }

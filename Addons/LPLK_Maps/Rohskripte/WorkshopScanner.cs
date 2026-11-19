@@ -36,7 +36,7 @@ public sealed class WorkshopScanner
             if(publish.Exists&&publish.Length<1024*1024&&(publish.Attributes&FileAttributes.ReparsePoint)==0)
             {
                 var match=System.Text.RegularExpressions.Regex.Match(File.ReadAllText(publish.FullName),"\"source_folder\"\\s*\"([^\"]+)\"");
-                if(match.Success&&MapPolicy.SafeMapToken(match.Groups[1].Value))source=match.Groups[1].Value;
+                if(match.Success&&MapPolicy.SafeMapToken(match.Groups[1].Value)&&names.Contains(match.Groups[1].Value))source=match.Groups[1].Value;
             }
             sources[id]=source;
         }

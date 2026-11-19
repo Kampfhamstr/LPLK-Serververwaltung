@@ -14,7 +14,7 @@ public sealed partial class Plugin
         var actions=new List<(string,Action<IPlayer>)>();
         if(settings.Enabled&&!settings.MeasurementOnly)
         {
-            actions.Add(("RTV",p=>{if(!StartVote(Reason.Admin))p.SendLplkChat("[LPLK] Abstimmung momentan nicht verfügbar.");}));
+            actions.Add(("RTV",p=>{if(!BeginVote(Reason.Admin,null,p))p.SendLplkChat("[LPLK] Abstimmung momentan nicht verfügbar.");}));
             actions.Add(("Nominieren",p=>p.ExecuteCommand("sw_nominate")));
         }
         actions.Add(("Mapwechsel",MapChangeGroups));
@@ -27,11 +27,12 @@ public sealed partial class Plugin
     private void MapChangeList(IPlayer p,int minimum)
     {
         RefreshSettings();if(!module.CanAdmin(p))return;
-        var entries=maps.Where(m=>m.IsMap&&!m.Removed&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&MapPolicy.LimitsUsable(m,settings)&&m.MinPlayers==minimum).OrderBy(m=>m.Name).ToList();
+        var entries=MapChangeEntries(minimum);
         Selection(p,$"Mapwechsel · {minimum}–max. Slots",entries,(a,m)=>ConfirmMapChange(a,m),back:MapChangeGroups);
     }
+    private List<MapEntry> MapChangeEntries(int minimum)=>maps.Where(m=>m.IsMap&&!m.Removed&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&MapPolicy.LimitsUsable(m,settings)&&m.MinPlayers==minimum).OrderBy(m=>m.Name).ToList();
     private void ConfirmMapChange(IPlayer p,MapEntry selected)=>module.Menu(p,"Wechsel zu "+MapPolicy.Escape(selected.Name)+"?",1,
-        ("Ja",a=>{var current=maps.FirstOrDefault(m=>m.Id==selected.Id);if(current is not null&&!current.Removed&&!settings.ExcludedWorkshopIds.Contains(current.Id))Schedule(current,settings.ChangeDelaySeconds);}),
+        ("Ja",a=>{var current=maps.FirstOrDefault(m=>m.Id==selected.Id);if(current is not null&&!current.Removed&&!settings.ExcludedWorkshopIds.Contains(current.Id))Schedule(current,settings.ChangeDelaySeconds,actor:a,adminSource:"admin_menu");}),
         ("Nein",OpenAdmin));
     private void MapTestMenu(IPlayer p)=>module.Menu(p,"Maptest",1,
         ("Workshop-ID eingeben",WorkshopTestInput),

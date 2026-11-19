@@ -17,6 +17,7 @@ public static class IdleSettingsChecks
         File.WriteAllText(settings,JsonSerializer.Serialize(new AdminSettings {Reasons=["Neu","Zwei"]}));
         // Simulate a hibernating server: dispatch only world updates, never game ticks.
         foreach(var handler in worldHandlers)handler.Invoke(plugin,[]);
+        LPLK.Common.DeferredJson.Drain();
         using(var json=JsonDocument.Parse(File.ReadAllText(status)))check(json.RootElement.GetProperty("reasons").GetInt32()==2&&json.RootElement.GetProperty("reloadError").ValueKind==JsonValueKind.Null,"Settings refresh while game ticks are stopped");
         string first=File.ReadAllText(status);
         File.WriteAllText(settings,JsonSerializer.Serialize(new AdminSettings {Reasons=["Drei","Vier","Fuenf"]}));
@@ -25,6 +26,7 @@ public static class IdleSettingsChecks
         typeof(Plugin).GetField("nextSettingsCheck",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(plugin,0L);
         File.WriteAllText(settings,"{invalid");
         foreach(var handler in worldHandlers)handler.Invoke(plugin,[]);
+        LPLK.Common.DeferredJson.Drain();
         using(var json=JsonDocument.Parse(File.ReadAllText(status)))check(json.RootElement.GetProperty("reasons").GetInt32()==2&&json.RootElement.GetProperty("reloadError").ValueKind==JsonValueKind.String,"Bad idle configuration keeps last valid values and reports error");
         first=File.ReadAllText(status);plugin.Unload();
         typeof(Plugin).GetField("nextSettingsCheck",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(plugin,0L);

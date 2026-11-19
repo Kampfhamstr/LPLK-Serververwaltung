@@ -79,7 +79,7 @@ public sealed partial class Plugin
     }
     private void WriteStatus()
     {
-        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new {plugin="LPLK_Surf",version="0.1.11",updated_at=DateTimeOffset.UtcNow,active=_lifetime.Active,enabled=_config.Enabled,map=_map,configuration_error=_configError,zones_error=_zonesError,ready=_zonesValid,workshop_maps=_workshopMaps.Count,native_triggers=_nativeTriggerMode,active_runs=_runs.Values.Count(r=>r.Running),replays=_replayViewers.Count,vote_active=_voteActive,delayed_actions=_delayed.Count,storage_error=storageError,storage_pending=!storageWork.IsCompleted,storage_schema="SwiftSurf-2.1.8-compatible"});}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new {plugin="LPLK_Surf",version="0.1.13",updated_at=DateTimeOffset.UtcNow,active=_lifetime.Active,enabled=_config.Enabled,map=_map,configuration_error=_configError,zones_error=_zonesError,ready=_zonesValid,workshop_maps=_workshopMaps.Count,native_triggers=_nativeTriggerMode,active_runs=_runs.Values.Count(r=>r.Running),replays=_replayViewers.Count,vote_active=_voteActive,delayed_actions=_delayed.Count,storage_error=storageError,storage_pending=!storageWork.IsCompleted,storage_schema="SwiftSurf-2.1.8-compatible"});}
         catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Surf: Statusdatei konnte nicht geschrieben werden.");}
     }
     [Command("lplk_surf_status")]

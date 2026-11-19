@@ -19,7 +19,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Maps;
 
-[PluginMetadata(Id="LPLK_Maps",Name="LPLK_Maps",Version="0.4.17",Author="LPLK",Description="MapChooser, RTV, Nominate und Workshop-Verwaltung",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Maps",Name="LPLK_Maps",Version="0.4.29",Author="LPLK",Description="MapChooser, RTV, Nominate und Workshop-Verwaltung",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -57,7 +57,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void LoadCore(bool hotReload)
     { startupCollection=WorkshopCollections.ReadStartupCollection()??""; ChatTheme.Initialize("LPLK_Maps",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
         module=new(Core,"LPLK_Maps","Maps","lplk.maps.admin",OpenAdmin);
-        settings=ReadConfiguration();
+        settings=ReadConfiguration();LoadExtraWorkshopMaps();StartAudit();
         startupMapGate.Arm(settings.RotateStartupMap,hotReload,Environment.TickCount64);startupRotationStatus=startupMapGate.Pending?"Warte auf bereite Basiskarte":"Kein Kaltstartwechsel";
         var options=new JsonSerializerOptions{PropertyNameCaseInsensitive=true};
         maps=JsonSerializer.Deserialize<List<MapEntry>>(File.ReadAllText(File.Exists(MapsPath)?MapsPath:Path.Combine(LPLK.Common.RoundFileStore.PluginPath(Core),"resources","maps.seed.json")),options)??[];
@@ -70,14 +70,15 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         {
             maps=maps.Select(m=>m.MeasuredAt is null&&m.ProbeError is null?m with{LastProbeAt=null}:m).ToList();AtomicJson.Write(MapsPath,maps);
         }
-        MapPolicy.Validate(maps);if(!File.Exists(MapsPath))AtomicJson.Write(MapsPath,maps);
+        MapPolicy.Validate(maps);if(!File.Exists(MapsPath))AtomicJson.Write(MapsPath,maps);LoadNewMapActivations();LoadNominations();
         if(File.Exists(HistoryPath))history=JsonSerializer.Deserialize<List<string>>(File.ReadAllText(HistoryPath))??[];
-        LoadCollectionCache();module.Active=true;mapStarted=Environment.TickCount64;Scan();
+        LoadCollectionCache();LoadWorkshopMaintenance(hotReload);module.Active=true;mapStarted=Environment.TickCount64;Scan();
         Core.GameEvent.HookPost<EventRoundAnnounceWarmup>(_=>{warmup=true;rounds=0;rtv.Clear();return HookResult.Continue;});
         Core.GameEvent.HookPost<EventWarmupEnd>(_=>{warmup=false;rounds=0;return HookResult.Continue;});
         Core.GameEvent.HookPost<EventRoundStart>(_=>{CheckEndVote(false);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventRoundEnd>(_=>
         {
+            Core.Scheduler.DelayBySeconds(1,()=>mapAudit?.ReleaseAfterRound());
             if(!warmup){rounds++;if(changeAtRoundEnd&&nextMap is {} selected&&voteEnds==0){changeAtRoundEnd=false;Schedule(selected,2);}else CheckEndVote(false);}
             return HookResult.Continue;
         });
@@ -85,13 +86,14 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventGamePhaseChanged>(e=>{if(e.NewPhase==(short)GamePhase.GAMEPHASE_MATCH_ENDED)MatchEnded();return HookResult.Continue;});
         Core.GameEvent.HookPost<EventCsWinPanelMatch>(_=>{if(Core.Game.MatchData.Phase!=GamePhase.GAMEPHASE_HALFTIME)MatchEnded();return HookResult.Continue;});
         Core.Scheduler.DelayBySeconds(3,()=>{if(!module.Active)return;ReadWarmup();RecordMap();MeasureCurrent(null);});
-        Core.Logger.LogInformation("LPLK_Maps 0.4.17: {Count} Katalogeinträge, {Available} verfügbar; {Candidates} Kandidaten / {Seconds}s",maps.Count,maps.Count(Available),settings.MapsToShow,settings.VoteSeconds);
+        Core.Logger.LogInformation("LPLK_Maps 0.4.29: {Count} Katalogeinträge, {Available} verfügbar; {Candidates} Kandidaten / {Seconds}s",maps.Count,maps.Count(Available),settings.MapsToShow,settings.VoteSeconds);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
         module.ConfigureSharedInterface(manager);
         manager.AddSharedInterface<IReadOnlyDictionary<string,Delegate>,Dictionary<string,Delegate>>("LPLK.Player.Maps.v1",new()
         {
+            ["selectionActive"]=(Func<bool>)(()=>voteEnds>0||nextMap is not null||pending is not null),
             ["allowed"]=(Func<IPlayer,string,bool>)((p,command)=>module.Active&&settings.Enabled&&!settings.MeasurementOnly&&CanVote(p)&&command switch
             {
                 "sw_nominate"=>settings.NominationEnabled&&voteEnds==0&&nextMap is null&&pending is null,
@@ -113,19 +115,19 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     public override void Unload()
     {
         try { UnloadCore(); }
-        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
+        finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); mapAudit?.WaitForReleasedWrites(); }
     }
-    private void UnloadCore(){StopWorkshopTest();ResetParity();if(module is not null)module.Active=false;generation++;collectionCancellation?.Cancel();CloseMenus(); LPLK.Common.DeferredJson.Drain(); }
+    private void UnloadCore(){SaveNominations();maintenance?.Dispose();StopWorkshopTest();ResetParity();if(module is not null)module.Active=false;generation++;collectionCancellation?.Cancel();CloseMenus(); LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnMapLoad>]
     public void MapLoad(IOnMapLoadEvent e)
     {
-        ResetParity();generation++;CancelVote();rtv.Clear();nominations.Clear();nextMap=null;changeAtRoundEnd=false;
-        startupMapGate.MapLoaded(Environment.TickCount64);emptyMapClock.Reset();mapStarted=Environment.TickCount64;rounds=0;warmup=true;matchEnded=false;endVoteStarted=false;
+        ResetParity();generation++;CancelVote();rtv.Clear();ResetNominations();nextMap=null;changeAtRoundEnd=false;
+        preparedStartupMap="";startupMapGate.MapLoaded(Environment.TickCount64);emptyMapClock.Reset();mapStarted=Environment.TickCount64;rounds=0;warmup=true;matchEnded=false;endVoteStarted=false;
         if(settings.RescanOnMapLoad)Scan();
         int serial=generation;
         Core.Scheduler.DelayBySeconds(3,()=>{if(module.Active&&serial==generation){ReadWarmup();RecordMap();MeasureCurrent(null);if(transitionIssued)transitionDue=Environment.TickCount64;}});
     }
-    [EventListener<EventDelegates.OnMapUnload>]public void MapUnload(IOnMapUnloadEvent e){ResetParity();generation++;CancelVote();}
+    [EventListener<EventDelegates.OnMapUnload>]public void MapUnload(IOnMapUnloadEvent e){SaveNominations();nominationMapUnloading=true;ResetParity();generation++;CancelVote();}
     [EventListener<EventDelegates.OnClientDisconnected>]public void Disconnect(IOnClientDisconnectedEvent e)=>Close(e.PlayerId);
     private void ReadWarmup(){if(Core.EntitySystem.GetGameRules() is {} rules)warmup=rules.WarmupPeriod;}
     private void RecordMap()
@@ -138,9 +140,9 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     public void Tick()
     {
         long now=Environment.TickCount64;if(module?.Active!=true||now<nextCheck)return;nextCheck=now+500;
-        CheckConfiguration(now);
+        LoadNominations();CheckConfiguration(now);
         PollWorkshopTest(now);
-        TickStartupRotation(now);TickEmptyRotation(now);
+        TickWorkshopMaintenance(now);TickStartupRotation(now);TickEmptyRotation(now);
         if(probeId is not null&&pending is not null&&!transitionIssued&&AnyHuman())
         {var cancelled=maps.FirstOrDefault(m=>m.Id==probeId);if(cancelled is not null)ReplaceMap(cancelled with{LastProbeAt=null});probeId=null;pending=null;lastTransition="Automatische Prüfung pausiert: Spieler verbunden";WriteStatus();}
         if(pending is not null&&now>=transitionDue){if(transitionIssued)VerifyPending();else IssuePending();}
@@ -170,7 +172,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(nextMap is null&&settings.FallbackRandomMap)
         {
             if(settings.RescanBeforeVote)RescanForVote();var pool=Eligible(false,true);if(pool.Count==0)pool=Eligible(true,true);
-            if(pool.Count>0)nextMap=settings.CycleEnabled&&!settings.CycleRandom?MapPolicy.NextCycle(maps,pool.Select(m=>m.Id).ToHashSet(),history.LastOrDefault()??""):pool[Random.Shared.Next(pool.Count)];
+            if(pool.Any(m=>m.Id==preparedStartupMap&&PreparedMapReady(m)))nextMap=pool.First(m=>m.Id==preparedStartupMap);
+            else if(pool.Count>0)nextMap=settings.CycleEnabled&&!settings.CycleRandom?MapPolicy.NextCycle(maps,pool.Select(m=>m.Id).ToHashSet(),history.LastOrDefault()??""):pool[Random.Shared.Next(pool.Count)];
         }
         if(nextMap is {} selected)Schedule(selected,settings.MatchEndDelaySeconds);
         else Core.Logger.LogWarning("LPLK_Maps: Matchende ohne gültige andere Map; Pool und Workshop-Dateien prüfen.");
@@ -198,17 +201,18 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
             string query=string.Join(" ",ctx.Args);var found=MapPolicy.Resolve(choices,query);
             if(found is null){ctx.ReplyLplk("[LPLK] Map nicht wählbar: Spielerzahl, aktuelle Map, Sperre, Cooldown oder nicht installiert.");return;}SetNomination(p,found);return;
         }
-        Categories(p,"Map nominieren",()=>Eligible(),SetNomination,a=>GameplayAvailable&&settings.NominationEnabled&&CanVote(a)&&voteEnds==0&&nextMap is null);
+        Categories(p,"Map nominieren",()=>Eligible(),SetNomination,a=>GameplayAvailable&&settings.NominationEnabled&&CanVote(a)&&voteEnds==0&&nextMap is null,newFirst:true);
     }
     private void SetNomination(IPlayer p,MapEntry map)
     {
+        LoadNominations();if(!nominationStateReady){p.SendLplkChat("[LPLK] Nominierungen sind noch nicht bereit. Bitte kurz warten.");return;}
         if(!settings.NominationEnabled||!CanVote(p)||!settings.Enabled||settings.MeasurementOnly||voteEnds>0||nextMap is not null||pending is not null||!Eligible().Any(m=>m.Id==map.Id)){p.SendLplkChat("[LPLK] Map inzwischen nicht mehr nominierbar.");return;}
-        nominations[p.SteamID]=map.Id;p.SendLplkChat("[LPLK] Nominiert: "+map.Name);Close(p.PlayerID);
+        nominations[p.SteamID]=map.Id;SaveNominations();Audit("nomination",new {actor=Actor(p),mapId=map.Id,mapName=map.Name});p.SendLplkChat("[LPLK] Nominiert: "+map.Name);Close(p.PlayerID);
     }
     [Command("mapchooser")]
     public void MapChooser(ICommandContext ctx){if(ctx.Sender is {} p){if(voteEnds>0&&CanVote(p))ShowVote(p);else ctx.ReplyLplk("[LPLK] Mit !nominate vorschlagen, mit !rtv abstimmen.");}}
     private bool StartVote(Reason source)=>BeginVote(source,null);
-    private bool BeginVote(Reason source,IReadOnlySet<string>? selected)
+    private bool BeginVote(Reason source,IReadOnlySet<string>? selected,IPlayer? actor=null)
     {
         if(Environment.TickCount64<nextVoteAllowed||!settings.Enabled||settings.MeasurementOnly||voteEnds>0||pending is not null||nextMap is not null||matchEnded)return false;
         if(settings.RescanBeforeVote)RescanForVote();var pool=VotePool(source);if(selected is not null)pool=pool.Where(m=>selected.Contains(m.Id)).ToList();
@@ -219,10 +223,11 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         candidates=selected is not null?pool:MapPolicy.CandidateSelection(pool.OrderBy(_=>Random.Shared.Next()).ToList(),nominatedCandidates,limit,settings.BalancedCategories);
         int seconds=(source==Reason.EndOfMap||selected is not null)&&settings.EndVoteSeconds>0?settings.EndVoteSeconds:settings.VoteSeconds;
         reason=source;if(source==Reason.EndOfMap)endVoteStarted=true;ballots.Clear();rtv.Clear();directVotes.Clear();voteEnds=Environment.TickCount64+seconds*1000L;
+        AuditVoteStarted(actor);
         Core.PlayerManager.SendLplkChat($"[LPLK] Map-Abstimmung läuft {seconds}s. Menü: !mapchooser");foreach(var p in voters)ShowVote(p);return true;
     }
     private void ShowVote(IPlayer p)=>Selection(p,"LPLK · Nächste Map",BallotChoices(),CastBallot,true);
-    private void CancelVote(){voteEnds=0;ballots.Clear();candidates.Clear();CloseMenus();}
+    private void CancelVote(){AuditCancellation("cancelled_or_map_changed");voteEnds=0;ballots.Clear();candidates.Clear();CloseMenus();}
     private void FinishVote()
     {
         voteEnds=0;CloseMenus();var online=Voters().Select(p=>p.SteamID).ToHashSet();var legal=Eligible().Select(m=>m.Id).ToHashSet();
@@ -230,24 +235,33 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         int extensionVotes=ballots.Count(x=>online.Contains(x.Key)&&x.Value==ExtendChoice);
         int topMapVotes=leaders.Count==0?0:leaders.Max(m=>ballots.Count(x=>online.Contains(x.Key)&&x.Value==m.Id));
         bool extended=reason==Reason.EndOfMap&&extensionVotes>0&&extensionVotes>topMapVotes&&ExtendMap(true);
+        var winner=!extended&&leaders.Count>0?leaders[Random.Shared.Next(leaders.Count)]:null;
+        AuditResult(online,legal,leaders,winner,extended);
         ballots.Clear();candidates.Clear();rtv.Clear();if(extended)return;
         if(leaders.Count==0){endVoteStarted=false;nextVoteAllowed=Environment.TickCount64+Math.Max(5,settings.FailedVoteCooldownSeconds)*1000L;Core.PlayerManager.SendLplkChat("[LPLK] Abstimmung ohne gültiges Ergebnis: Mapkriterien haben sich geändert.");return;}
-        nextMap=leaders[Random.Shared.Next(leaders.Count)];Core.PlayerManager.SendLplkChat("[LPLK] Nächste Map: "+nextMap.Name);
+        nextMap=winner!;Core.PlayerManager.SendLplkChat("[LPLK] Nächste Map: "+nextMap.Name);
         if(reason==Reason.Rtv){if(settings.RtvAtRoundEnd&&!matchEnded)changeAtRoundEnd=true;else Schedule(nextMap,settings.ChangeDelaySeconds);}
         else if(reason==Reason.Admin&&!matchEnded){changeAtRoundEnd=true;Core.PlayerManager.SendLplkChat("[LPLK] Admin-Abstimmung: Wechsel am Rundenende.");}
         else if(matchEnded)Schedule(nextMap,settings.MatchEndDelaySeconds);
         else Core.PlayerManager.SendLplkChat("[LPLK] Die gewählte Map startet nach dem Match.");
     }
-    private void Schedule(MapEntry map,int seconds,bool automatic=false,bool manualTest=false)
+    private void Schedule(MapEntry map,int seconds,bool automatic=false,bool manualTest=false,IPlayer? actor=null,string? adminSource=null)
     {
-        if(settings.BuiltinMapsOnly&&map.Workshop&&!manualTest)return;if(pending is not null)return;if(!Available(map)&&!(map.RemoteMapVerified&&map.IsMap&&!map.Removed&&!settings.ExcludedWorkshopIds.Contains(map.Id))){Core.Logger.LogWarning("LPLK_Maps: Zielmap nicht verfügbar: {Id}",map.Id);return;}
+        if(!CameraMapReady(map))return;
+        if(settings.BuiltinMapsOnly&&map.Workshop&&!manualTest)return;
+        if(idleTransition&&!transitionIssued){CompleteAutomaticJournal("Durch neue Mapwahl ersetzt");pending=null;nextMap=null;idleTransition=false;}
+        if(pending is not null)return;if(!Available(map)&&!(map.RemoteMapVerified&&map.IsMap&&!map.Removed&&!settings.ExcludedWorkshopIds.Contains(map.Id))){Core.Logger.LogWarning("LPLK_Maps: Zielmap nicht verfügbar: {Id}",map.Id);return;}
+        if(adminSource is not null)Audit("admin_map_change",new {actor=Actor(actor),source=adminSource,mapId=map.Id,mapName=map.Name,delaySeconds=seconds});
         CancelVote();idleTransition=false;pending=map;attempts=0;transitionIssued=false;transitionDue=Environment.TickCount64+seconds*1000L;
         lastTransition="Geplant: "+map.Id;Core.PlayerManager.SendLplkChat($"[LPLK] Wechsel zu {map.Name} in {seconds}s.");WriteStatus();
     }
     private void IssuePending()
     {
         if(CancelUnsafeIdleChange())return;
-        if(pending is not {} map)return;if(map.Workshop&&!EnoughDisk(map)){transitionDue=Environment.TickCount64+5000;lastTransition=poolMessage;return;}attempts++;transitionIssued=true;transitionDue=Environment.TickCount64+(installed.Contains(map.Id)?settings.VerifySeconds:240)*1000L;
+        if(pending is not {} map)return;
+        if(!CameraMapReady(map)){CompleteAutomaticJournal("SourceTV-Kameraschutz fehlt");pending=null;nextMap=null;idleTransition=false;lastTransition="Lionfort gesperrt: SourceTV-Kameraschutz fehlt";WriteStatus();return;}
+        if(idleTransition&&(!PreparedMapReady(map)||!PrepareAutomaticJournal(map))){transitionDue=Environment.TickCount64+1000;lastTransition="Vorbereitung: "+map.Id;return;}
+        if(map.Workshop&&!EnoughDisk(map)){transitionDue=Environment.TickCount64+5000;lastTransition=poolMessage;return;}attempts++;transitionIssued=true;transitionDue=Environment.TickCount64+(installed.Contains(map.Id)?settings.VerifySeconds:240)*1000L;
         // Tick runs on the game thread. Both supported APIs expose ExecuteCommand;
         // VerifyPending confirms success from the loaded map, not console output.
         if(map.Workshop&&settings.SetNextLevel&&map.SourceFolder.Length>0&&MapPolicy.SafeMapToken(map.SourceFolder))Core.Engine.ExecuteCommand("nextlevel "+map.SourceFolder);
@@ -257,7 +271,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void VerifyPending()
     {
         if(pending is not {} map)return;
-        if(MapPolicy.Confirmed(map,CurrentMap,Workshop)){lastTransition="Bestätigt: "+map.Id;Core.Logger.LogInformation("LPLK_Maps: Mapwechsel bestätigt: {Id} / {Map}",map.Id,CurrentMap);pending=null;nextMap=null;idleTransition=false;WriteStatus();return;}
+        if(MapPolicy.Confirmed(map,CurrentMap,Workshop)){Audit("map_change_confirmed",new {mapId=map.Id,mapName=map.Name});lastTransition="Bestätigt: "+map.Id;Core.Logger.LogInformation("LPLK_Maps: Mapwechsel bestätigt: {Id} / {Map}",map.Id,CurrentMap);CompleteAutomaticJournal("Mapstart bestätigt");pending=null;nextMap=null;idleTransition=false;WriteStatus();return;}
         if(CancelUnsafeIdleChange())return;
         if(probeId is not null&&AnyHuman()){transitionDue=Environment.TickCount64+5000;return;}
         if(attempts>=settings.MaxAttempts){lastTransition=$"Fehlgeschlagen: {map.Id}; tatsächlich {CurrentMap}/{Workshop}";Core.Logger.LogError("LPLK_Maps: {Error}",lastTransition);Core.PlayerManager.SendLplkChat("[LPLK] Mapwechsel fehlgeschlagen; siehe Serverprotokoll.");if(probeId==map.Id)ReplaceMap(map with{ProbeError="Mapwechsel nicht bestätigt",LastProbeAt=DateTimeOffset.UtcNow});pending=null;nextMap=null;idleTransition=false;WriteStatus();return;}
@@ -273,7 +287,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         int number=page*10;
         foreach(var map in vote?entries:entries.Skip(page*10).Take(10))
         {
-            var b=new ButtonMenuOption(numbers.Next(vote?MapPolicy.VoteLabel(map,nominatedCandidates.Contains(map.Id)):MapPolicy.SelectionLabel(map),++number)) { CloseAfterClick=false };
+            var b=new ButtonMenuOption(numbers.Next(newMapMarkers.Label(map.Id,vote?MapPolicy.VoteLabel(map,nominatedCandidates.Contains(map.Id)):MapPolicy.SelectionLabel(map),DateTimeOffset.UtcNow),++number)) { CloseAfterClick=false };
             GameThreadMenu.Bind(Core,b,player,()=>module.Active,a=>{if(a.IsValid&&a.SteamID==steamId&&serial==generation&&menus.TryGetValue(a.PlayerID,out var m)&&m.Token==token)action(a,map);});builder.AddOption(b);
         }
         void Navigate(string label,int next){var option=new ButtonMenuOption(MenuColors.Back(label)){CloseAfterClick=false};GameThreadMenu.Bind(Core,option,player,()=>module.Active&&serial==generation,a=>Selection(a,title,entries,action,vote,back,next));builder.AddOption(option);}
@@ -286,17 +300,17 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private void CloseMenus(){foreach(int id in menus.Keys.ToArray())Close(id);}
     private void WriteStatus()
     {
-        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new {updatedAt=DateTimeOffset.UtcNow,version="0.4.17",reloadError,scan=new{running=scanTask is not null,error=scanError,milliseconds=scanMilliseconds,vpkReads=scanVpkReads},currentMap=CurrentMap,workshop=Workshop,idleRotationMinutes=settings.IdleRotationMinutes,rotateStartupMap=settings.RotateStartupMap,preparedStartupMap,startupRotationStatus,startupRotationPending=startupMapGate.Pending,catalog=maps.Count,available=maps.Count(Available),measured=maps.Count(MapPolicy.Measured),approved=maps.Count(MapPolicy.LimitsApproved),measurementOnly=settings.MeasurementOnly,limitReview=maps.OrderBy(m=>m.Name).Select(m=>new {m.Id,m.Name,m.InPool,m.Enabled,m.Removed,m.MinPlayers,m.MaxPlayers,m.ConfiguredMaxPlayers,m.TSpawns,m.CtSpawns,m.BombSites,m.Hostages,m.MeasuredAt,m.ProbeError,m.LimitProposal,approved=MapPolicy.LimitsApproved(m)}),activePool=maps.Count(m=>m.InPool&&m.Enabled&&!m.Removed),poolMessage,probeId,voteSeconds=settings.VoteSeconds,mapsToShow=settings.MapsToShow,transition=lastTransition});statusWriteFailed=false;}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new {updatedAt=DateTimeOffset.UtcNow,version="0.4.29",reloadError,lionfortCameraProtection=CameraProtectionReady(),scan=new{running=scanTask is not null,error=scanError,milliseconds=scanMilliseconds,vpkReads=scanVpkReads},currentMap=CurrentMap,workshop=Workshop,idleRotationMinutes=settings.IdleRotationMinutes,rotateStartupMap=settings.RotateStartupMap,preparedStartupMap,startupRotationStatus,startupRotationPending=startupMapGate.Pending,catalog=maps.Count,available=maps.Count(Available),measured=maps.Count(MapPolicy.Measured),approved=maps.Count(MapPolicy.LimitsApproved),measurementOnly=settings.MeasurementOnly,limitReview=maps.OrderBy(m=>m.Name).Select(m=>new {m.Id,m.Name,m.InPool,m.Enabled,m.Removed,m.MinPlayers,m.MaxPlayers,m.ConfiguredMaxPlayers,m.TSpawns,m.CtSpawns,m.BombSites,m.Hostages,m.MeasuredAt,m.ProbeError,m.LimitProposal,approved=MapPolicy.LimitsApproved(m)}),activePool=maps.Count(m=>m.InPool&&m.Enabled&&!m.Removed),poolMessage,extraMaps=extraMapFile?.Status,newMaps=NewMapStatus(),nominationState=NominationStatus(),probeId,voteSeconds=settings.VoteSeconds,mapsToShow=settings.MapsToShow,transition=lastTransition});statusWriteFailed=false;}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Maps: Statusdatei nicht schreibbar");statusWriteFailed=true;}
     }
     [Command("lplk_maps")]
-    public void Status(ICommandContext ctx){if(ctx.Sender is {} p)OpenAdmin(p);else{RefreshSettings();if(ctx.Args is ["parityprobe"]){ParityProbe(ctx);return;}WriteStatus();ctx.ReplyLplk($"LPLK_Maps 0.4.17: catalog={maps.Count}; available={maps.Count(Available)}; vote={voteEnds>0}; duration={settings.VoteSeconds}; candidates={settings.MapsToShow}; reloadError={reloadError??"none"}; {lastTransition}");}}
+    public void Status(ICommandContext ctx){if(ctx.Sender is {} p)OpenAdmin(p);else{RefreshSettings();if(ctx.Args is ["nominationcheck"]){ctx.ReplyLplk("LPLK_NOMINATION "+JsonSerializer.Serialize(NominationStatus()));return;}if(ctx.Args is ["nominationprobe",var step]){NominationReloadProbe(ctx,step);return;}if(ctx.Args is ["activationprobe"]){NewMapActivationProbe(ctx);return;}if(ctx.Args is ["poolcheck"]){ctx.ReplyLplk("LPLK_MAP_POOL "+JsonSerializer.Serialize(PoolReadout()));return;}if(ctx.Args is ["newmaps"]){ctx.ReplyLplk("LPLK_NEW_MAPS "+JsonSerializer.Serialize(NewMapStatus()));return;}if(ctx.Args is ["lionfort-block"]){ctx.ReplyLplk(BlockLionfort());return;}if(ctx.Args is ["lionfort-release"]){ctx.ReplyLplk(ReleaseLionfort());return;}if(ctx.Args is ["parityprobe"]){ParityProbe(ctx);return;}WriteStatus();ctx.ReplyLplk($"LPLK_Maps 0.4.29: catalog={maps.Count}; available={maps.Count(Available)}; vote={voteEnds>0}; duration={settings.VoteSeconds}; candidates={settings.MapsToShow}; reloadError={reloadError??"none"}; {lastTransition}");}}
     [Command("lplk_map")][CommandAlias("map")][CommandAlias("setmap")]
     public void ChangeCommand(ICommandContext ctx)
     {
         if(ctx.Sender is {} p&&!MayManage(p,s=>s.ChangeMapPermission)){ctx.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         if(ctx.Args.Length!=1){ctx.ReplyLplk("lplk_map <Map-ID>");return;}Scan();var map=MapPolicy.Resolve(maps.Where(Available),ctx.Args[0]);
-        if(map is null){ctx.ReplyLplk("[LPLK] Keine installierte, zulässige Map mit dieser ID.");return;}Schedule(map,settings.ChangeDelaySeconds);ctx.ReplyLplk("[LPLK] Mapwechsel angefordert: "+map.Id);
+        if(map is null){ctx.ReplyLplk("[LPLK] Keine installierte, zulässige Map mit dieser ID.");return;}Schedule(map,settings.ChangeDelaySeconds,actor:ctx.Sender,adminSource:"map_command");ctx.ReplyLplk("[LPLK] Mapwechsel angefordert: "+map.Id);
     }
 }
 

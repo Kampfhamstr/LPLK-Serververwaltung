@@ -17,6 +17,7 @@ $expectedProject = Join-Path $addonFolder ('Rohskripte/' + $pluginId + '.csproj'
 if (![string]::Equals($projectPath, [IO.Path]::GetFullPath($expectedProject), [StringComparison]::OrdinalIgnoreCase)) {
     throw 'Build projects from Addons/<Name>/Rohskripte/<Name>.csproj.'
 }
+& (Join-Path $PSScriptRoot 'Check-CommandRegistration.ps1') -Candidate $pluginId
 $lockPath = Join-Path $projectFolder 'packages.lock.json'
 $restoreArgs = @('restore',$projectPath,'--configfile',(Join-Path $workspace 'NuGet.Config'))
 if (Test-Path $lockPath) { $restoreArgs += '--locked-mode' } else { $restoreArgs += '--use-lock-file' }

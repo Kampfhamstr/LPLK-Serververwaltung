@@ -1,9 +1,5 @@
-**GitHub-Ausgabe 28.10.2026: 0.12.13.** [Pluginpaket](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/models-0.1.5-2026.10.28/LPLK_Economy.zip) · [Release und Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/models-0.1.5-2026.10.28). Modellmieten mit atomarer RAM-Abbuchung, Laufzeiten und Bankraub-/Lotto-/Kopfgeld-Freischaltungen. [Modell-Anleitung und offener Clientbefund](../LPLK_Models/README.md). Ältere Versionsangaben unten sind historische Stände.
+# LPLK_Economy 0.12.16
 
-Lokale Bank, Wetten, Lotto, Bankraub, Kopfgeld und Titel mit RAM-Buchungsschicht.
+Geprüftes Paket vom 19.11.2026: [Download](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Economy.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK-Plugins-Source.zip) · [Installation, Funktionen dieser Ausgabe und Prüfgrenzen](../../docs/RELEASE-20261119.md).
 
-[Fertiges Pluginpaket](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/LPLK_Economy.zip) · [Vollständige Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/LPLK-Plugins-Source.zip) · [Installation und Build](../../docs/INSTALLATION-ADDONS.md) · [Änderungen und Prüfstand](../../docs/RELEASE-20261026.md)
-
-Aktuelle Ausgabe vom 26.10.2026. Einstellungen und Daten sind nicht im ZIP enthalten; vorhandene Daten bei Updates erhalten. Das Paket enthält die für dieses Plugin vorgesehenen Ressourcen, Abhängigkeiten und Lizenzhinweise. Laufende Addondaten werden im RAM verarbeitet; reguläre Persistenz und Exporte erfolgen verzögert am Rundenende. Initialisierung/Entladen und native Enginezugriffe bleiben gesondert.
-
-Das Plugin entsprechend dem eigenen Serverprofil aktivieren. Die Anwesenheit in dieser Sammlung bedeutet nicht, dass es auf jedem Server installiert werden soll. Funktionen und Prüfgrenzen dieser Veröffentlichung stehen in den oben verlinkten Releasehinweisen. Lizenz-/Autorenhinweise unter `Rohskripte/` beziehungsweise im Pluginverzeichnis beachten.
+Einstellungen, Daten und Rechte bei Updates erhalten; Paket nur im passenden Serverprofil einsetzen. Lizenz- und Herkunftshinweise stehen bei dieser Komponente.

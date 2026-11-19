@@ -42,13 +42,13 @@ public sealed partial class Plugin
                 if(updated!=map||!next.ContainsKey(id)){next[id]=updated;changed=true;}
             }
             if(changed)SaveCatalog(next.Values.ToList());
-            installed=result.Installed;scanVpkReads=result.VpkReads;scanError=null;PrepareStartupMap();WriteStatus();
+            installed=result.Installed;scanVpkReads=result.VpkReads;scanError=null;TrackNewMapActivations();PrepareStartupMap();WriteStatus();
         }
         catch(Exception e){scanError=e.GetType().Name;Core.Logger.LogWarning(e,"LPLK_Maps: Hintergrundscan fehlgeschlagen; letzter Katalog bleibt erhalten.");}
         finally{if(scanAgain){scanAgain=false;StartScan(true);}}
     }
     private void SaveCatalog(List<MapEntry> next)
     {
-        MapPolicy.Validate(next);LPLK.Common.DeferredJson.Queue(MapsPath,next);maps=next;PrepareStartupMap();
+        MapPolicy.Validate(next);LPLK.Common.DeferredJson.Queue(MapsPath,next);maps=next;TrackNewMapActivations();PrepareStartupMap();
     }
 }

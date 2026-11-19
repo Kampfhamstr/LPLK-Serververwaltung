@@ -6,6 +6,7 @@ public sealed record TeamSettings
 {
     public bool Enabled { get; init; } // Actual Inner Circle configuration: disabled.
     public int BotFillSlots { get; init; } // Independent of team-switch protection; 0 disables management.
+    public bool TwoPlayerBotVoteEnabled { get; init; }
     public ulong[] ConfiguredSteamIds { get; init; } = [];
     public bool AutoDetectMaxRounds { get; init; } = true;
     public int FallbackMaxRounds { get; init; } = 20;

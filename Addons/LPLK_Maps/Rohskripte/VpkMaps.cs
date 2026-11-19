@@ -5,7 +5,7 @@ namespace LPLK_Maps;
 // Workshop packages can wrap a compiled map in maps/<name>.vpk; inspect the bounded directory only.
 public static class VpkMaps
 {
-    public static HashSet<string> Read(Stream stream)
+    public static HashSet<string> Read(Stream stream,Action<ushort,uint,uint>? archiveEntry=null)
     {
         using var reader=new BinaryReader(stream,Encoding.UTF8,true);
         if(reader.ReadUInt32()!=0x55aa1234)throw new InvalidDataException("VPK signature");
@@ -24,7 +24,8 @@ public static class VpkMaps
             for(string path=Token();path.Length>0;path=Token())
                 for(string name=Token();name.Length>0;name=Token())
                 {
-                    tree.ReadUInt32();ushort preload=tree.ReadUInt16();tree.ReadUInt16();tree.ReadUInt32();tree.ReadUInt32();
+                    tree.ReadUInt32();ushort preload=tree.ReadUInt16();ushort archive=tree.ReadUInt16();uint offset=tree.ReadUInt32(),size=tree.ReadUInt32();
+                    archiveEntry?.Invoke(archive,offset,size);
                     if(tree.ReadUInt16()!=0xffff)throw new InvalidDataException("VPK entry terminator");
                     if(tree.ReadBytes(preload).Length!=preload)throw new InvalidDataException("VPK preload truncated");
                     if(((extension=="vmap_c" && (path=="maps" || path.StartsWith("maps/",StringComparison.Ordinal))) || (extension=="vpk" && path=="maps")) && MapPolicy.SafeMapToken(name))maps.Add(name);

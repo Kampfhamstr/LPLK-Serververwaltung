@@ -10,6 +10,8 @@ public sealed record ParachuteSettings
     public float BrakePerTick { get; init; } = 15;
     public string UsePermission { get; init; } = "";
     public bool DisableWhenCarryingHostage { get; init; }
+    public bool BotsAutoDeploy { get; init; } = true;
+    public bool TakeoverRecovery { get; init; } = true;
 
     public static void Validate(ParachuteSettings value)
     {

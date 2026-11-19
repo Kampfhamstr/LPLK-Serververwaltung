@@ -80,7 +80,7 @@ public sealed partial class Plugin
         {
             var legal=Eligible().ToDictionary(m=>m.Id);var choice=directVotes.Values.Where(legal.ContainsKey).GroupBy(x=>x).OrderByDescending(g=>g.Count()).FirstOrDefault();
             if(choice is not null&&choice.Count()>=MapPolicy.RequiredRtv(ids.Count,settings.DirectVotemapPercent))
-            {nextMap=legal[choice.Key];directVotes.Clear();if(settings.DirectVotemapAtRoundEnd)changeAtRoundEnd=true;else Schedule(nextMap,settings.ChangeDelaySeconds);}
+            {nextMap=legal[choice.Key];AuditDirectResult(nextMap,MapPolicy.RequiredRtv(ids.Count,settings.DirectVotemapPercent),ids,legal);directVotes.Clear();if(settings.DirectVotemapAtRoundEnd)changeAtRoundEnd=true;else Schedule(nextMap,settings.ChangeDelaySeconds);}
         }
         if(settings.EndOfMapVote&&!warmup&&RemainingSeconds() is {} seconds)
         {
@@ -98,10 +98,11 @@ public sealed partial class Plugin
         }
         return pool;
     }
-    private void Categories(IPlayer p,string title,Func<List<MapEntry>> choices,Action<IPlayer,MapEntry> action,Func<IPlayer,bool> allowed)
+    private void Categories(IPlayer p,string title,Func<List<MapEntry>> choices,Action<IPlayer,MapEntry> action,Func<IPlayer,bool> allowed,bool newFirst=false)
     {
         if(!allowed(p))return;
-        if(!settings.CategorizedMenus){Selection(p,title,choices(),(a,m)=>{if(allowed(a))action(a,m);});return;}
+        var available=choices();var now=DateTimeOffset.UtcNow;
+        if(!settings.CategorizedMenus||newFirst&&available.Any(m=>newMapMarkers.IsNew(m.Id,now))){Selection(p,title,newFirst?newMapMarkers.OrderNominations(available,now):available,(a,m)=>{if(allowed(a))action(a,m);});return;}
         int serial=generation;
         CompactMenu.Open(Core,p,title,()=>module.Active&&serial==generation,allowed,a=>Enum.GetValues<MapCategory>().Where(c=>choices().Any(m=>MapPolicy.Category(m)==c)).Select(c=>(MapPolicy.CategoryName(c),(Action<IPlayer>)(b=>Selection(b,title+" · "+MapPolicy.CategoryName(c),choices().Where(m=>MapPolicy.Category(m)==c).ToList(),(actor,m)=>{if(allowed(actor))action(actor,m);},back:actor=>Categories(actor,title,choices,action,allowed))))).ToArray(),a=>a.ExecuteCommand("sw_menu"));
     }
@@ -136,7 +137,7 @@ public sealed partial class Plugin
         if(!settings.DirectVotemapEnabled||!GameplayAvailable||!CanVote(p)||voteEnds>0||nextMap is not null||!Eligible().Any(m=>m.Id==selected.Id))return;
         bool changed=directVotes.TryGetValue(p.SteamID,out var previous);
         if(previous==selected.Id){p.SendLplkChat($"[LPLK] Deine Stimme für {selected.Name} ist bereits gespeichert.");Close(p.PlayerID);return;}
-        directVotes[p.SteamID]=selected.Id;Close(p.PlayerID);
+        directVotes[p.SteamID]=selected.Id;Audit("direct_ballot",new VoteCastData(Actor(p),selected.Id,selected.Name,previous));Close(p.PlayerID);
         if(changed)Core.PlayerManager.SendLplkChat($"[LPLK] {p.Name} ändert seine Stimme auf {selected.Name} ({directVotes.Values.Count(v=>v==selected.Id)}/{MapPolicy.RequiredRtv(Voters().Count,settings.DirectVotemapPercent)} Stimmen).");
         else Core.PlayerManager.SendLplkChat($"[LPLK] {p.Name} stimmt für {selected.Name} ({directVotes.Values.Count(v=>v==selected.Id)}/{MapPolicy.RequiredRtv(Voters().Count,settings.DirectVotemapPercent)} Stimmen).");
     }
@@ -160,7 +161,7 @@ public sealed partial class Plugin
         if(!GameplayAvailable){ctx.ReplyLplk("[LPLK] Mapwahl derzeit nicht aktiv.");return;}
         var map=MapPolicy.Resolve(maps.Where(m=>Available(m)&&m.Enabled&&m.InPool),string.Join(" ",ctx.Args));
         if(map is null){ctx.ReplyLplk("[LPLK] setnextmap <eindeutige Map oder ID>");return;}
-        CancelVote();nextMap=map;endVoteStarted=true;ctx.ReplyLplk("[LPLK] Nächste Map: "+map.Name);
+        Audit("admin_next_map",new {actor=Actor(ctx.Sender),mapId=map.Id,mapName=map.Name});CancelVote();nextMap=map;endVoteStarted=true;ctx.ReplyLplk("[LPLK] Nächste Map: "+map.Name);
     }
     [Command("mapsvote")]
     public void AdminMapsVote(ICommandContext ctx)
@@ -181,7 +182,7 @@ public sealed partial class Plugin
     private bool StartSelectedVote(IPlayer player,IReadOnlySet<string> selected)
     {
         if(!MayManage(player,s=>s.MapsVotePermission)||selected.Count==0)return false;
-        return BeginVote(Reason.Admin,selected);
+        return BeginVote(Reason.Admin,selected,player);
     }
     [Command("cyclemenu")][CommandAlias("mapcycle")]
     public void CycleMenu(ICommandContext ctx)
@@ -229,7 +230,7 @@ public sealed partial class Plugin
         bool changed=ballots.TryGetValue(actor.SteamID,out var previous);
         string choice=map.Id==ExtendChoice?"die Verlängerung der aktuellen Map":map.Name;
         if(previous==map.Id){actor.SendLplkChat($"[LPLK] Deine Stimme für {choice} ist bereits gespeichert.");Close(actor.PlayerID);return;}
-        ballots[actor.SteamID]=map.Id;
+        ballots[actor.SteamID]=map.Id;AuditBallot(actor,map,previous);
         int votes=ballots.Values.Count(v=>v==map.Id);
         Core.PlayerManager.SendChat($"[blue]{ChatTheme.Plain(actor.Name)}[yellow] {(changed?"ändert seine Stimme auf":"stimmt für")} [blue]{ChatTheme.Plain(choice)}[yellow] ({votes}).[default]");
         Close(actor.PlayerID);

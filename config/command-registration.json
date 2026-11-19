@@ -1,0 +1,655 @@
+{
+  "schema": 1,
+  "verifiedProfilesAt": "2026-10-31",
+  "profiles": [
+    {
+      "server": "153ae3e6",
+      "components": [
+        "AddonsManager",
+        "LPLK_Admin",
+        "LPLK_AntiCamp",
+        "LPLK_AntiTeamFlash",
+        "LPLK_BombWires",
+        "LPLK_ChatGuard",
+        "LPLK_CombatRules",
+        "LPLK_Demos",
+        "LPLK_Economy",
+        "LPLK_Maps",
+        "LPLK_Models",
+        "LPLK_Parachute",
+        "LPLK_Sounds",
+        "LPLK_Statistics",
+        "LPLK_Teams",
+        "LPLK_Weapons",
+        "LPLK_Workshop",
+        "SerververwaltungBridge"
+      ]
+    },
+    {
+      "server": "8528b30f",
+      "components": [
+        "AddonsManager",
+        "LPLK_Admin",
+        "LPLK_AntiCamp",
+        "LPLK_AntiTeamFlash",
+        "LPLK_BombWires",
+        "LPLK_ChatGuard",
+        "LPLK_CombatRules",
+        "LPLK_Demos",
+        "LPLK_Economy",
+        "LPLK_Fluch",
+        "LPLK_Maps",
+        "LPLK_Models",
+        "LPLK_NadeEffects",
+        "LPLK_Parachute",
+        "LPLK_Sounds",
+        "LPLK_Statistics",
+        "LPLK_Teams",
+        "LPLK_ThirdPerson",
+        "LPLK_Weapons",
+        "LPLK_Whitelist",
+        "LPLK_Workshop",
+        "SerververwaltungBridge"
+      ]
+    },
+    {
+      "server": "3a587f9e",
+      "components": [
+        "AddonsManager",
+        "LPLK_Admin",
+        "LPLK_AntiCamp",
+        "LPLK_ChatGuard",
+        "LPLK_CombatRules",
+        "LPLK_Demos",
+        "LPLK_Economy",
+        "LPLK_Maps",
+        "LPLK_Parachute",
+        "LPLK_Sounds",
+        "LPLK_Statistics",
+        "LPLK_ThirdPerson",
+        "LPLK_Weapons",
+        "LPLK_Workshop",
+        "SerververwaltungBridge"
+      ]
+    },
+    {
+      "server": "cc75df67",
+      "components": [
+        "AddonsManager",
+        "LPLK_Admin",
+        "LPLK_AntiCamp",
+        "LPLK_ChatGuard",
+        "LPLK_CombatRules",
+        "LPLK_Demos",
+        "LPLK_Economy",
+        "LPLK_Maps",
+        "LPLK_Sounds",
+        "LPLK_Statistics",
+        "LPLK_Weapons",
+        "LPLK_Workshop",
+        "SerververwaltungBridge"
+      ]
+    },
+    {
+      "server": "f222196f",
+      "components": [
+        "AddonsManager",
+        "LPLK_Admin",
+        "LPLK_ChatGuard",
+        "LPLK_Demos",
+        "LPLK_Surf",
+        "LPLK_Workshop",
+        "SerververwaltungBridge"
+      ]
+    },
+    {
+      "server": "ceda276a",
+      "components": [
+        "AddonsManager",
+        "LPLK_Admin",
+        "LPLK_ChatGuard",
+        "LPLK_CombatRules",
+        "LPLK_Demos",
+        "LPLK_Maps",
+        "LPLK_Parachute",
+        "LPLK_Statistics",
+        "LPLK_Weapons",
+        "LPLK_Workshop",
+        "LPLK_Zombie",
+        "SerververwaltungBridge"
+      ]
+    },
+    {
+      "server": "89450e53",
+      "components": [
+        "AddonsManager",
+        "LPLK_Admin",
+        "LPLK_AntiCamp",
+        "LPLK_AntiTeamFlash",
+        "LPLK_BombWires",
+        "LPLK_ChatGuard",
+        "LPLK_CombatRules",
+        "LPLK_Demos",
+        "LPLK_Economy",
+        "LPLK_Fluch",
+        "LPLK_Maps",
+        "LPLK_Models",
+        "LPLK_NadeEffects",
+        "LPLK_Parachute",
+        "LPLK_Sounds",
+        "LPLK_Statistics",
+        "LPLK_Teams",
+        "LPLK_ThirdPerson",
+        "LPLK_Weapons",
+        "LPLK_Whitelist",
+        "LPLK_Workshop",
+        "SerververwaltungBridge"
+      ]
+    }
+  ],
+  "aliases": [
+    {
+      "server": "153ae3e6",
+      "file": "data/LPLK_Admin/settings.json",
+      "names": {
+        "Commands.AdminMenu": [
+          "admin",
+          "hsadmin"
+        ],
+        "Commands.Asay": [
+          "asay"
+        ],
+        "Commands.Say": [
+          "say"
+        ],
+        "Commands.Psay": [
+          "psay"
+        ],
+        "Commands.Csay": [
+          "csay"
+        ],
+        "Commands.Hsay": [
+          "hsay"
+        ],
+        "Commands.AddAdmin": [
+          "addadmin"
+        ],
+        "Commands.RemoveAdmin": [
+          "removeadmin"
+        ],
+        "Commands.ListAdmins": [
+          "listadmins",
+          "admins"
+        ],
+        "Commands.Ban": [
+          "ban"
+        ],
+        "Commands.AddBan": [
+          "addban"
+        ],
+        "Commands.Unban": [
+          "unban"
+        ],
+        "Commands.Kick": [
+          "kick"
+        ],
+        "Commands.Gag": [
+          "gag"
+        ],
+        "Commands.Ungag": [
+          "ungag"
+        ],
+        "Commands.Mute": [
+          "mute"
+        ],
+        "Commands.Unmute": [
+          "unmute"
+        ],
+        "Commands.Silence": [
+          "silence"
+        ],
+        "Commands.Unsilence": [
+          "unsilence"
+        ],
+        "Commands.Slay": [
+          "slay"
+        ],
+        "Commands.Respawn": [
+          "respawn",
+          "1up"
+        ],
+        "Commands.ChangeTeam": [
+          "team"
+        ],
+        "Commands.NoClip": [
+          "noclip"
+        ],
+        "Commands.Goto": [
+          "goto"
+        ],
+        "Commands.Bring": [
+          "bring"
+        ],
+        "Commands.Freeze": [
+          "freeze"
+        ],
+        "Commands.Unfreeze": [
+          "unfreeze"
+        ],
+        "Commands.ChangeMap": [
+          "map"
+        ],
+        "Commands.ChangeWSMap": [
+          "wsmap"
+        ],
+        "Commands.RestartGame": [
+          "rr",
+          "restart"
+        ],
+        "Commands.Rcon": [
+          "rcon"
+        ],
+        "Commands.Cvar": [
+          "cvar"
+        ],
+        "Commands.ListPlayers": [
+          "players",
+          "list"
+        ],
+        "Commands.Who": [
+          "who"
+        ]
+      }
+    },
+    {
+      "server": "8528b30f",
+      "file": "configs/plugins/LPLK_Whitelist/config.jsonc",
+      "names": {}
+    },
+    {
+      "server": "8528b30f",
+      "file": "data/LPLK_Admin/settings.json",
+      "names": {
+        "Commands.AdminMenu": [
+          "admin",
+          "hsadmin"
+        ],
+        "Commands.Asay": [
+          "asay"
+        ],
+        "Commands.Say": [
+          "say"
+        ],
+        "Commands.Psay": [
+          "psay"
+        ],
+        "Commands.Csay": [
+          "csay"
+        ],
+        "Commands.Hsay": [
+          "hsay"
+        ],
+        "Commands.AddAdmin": [
+          "addadmin"
+        ],
+        "Commands.RemoveAdmin": [
+          "removeadmin"
+        ],
+        "Commands.ListAdmins": [
+          "listadmins",
+          "admins"
+        ],
+        "Commands.Ban": [
+          "ban"
+        ],
+        "Commands.AddBan": [
+          "addban"
+        ],
+        "Commands.Unban": [
+          "unban"
+        ],
+        "Commands.Kick": [
+          "kick"
+        ],
+        "Commands.Gag": [
+          "gag"
+        ],
+        "Commands.Ungag": [
+          "ungag"
+        ],
+        "Commands.Mute": [
+          "mute"
+        ],
+        "Commands.Unmute": [
+          "unmute"
+        ],
+        "Commands.Silence": [
+          "silence"
+        ],
+        "Commands.Unsilence": [
+          "unsilence"
+        ],
+        "Commands.Slay": [
+          "slay"
+        ],
+        "Commands.Respawn": [
+          "respawn",
+          "1up"
+        ],
+        "Commands.ChangeTeam": [
+          "team"
+        ],
+        "Commands.NoClip": [
+          "noclip"
+        ],
+        "Commands.Goto": [
+          "goto"
+        ],
+        "Commands.Bring": [
+          "bring"
+        ],
+        "Commands.Freeze": [
+          "freeze"
+        ],
+        "Commands.Unfreeze": [
+          "unfreeze"
+        ],
+        "Commands.ChangeMap": [
+          "map"
+        ],
+        "Commands.ChangeWSMap": [
+          "wsmap"
+        ],
+        "Commands.RestartGame": [
+          "rr",
+          "restart"
+        ],
+        "Commands.Rcon": [
+          "rcon"
+        ],
+        "Commands.Cvar": [
+          "cvar"
+        ],
+        "Commands.ListPlayers": [
+          "players",
+          "list"
+        ],
+        "Commands.Who": [
+          "who"
+        ]
+      }
+    },
+    {
+      "server": "8528b30f",
+      "file": "data/LPLK_ThirdPerson/settings.json",
+      "names": {
+        "CustomTPCommand": "tp"
+      }
+    },
+    {
+      "server": "3a587f9e",
+      "file": "data/LPLK_Admin/settings.json",
+      "names": {
+        "Commands.AdminMenu": [
+          "admin",
+          "hsadmin"
+        ],
+        "Commands.Asay": [
+          "asay"
+        ],
+        "Commands.Say": [
+          "say"
+        ],
+        "Commands.Psay": [
+          "psay"
+        ],
+        "Commands.Csay": [
+          "csay"
+        ],
+        "Commands.Hsay": [
+          "hsay"
+        ],
+        "Commands.AddAdmin": [
+          "addadmin"
+        ],
+        "Commands.RemoveAdmin": [
+          "removeadmin"
+        ],
+        "Commands.ListAdmins": [
+          "listadmins",
+          "admins"
+        ],
+        "Commands.Ban": [
+          "ban"
+        ],
+        "Commands.AddBan": [
+          "addban"
+        ],
+        "Commands.Unban": [
+          "unban"
+        ],
+        "Commands.Kick": [
+          "kick"
+        ],
+        "Commands.Gag": [
+          "gag"
+        ],
+        "Commands.Ungag": [
+          "ungag"
+        ],
+        "Commands.Mute": [
+          "mute"
+        ],
+        "Commands.Unmute": [
+          "unmute"
+        ],
+        "Commands.Silence": [
+          "silence"
+        ],
+        "Commands.Unsilence": [
+          "unsilence"
+        ],
+        "Commands.Slay": [
+          "slay"
+        ],
+        "Commands.Respawn": [
+          "respawn",
+          "1up"
+        ],
+        "Commands.ChangeTeam": [
+          "team"
+        ],
+        "Commands.NoClip": [
+          "noclip"
+        ],
+        "Commands.Goto": [
+          "goto"
+        ],
+        "Commands.Bring": [
+          "bring"
+        ],
+        "Commands.Freeze": [
+          "freeze"
+        ],
+        "Commands.Unfreeze": [
+          "unfreeze"
+        ],
+        "Commands.ChangeMap": [
+          "map"
+        ],
+        "Commands.ChangeWSMap": [
+          "wsmap"
+        ],
+        "Commands.RestartGame": [
+          "rr",
+          "restart"
+        ],
+        "Commands.Rcon": [
+          "rcon"
+        ],
+        "Commands.Cvar": [
+          "cvar"
+        ],
+        "Commands.ListPlayers": [
+          "players",
+          "list"
+        ],
+        "Commands.Who": [
+          "who"
+        ]
+      }
+    },
+    {
+      "server": "3a587f9e",
+      "file": "data/LPLK_ThirdPerson/settings.json",
+      "names": {
+        "CustomTPCommand": "tp"
+      }
+    },
+    {
+      "server": "cc75df67",
+      "file": "data/LPLK_Admin/settings.json",
+      "names": {
+        "Commands.AdminMenu": [
+          "hsadmin"
+        ]
+      }
+    },
+    {
+      "server": "f222196f",
+      "file": "data/LPLK_Admin/settings.json",
+      "names": {}
+    },
+    {
+      "server": "ceda276a",
+      "file": "data/LPLK_Admin/settings.json",
+      "names": {
+        "Commands.AdminMenu": [
+          "admin",
+          "hsadmin"
+        ],
+        "Commands.Asay": [
+          "asay"
+        ],
+        "Commands.Say": [
+          "say"
+        ],
+        "Commands.Psay": [
+          "psay"
+        ],
+        "Commands.Csay": [
+          "csay"
+        ],
+        "Commands.Hsay": [
+          "hsay"
+        ],
+        "Commands.AddAdmin": [
+          "addadmin"
+        ],
+        "Commands.RemoveAdmin": [
+          "removeadmin"
+        ],
+        "Commands.ListAdmins": [
+          "listadmins",
+          "admins"
+        ],
+        "Commands.Ban": [
+          "ban"
+        ],
+        "Commands.AddBan": [
+          "addban"
+        ],
+        "Commands.Unban": [
+          "unban"
+        ],
+        "Commands.Kick": [
+          "kick"
+        ],
+        "Commands.Gag": [
+          "gag"
+        ],
+        "Commands.Ungag": [
+          "ungag"
+        ],
+        "Commands.Mute": [
+          "mute"
+        ],
+        "Commands.Unmute": [
+          "unmute"
+        ],
+        "Commands.Silence": [
+          "silence"
+        ],
+        "Commands.Unsilence": [
+          "unsilence"
+        ],
+        "Commands.Slay": [
+          "slay"
+        ],
+        "Commands.Respawn": [
+          "respawn",
+          "1up"
+        ],
+        "Commands.ChangeTeam": [
+          "team"
+        ],
+        "Commands.NoClip": [
+          "noclip"
+        ],
+        "Commands.Goto": [
+          "goto"
+        ],
+        "Commands.Bring": [
+          "bring"
+        ],
+        "Commands.Freeze": [
+          "freeze"
+        ],
+        "Commands.Unfreeze": [
+          "unfreeze"
+        ],
+        "Commands.ChangeMap": [
+          "map"
+        ],
+        "Commands.ChangeWSMap": [
+          "wsmap"
+        ],
+        "Commands.RestartGame": [
+          "rr",
+          "restart"
+        ],
+        "Commands.Rcon": [
+          "rcon"
+        ],
+        "Commands.Cvar": [
+          "cvar"
+        ],
+        "Commands.ListPlayers": [
+          "players",
+          "list"
+        ],
+        "Commands.Who": [
+          "who"
+        ]
+      }
+    },
+    {
+      "server": "89450e53",
+      "file": "configs/plugins/LPLK_Whitelist/config.jsonc",
+      "names": {
+        "Whitelist.AddCommand": "wl",
+        "Whitelist.RemoveCommand": "uwl"
+      }
+    },
+    {
+      "server": "89450e53",
+      "file": "data/LPLK_Admin/settings.json",
+      "names": {}
+    },
+    {
+      "server": "89450e53",
+      "file": "data/LPLK_ThirdPerson/settings.json",
+      "names": {}
+    }
+  ]
+}

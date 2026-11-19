@@ -78,6 +78,7 @@ public sealed class MenuWorld
         {
             if (m.Name == "get_Logger") return new ErrorLogger(Errors);
             if (m.Name == "get_PluginDataDirectory") return DataDirectory;
+            if (m.Name == "get_PluginPath") return DataDirectory;
             if (m.Name == "get_GameFilesDirectory") return DataDirectory;
             if (!services.TryGetValue(m.ReturnType, out var service)) services[m.ReturnType] = service = Proxy.Make(m.ReturnType, Service);
             return service;
@@ -89,6 +90,7 @@ public sealed class MenuWorld
         if(ServiceOverride?.Invoke(m,a) is {Handled:true} result)return result.Value;
         switch (m.Name)
         {
+            case "GetConfigPath": return Path.Combine(DataDirectory,"configs",(string)a![0]!);
             case "GetGameRules": EntityAccesses++;if(RejectEntityAccess)throw new InvalidOperationException("Entity system not ready");return null;
             case "ExecuteCommand": Commands.Add((string)a![0]!);return null;
             case "GetAllPlugins": return Plugins.ToList();

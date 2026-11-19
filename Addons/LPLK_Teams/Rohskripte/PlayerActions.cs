@@ -7,14 +7,14 @@ public sealed partial class Plugin
         var result=new Dictionary<string,Action<IPlayer>>();
         if(!Effective||!CanUseSelection(actor)||!IsHuman(target)||!CanTarget(actor.SteamID,target.SteamID))return result;
         var identity=Key(target);ulong id=target.SteamID;
-        result["Verliererteam"]=a=>
+        result["jakob1933-Schutz"]=a=>
         {
             var current=Core.PlayerManager.GetPlayer(identity.Slot);
             if(!Effective||!CanUseSelection(a)||!IsHuman(current)||Key(current!)!=identity||!CanTarget(a.SteamID,id))return;
             if(HasSelection(id))
             {
                 if(selected.TryGetValue(id,out var owner)&&owner!=a.SteamID&&!CanTarget(a.SteamID,owner)){a.SendLplkChat("[LPLK] Auswahl eines gleich/höher berechtigten Admins.");return;}
-                SaveSelection(id,null);a.SendLplkChat("[LPLK] Verliererteam-Zuordnung aufgehoben.");
+                SaveSelection(id,null);a.SendLplkChat("[LPLK] jakob1933-Schutz für diesen Spieler aufgehoben.");
             }
             else ConfirmSelection(a,id,identity,0);
         };

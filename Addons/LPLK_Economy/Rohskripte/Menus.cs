@@ -67,7 +67,7 @@ public sealed partial class Plugin
     {
         string id=NewId();long period=bank!.Period;Confirm(p,$"{amount} $ an {name}",a=>Transfer(a,target,amount,id,period),Targets);
     }
-    [Command("help")][CommandAlias("bbhelp")][CommandAlias("betbankhelp")][CommandAlias("help",registerRaw:true)][CommandAlias("bbhelp",registerRaw:true)][CommandAlias("betbankhelp",registerRaw:true)]
+    [Command("help")][CommandAlias("bbhelp")][CommandAlias("betbankhelp")][CommandAlias("bbhelp",registerRaw:true)][CommandAlias("betbankhelp",registerRaw:true)]
     public void HelpCommand(ICommandContext ctx){if(ctx.Sender is {} p)Guard(p,()=>Help(p));else ctx.ReplyLplk("Bankhilfe im Spiel: !help / !bbhelp / !betbankhelp.");}
     private void HelpLine(IPlayer p,bool enabled,string message)
     {

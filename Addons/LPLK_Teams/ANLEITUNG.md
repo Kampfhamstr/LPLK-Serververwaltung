@@ -1,11 +1,5 @@
-# LPLK_Teams 0.2.12
+# LPLK_Teams 0.2.15
 
-Teamwechselregeln und korrigierte Botfüllung: nur Menschen in T/CT, SourceTV geschützt.
+Geprüftes Paket vom 19.11.2026: [Download](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Teams.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK-Plugins-Source.zip) · [Installation, Funktionen dieser Ausgabe und Prüfgrenzen](../../docs/RELEASE-20261119.md).
 
-[Fertiges Pluginpaket](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/LPLK_Teams.zip) · [Vollständige Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.10.26-current/LPLK-Plugins-Source.zip) · [Installation und Build](../../docs/INSTALLATION-ADDONS.md) · [Änderungen und Prüfstand](../../docs/RELEASE-20261026.md)
-
-Aktuelle Ausgabe vom 26.10.2026. Einstellungen und Daten sind nicht im ZIP enthalten; vorhandene Daten bei Updates erhalten. Das Paket enthält die für dieses Plugin vorgesehenen Ressourcen, Abhängigkeiten und Lizenzhinweise. Laufende Addondaten werden im RAM verarbeitet; reguläre Persistenz und Exporte erfolgen verzögert am Rundenende. Initialisierung/Entladen und native Enginezugriffe bleiben gesondert.
-
-Das Plugin entsprechend dem eigenen Serverprofil aktivieren. Die Anwesenheit in dieser Sammlung bedeutet nicht, dass es auf jedem Server installiert werden soll. Funktionen und Prüfgrenzen dieser Veröffentlichung stehen in den oben verlinkten Releasehinweisen. Lizenz-/Autorenhinweise unter `Rohskripte/` beziehungsweise im Pluginverzeichnis beachten.
-
-BotFillSlots=4 ergänzt Menschen in T/CT auf vier Teilnehmer. Zuschauer/SourceTV zählen nicht; die tatsächliche Botanzahl wird jede Sekunde ohne Dateizugriff abgeglichen. Überzählige Spielbots werden einzeln entfernt, bevorzugt tote.
+Einstellungen, Daten und Rechte bei Updates erhalten; Paket nur im passenden Serverprofil einsetzen. Lizenz- und Herkunftshinweise stehen bei dieser Komponente.

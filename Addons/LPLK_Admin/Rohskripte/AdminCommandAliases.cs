@@ -18,7 +18,7 @@ public static class AdminCommandNames
         ["RestartGame"]=["rr","restart"],["Rcon"]=["rcon"],["Cvar"]=["cvar"],["ListPlayers"]=["players","list"],["Who"]=["who"],
         ["Health"]=["health"],["Armor"]=["armor"],
         ["AddAdmin"]=["addadmin"],["RemoveAdmin"]=["removeadmin"],["ListAdmins"]=["listadmins","admins"],
-        ["ChangeMap"]=["map"],["ChangeWSMap"]=["wsmap"]
+        ["ChangeMap"]=["admin_map"],["ChangeWSMap"]=["wsmap"]
     };
     // These belong to the map service or the existing central role management.
     public static readonly string[] Unsupported=[];
@@ -94,18 +94,11 @@ public sealed partial class Plugin
         try{Core.Command.UnregisterCommand(entry.Id);return true;}
         catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Admin: Alter Befehlsname ist gesperrt, konnte aber noch nicht entfernt werden.");return false;}
     }
-    private bool CommandNameOccupied(string name)
-    {
-        if(!Core.Command.IsCommandRegistered(name))return false;
-        // Native lookup also resolves "admin" to "sw_admin". Only our own
-        // attributed counterpart may explain this fallback; exact registrations
-        // and names owned by another plugin remain protected.
-        if(name.StartsWith("sw_",StringComparison.Ordinal)||!fixedCommandNames.Contains("sw_"+name))return true;
-        string Exact(CommandInfo info)=>info.RegisterRaw?info.CommandName:"sw_"+info.CommandName;
-        if(Core.Command.GetAllCommandsInfo().Any(c=>Exact(c).Equals(name,StringComparison.OrdinalIgnoreCase)))return true;
-        string primary=name switch{"adminmenu"=>"admin","addban"=>"ban","1up"=>"respawn","restart"=>"rr","list"=>"players","admins"=>"listadmins",_=>name};
-        return !Core.Command.GetCommandsByPlugin("LPLK_Admin").Any(c=>!c.RegisterRaw&&c.CommandName.Equals(primary,StringComparison.OrdinalIgnoreCase));
-    }
+    // A matching prefixed plugin command does not prove that the bare engine
+    // name is free. Never override a positive native occupancy result.
+    // sw_map belongs to Maps even when that plugin has not loaded yet. Native
+    // discovery alone is insufficient for configured aliases during cold start.
+    private bool CommandNameOccupied(string name)=>name is "help" or "addons" or "stats" or "say" or "say_team" or "kick" or "noclip" or "rcon" or "map" or "restart" or "quit" or "exit" or "status" or "exec" or "changelevel" or "host_workshop_map" or "sw_map" || Core.Command.IsCommandRegistered(name);
     private void ReconcileAdminCommands()
     {
         if(!active)return;
@@ -156,7 +149,30 @@ public sealed partial class Plugin
         if(!active)return;
         if(c.Sender is {} p&&!CanManage(p)){c.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         ReloadSettings();
-        c.ReplyLplk("LPLK_Admin commands: "+JsonSerializer.Serialize(new{version="0.11.5",registered=aliasRegistrations.Keys.Order().ToArray(),
+        c.ReplyLplk("LPLK_Admin commands: "+JsonSerializer.Serialize(new{version="0.11.10",registered=aliasRegistrations.Keys.Order().ToArray(),
             unsupported=settings.Commands.Keys.Where(k=>AdminCommandNames.Unsupported.Contains(k,StringComparer.OrdinalIgnoreCase)).Order().ToArray(),commandError,reloadError=settingsError}));
+    }
+
+    [Command("lplk_command_audit")]
+    public void CommandAudit(ICommandContext c)
+    {
+        // Read-only server-console diagnostic: names and owners, no handlers,
+        // configuration values, permissions, player data or game actions.
+        if(c.Sender is not null){c.ReplyLplk("[LPLK] Nur über die Serverkonsole.");return;}
+        var groups=Core.Command.GetAllCommandsByPlugin();
+        var entries=groups.OrderBy(x=>x.Key).SelectMany(group=>group.Value.Select(info=>new{
+            plugin=group.Key,name=info.CommandName,raw=info.RegisterRaw,
+            effective=info.RegisterRaw||info.CommandName.StartsWith("sw_",StringComparison.Ordinal)?info.CommandName:"sw_"+info.CommandName
+        })).ToArray();
+        var collisions=entries.GroupBy(x=>x.effective,StringComparer.OrdinalIgnoreCase)
+            .Where(g=>g.Select(x=>x.plugin).Distinct(StringComparer.OrdinalIgnoreCase).Count()>1)
+            .Select(g=>new{name=g.Key,owners=g.Select(x=>x.plugin).Distinct().Order().ToArray()}).ToArray();
+        // CS2 truncates individual console messages near 2048 bytes. Each
+        // numbered chunk stays well below that limit; consumers require all.
+        string run=Guid.NewGuid().ToString("N");var chunks=entries.Chunk(8).ToArray();
+        for(int index=0;index<chunks.Length;index++)
+            c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version="0.11.10",run,index,total=chunks.Length+1,entries=chunks[index]}));
+        c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version="0.11.10",run,index=chunks.Length,total=chunks.Length+1,
+            entries=Array.Empty<object>(),collisions,entryCount=entries.Length,exactCount=Core.Command.GetAllCommands().Count}));
     }
 }

@@ -9,7 +9,7 @@ public sealed partial class Plugin
     private void SettingsMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
-        ($"Aktiv: {settings.Enabled}",a=>{Apply(s=>s with{Enabled=!s.Enabled},a);SettingsMenu(a);}),        ($"Geiselsperre: {settings.DisableWhenCarryingHostage}",a=>{Apply(s=>s with{DisableWhenCarryingHostage=!s.DisableWhenCarryingHostage},a);SettingsMenu(a);}),        ("Berechtigung",a=>a.SendLplkChat("[LPLK] Benötigtes Nutzungsrecht: "+(settings.UsePermission.Length==0?"keines":settings.UsePermission)+" (UsePermission in settings.json)."))
+        ($"Bots automatisch: {settings.BotsAutoDeploy}",a=>{Apply(s=>s with{BotsAutoDeploy=!s.BotsAutoDeploy},a);SettingsMenu(a);}), ($"Botübernahme prüfen: {settings.TakeoverRecovery}",a=>{Apply(s=>s with{TakeoverRecovery=!s.TakeoverRecovery},a);SettingsMenu(a);}), ($"Aktiv: {settings.Enabled}",a=>{Apply(s=>s with{Enabled=!s.Enabled},a);SettingsMenu(a);}),        ($"Geiselsperre: {settings.DisableWhenCarryingHostage}",a=>{Apply(s=>s with{DisableWhenCarryingHostage=!s.DisableWhenCarryingHostage},a);SettingsMenu(a);}),        ("Berechtigung",a=>a.SendLplkChat("[LPLK] Benötigtes Nutzungsrecht: "+(settings.UsePermission.Length==0?"keines":settings.UsePermission)+" (UsePermission in settings.json)."))
     }))(p);
     private void MovementMenu(IPlayer p) => OpenAdmin(p);
     private IReadOnlyList<(string,Action<IPlayer>)> MovementMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]

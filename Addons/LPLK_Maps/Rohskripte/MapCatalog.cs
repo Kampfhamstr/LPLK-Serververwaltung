@@ -25,7 +25,7 @@ public sealed partial class Plugin
     private string ConfigPath=>Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"addons","swiftlys2","configs","plugins","LPLK_Maps","config.jsonc");
     private string CollectionPath=>Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"workshop-cache.json");
     private string WorkshopRoot=>settings.WorkshopPath.Length>0?settings.WorkshopPath:Path.GetFullPath(Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"..","bin","linuxsteamrt64","steamapps","workshop","content","730"));
-    private bool Available(MapEntry m)=>m.IsMap&&!m.Removed&&(!settings.BuiltinMapsOnly||!m.Workshop)&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&
+    private bool Available(MapEntry m)=>CameraMapReady(m)&&m.IsMap&&!m.Removed&&(!settings.BuiltinMapsOnly||!m.Workshop)&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&
         (installed.Contains(m.Id)||(!settings.RequireVpkFile&&m.RemoteMapVerified));
     private bool Votable(MapEntry m)=>Available(m)&&MapPolicy.LimitsUsable(m,settings);
     private bool AnyHuman()=>Core.PlayerManager.GetAllPlayers().Any(p=>p.IsValid&&!p.IsFakeClient);
@@ -41,7 +41,7 @@ public sealed partial class Plugin
     private void ActivateConfiguration(MapSettings next,bool resetVotes)
     {
         if(MapSettingsFile.Equivalent(settings,next)){settings=next;return;}
-        settings=next;
+        settings=next;TrackNewMapActivations();
         if(resetVotes){CancelVote();rtv.Clear();extendVotes.Clear();directVotes.Clear();endVoteStarted=nextMap is not null;nextPoolRefresh=0;Scan();}
     }
     private void RefreshSettings()
@@ -62,8 +62,8 @@ public sealed partial class Plugin
     private void CheckConfiguration(long now)
     {
         if(now<nextConfigCheck)return;nextConfigCheck=now+5000;
-        RefreshSettings();
-        if(now>=nextPoolRefresh&&!collectionLoading)RefreshCollection();
+        RefreshSettings();PollExtraWorkshopMaps(now);TrackNewMapActivations();
+        if(now>=nextPoolRefresh&&!collectionLoading&&!AnyHuman())RefreshCollection();
     }
     private void LoadCollectionCache()
     {
@@ -75,37 +75,42 @@ public sealed partial class Plugin
     {
         if(settings.BuiltinMapsOnly){nextPoolRefresh=Environment.TickCount64+settings.PoolRefreshMinutes*60000L;poolMessage="Nur Standardmaps; Workshop-Sammlung abgeschaltet";return;}
         if(collectionLoading)return;
+        if(extraMapFile?.Error is {} extraError){poolMessage=extraError+" Letzter gültiger Pool bleibt erhalten.";return;}
         nextPoolRefresh=Environment.TickCount64+settings.PoolRefreshMinutes*60000L;
         string collection=settings.CollectionId;
         if(collection.Length==0)collection=startupCollection;
-        var explicitIds=settings.WorkshopIds.ToArray();
+        var configuredIds=settings.WorkshopIds.ToArray();
+        var extraIds=extraMapFile?.Ids.ToArray()??[];long extraRevision=extraMapFile?.Revision??0;
+        var previousFileOnly=fileOnlyMapIds.ToArray();
+        bool keepBuiltin=collection.Length==0&&configuredIds.Length==0;
+        var seedIds=keepBuiltin?maps.Where(m=>m.Workshop&&m.InPool).Select(m=>m.Id).ToArray():[];
+        var explicitIds=configuredIds.Union(extraIds).ToArray();
         // The migrated seed is also resolved once: it supplies authoritative titles and map/asset type.
-        if(collection.Length==0&&explicitIds.Length==0)explicitIds=maps.Where(m=>m.Workshop&&m.InPool).Select(m=>m.Id).ToArray();
-        if(collection.Length==0&&explicitIds.Length==0){poolMessage="Keine Workshop-ID eingetragen";return;}
+        if(collection.Length==0&&explicitIds.Length==0)explicitIds=seedIds.Except(previousFileOnly).ToArray();
+        if(collection.Length==0&&explicitIds.Length==0&&previousFileOnly.Length==0){poolMessage="Keine Workshop-ID eingetragen";return;}
         collectionLoading=true;collectionCancellation?.Dispose();collectionCancellation=new(TimeSpan.FromSeconds(90));var token=collectionCancellation.Token;
-        string expectedConfig=JsonSerializer.Serialize(settings);bool keepBuiltin=collection.Length==0&&settings.WorkshopIds.Length==0;
+        string expectedConfig=JsonSerializer.Serialize(settings);
         _=Task.Run(async()=>
         {
-            List<WorkshopItem>? items=null;string? error=null;
+            List<WorkshopItem>? items=null;string? error=null;string[] nextFileOnly=[];
             try
             {
-                HashSet<string> ids=explicitIds.ToHashSet();
-                if(collection.Length>0){var result=await WorkshopCollections.TryFetchAsync(collection,token);if(result.Snapshot is null)throw new InvalidDataException(result.Error);ids.UnionWith(result.Snapshot.MemberIds);}
-                if(ids.Count>2000)throw new InvalidDataException("Mehr als 2000 Maps im Pool.");
-                items=await WorkshopDetails.Fetch(ids,token);
+                HashSet<string> collectionIds=[];
+                if(collection.Length>0){var result=await WorkshopCollections.TryFetchAsync(collection,token);if(result.Snapshot is null)throw new InvalidDataException(result.Error);collectionIds.UnionWith(result.Snapshot.MemberIds);}
+                var resolved=ExtraWorkshopMapList.Merge(collectionIds,configuredIds,seedIds,extraIds,previousFileOnly,keepBuiltin);nextFileOnly=resolved.FileOnly;
+                items=await WorkshopDetails.Fetch(resolved.Ids,token);
             }
             catch(Exception e){error=e is InvalidDataException?e.Message:e.GetType().Name;}
             if(!module.Active)return;
             Core.Scheduler.NextWorldUpdate(()=>
             {
                 if(!module.Active)return;collectionLoading=false;
-                if(JsonSerializer.Serialize(settings)!=expectedConfig){nextPoolRefresh=0;return;}
+                if(JsonSerializer.Serialize(settings)!=expectedConfig||(extraMapFile?.Revision??0)!=extraRevision||extraMapFile?.Error is not null){nextPoolRefresh=0;return;}
                 if(error is not null||items is null){poolMessage="Steam-Abgleich fehlgeschlagen; letzter Pool bleibt erhalten: "+error;Core.Logger.LogWarning("LPLK_Maps: {Message}",poolMessage);return;}
                 try
                 {
                     var next=WorkshopDetails.Merge(maps,items);
-                    if(keepBuiltin)next=next.Select(m=>!m.Workshop?m with{InPool=true}:m).ToList();
-                    SaveCatalog(next);LPLK.Common.DeferredJson.Queue(CollectionPath,items);
+                    SaveCatalog(next);fileOnlyMapIds=nextFileOnly;LPLK.Common.DeferredJson.Queue(ExtraSourcePath,fileOnlyMapIds);LPLK.Common.DeferredJson.Queue(CollectionPath,items);
                     poolMessage=$"Workshop-Abgleich erfolgreich: {items.Count} Einträge";Core.Logger.LogInformation("LPLK_Maps: {Message}",poolMessage);Scan();WriteStatus();
                 }
                 catch(Exception e){poolMessage="Workshop-Abgleich konnte nicht vollständig gespeichert werden";Core.Logger.LogWarning(e,"LPLK_Maps: {Message}",poolMessage);}
@@ -156,7 +161,7 @@ public sealed partial class Plugin
     {
         if(AnyHuman()){emptySince=0;return;}
         if(emptySince==0){emptySince=now;return;}
-        if(!settings.AutoMeasureEmptyServer||!settings.Enabled||pending is not null||voteEnds>0||now-emptySince<settings.EmptySecondsBeforeProbe*1000L)return;
+        if(!settings.AutoMeasureEmptyServer||!settings.Enabled||pending is not null||nextMap is not null||startupMapGate.Pending||testDownload is {Ready:false,Failed:false}||voteEnds>0||now-emptySince<settings.EmptySecondsBeforeProbe*1000L)return;
         if(probeId is not null)
         {
             var measured=maps.FirstOrDefault(m=>m.Id==probeId);
@@ -168,7 +173,7 @@ public sealed partial class Plugin
             }
             probeId=null;
         }
-        var candidate=maps.FirstOrDefault(m=>m.InPool&&m.Enabled&&!m.Removed&&m.IsMap&&!MapPolicy.Measured(m)&&
+        var candidate=maps.FirstOrDefault(m=>!automaticBlocked.Contains(m.Id)&&PreparedMapReady(m)&&m.InPool&&m.Enabled&&!m.Removed&&m.IsMap&&!MapPolicy.Measured(m)&&
             (m.LastProbeAt is null||DateTimeOffset.UtcNow-m.LastProbeAt>TimeSpan.FromHours(6))&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&(installed.Contains(m.Id)||m.RemoteMapVerified));
         if(candidate is null)
         {

@@ -20,7 +20,7 @@ public partial class AddonsCommands : IDisposable
     private readonly Dictionary<int, long> lastOpen = [];
     private volatile bool disposed;
 
-    [Command("addons", registerRaw: true, helpText: "Workshop-Update-Status als Menue anzeigen")]
+    [Command("addonstatus", helpText: "Workshop-Update-Status als Menue anzeigen")]
     public void OpenStatusMenu(ICommandContext context)
     {
         if (context.Sender is not { IsValid: true, IsAuthorized: true, IsFakeClient: false } player)

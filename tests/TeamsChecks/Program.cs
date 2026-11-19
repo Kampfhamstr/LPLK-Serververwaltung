@@ -100,7 +100,8 @@ var reference=JsonDocument.Parse(File.ReadAllText(Path.Combine(workspace,"state/
 var legacy=reference.RootElement.GetProperty("settings");
 var shared=legacy.EnumerateObject().Where(p=>typeof(TeamSettings).GetProperty(p.Name) is not null).ToDictionary(p=>p.Name,p=>p.Value);
 var omitted=typeof(TeamSettings).GetProperties().Where(p=>!shared.ContainsKey(p.Name)).Select(p=>p.Name).Order().ToArray();
-Check(omitted.SequenceEqual(new[]{"BlockedMessage","CenterMessage","ChatPrefix","ConfiguredSteamIds"}),"Only diagnostic-redacted message fields absent from reference");
+Check(omitted.SequenceEqual(new[]{"BlockedMessage","BotFillSlots","CenterMessage","ChatPrefix","ConfiguredSteamIds","TwoPlayerBotVoteEnabled"}),"New optional bot policy and diagnostic-redacted fields absent from legacy reference");
+Check(new TeamSettings().BotFillSlots==0,"Bot population remains untouched on profiles without explicit opt-in");
 var live=JsonSerializer.Deserialize<TeamSettings>(JsonSerializer.Serialize(shared))!;
 foreach(var pair in shared){var property=typeof(TeamSettings).GetProperty(pair.Key)!;Eq(JsonSerializer.Serialize(property.GetValue(live)),JsonSerializer.Serialize(property.GetValue(settings)),"Default equals actual reference: "+pair.Key);}
 var permits=new TeamPermits();
@@ -111,4 +112,21 @@ permits.Grant(key,3,100);Check(!permits.Consume(key with{Session=43},3,100.5),"p
 permits.Grant(key,3,100);Check(!permits.Consume(key,3,101),"expired permit");
 permits.Grant(key,3,100);permits.Remove(key.Slot);Check(!permits.Consume(key,3,100.5),"disconnect invalidates permit");
 permits.Grant(key,3,100);permits.Clear();Check(!permits.Consume(key,3,100.5),"map or config invalidates permits");
+var vote=new TwoPlayerBotVote();
+Check(!vote.Start([1],0)&&!vote.Start([1,2,3],0)&&!vote.Start([1,1],0),"Exactly two distinct voters required");
+Check(vote.Start([1,2],0)&&vote.Active,"Two players start vote");
+Check(!vote.Cast(3,true,1,[1,2]),"Third player cannot vote");
+Check(vote.Cast(1,true,1,[1,2])&&!vote.Suppressed,"One yes cannot disable bots");
+Check(!vote.Cast(1,true,2,[1,2])&&vote.Yes==1,"Duplicate yes cannot count twice");
+Check(vote.Cast(2,true,3,[1,2])&&vote.Suppressed&&!vote.Active&&vote.Asked,"Both yes disable bots until map changes");
+Check(!vote.Check(100,[1,2,3])&&vote.Suppressed,"Later joins preserve full-map suppression");
+vote.Restore(vote.Asked,vote.Suppressed);Check(vote.Suppressed&&!vote.Start([1,2],100),"Plugin reload preserves accepted outcome");
+vote.NewMap();Check(!vote.Suppressed&&!vote.Asked&&vote.Start([1,2],100),"New map restores normal bots and permits a new vote");
+Check(vote.Cast(1,false,101,[1,2])&&!vote.Suppressed&&!vote.Active,"One no rejects vote");
+Check(!vote.Start([1,2],200),"No repeated prompting on the same map");
+vote.NewMap();vote.Start([1,2],0);vote.Cast(1,true,5,[1,2]);Check(vote.Check(30,[1,2])&&!vote.Suppressed&&vote.Result=="timeout","No reply is not consent");
+vote.NewMap();vote.Start([1,2],0);Check(vote.Check(1,[1,3])&&!vote.Suppressed,"Different participant cancels");
+vote.NewMap();vote.Start([1,2],0);Check(vote.Check(1,[1])&&!vote.Suppressed,"Departure cancels");
+vote.NewMap();vote.Start([1,2],0);Check(!vote.Cast(2,true,30,[1,2]),"Boundary deadline rejects late votes");
+vote.Cancel();Check(!vote.Active&&!vote.Suppressed,"Cancellation cannot disable bots");
 Console.WriteLine($"{count} team policy/lifecycle/reference checks passed.");

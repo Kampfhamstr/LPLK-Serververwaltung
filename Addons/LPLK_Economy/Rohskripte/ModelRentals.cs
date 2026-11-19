@@ -32,6 +32,14 @@ public sealed partial class Ledger
   if(!BankPolicy.Steam(account)||!Key(model,96))throw new BankRejected("Ungültige Modellauswahl.");
   lock(gate)return Number("SELECT expires FROM model_leases WHERE account=$p0 AND model=$p1",account,model);
  }
+ public string[] ActiveRentedModels(long now)
+ {
+  if(Networked||!InMemory)throw new InvalidOperationException("Lokale RAM-Bank nicht bereit.");
+  lock(gate){
+   using var c=Command("SELECT DISTINCT model FROM model_leases WHERE expires>$p0 ORDER BY model",now);
+   using var r=c.ExecuteReader();var result=new List<string>();while(r.Read())result.Add(r.GetString(0));return result.ToArray();
+  }
+ }
  public long RentModel(string id,long period,string account,string model,int days,long dailyPrice,long now,string requirement="",long required=0)
  {
   if(Networked||!BankPolicy.Steam(account)||!Key(model,96)||!Key(id,110)||days is <1 or >30||dailyPrice is <1 or >1_000_000_000||now<1)throw new BankRejected("Ungültige Modellmiete.");

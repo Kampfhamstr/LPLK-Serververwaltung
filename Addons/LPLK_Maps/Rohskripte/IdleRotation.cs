@@ -57,27 +57,27 @@ public sealed partial class Plugin
  private bool idleTransition;
  private string preparedStartupMap="";
  private string startupRotationStatus="Nicht angefordert";
- private IEnumerable<MapEntry> EmptyMapChoices()=>maps.Where(m=>MapPolicy.EmptyMapEligible(m,settings,installed));
+ private IEnumerable<MapEntry> EmptyMapChoices()=>maps.Where(m=>CameraMapReady(m)&&MapPolicy.EmptyMapEligible(m,settings,installed)&&!automaticBlocked.Contains(m.Id)&&maintenance?.Failed(m.Id)!=true);
  private void TickEmptyRotation(long now)
  {
   bool human=AnyHuman();
-  if(idleTransition&&!transitionIssued&&human){pending=null;nextMap=null;idleTransition=false;lastTransition="Leerlaufwechsel abgebrochen: Spieler verbunden";WriteStatus();}
+  if(idleTransition&&!transitionIssued&&human){CompleteAutomaticJournal("Spieler beigetreten");pending=null;nextMap=null;idleTransition=false;lastTransition="Leerlaufwechsel abgebrochen: Spieler verbunden";WriteStatus();}
   if(startupMapGate.Pending)return;
   if(!emptyMapClock.Due(now,human,settings.Enabled&&!settings.MeasurementOnly?settings.IdleRotationMinutes:0))return;
   if(pending is not null||nextMap is not null||voteEnds>0||probeId is not null||testDownload is {Ready:false,Failed:false})return;
-  var selected=MapPolicy.NextEmptyMap(EmptyMapChoices(),CurrentMap,Workshop,history);
-  emptyMapClock.Reset();if(selected is null)return;
+  PrepareStartupMap();var selected=EmptyMapChoices().FirstOrDefault(m=>m.Id==preparedStartupMap&&PreparedMapReady(m));
+  if(selected is null)return;emptyMapClock.Reset();
   Schedule(selected,2);idleTransition=pending?.Id==selected.Id;
  }
  private bool CancelUnsafeIdleChange()
  {
   if(!idleTransition)return false;
   if(!AnyHuman()&&pending is {} m&&MapPolicy.EmptyMapEligible(m,settings,installed))return false;
-  pending=null;nextMap=null;idleTransition=false;emptyMapClock.Reset();lastTransition="Leerlaufwechsel abgebrochen: Spieler oder Mapregeln geändert";WriteStatus();return true;
+  CompleteAutomaticJournal("Automatischer Wechsel abgebrochen");pending=null;nextMap=null;idleTransition=false;emptyMapClock.Reset();lastTransition="Leerlaufwechsel abgebrochen: Spieler oder Mapregeln geändert";WriteStatus();return true;
  }
  private void PrepareStartupMap()
  {
-  if(!settings.RotateStartupMap||!startupMapGate.Pending)return;
+  if(!settings.RotateStartupMap&&settings.IdleRotationMinutes<=0)return;
   // Keep a chosen candidate stable until it is played or removed from the pool.
   var choices=EmptyMapChoices().ToArray();
   if(choices.Any(m=>m.Id==preparedStartupMap&&!MapPolicy.Matches(m,CurrentMap,Workshop)))return;
@@ -97,7 +97,7 @@ public sealed partial class Plugin
   }
   PrepareStartupMap();
   var selected=EmptyMapChoices().FirstOrDefault(m=>m.Id==preparedStartupMap&&!MapPolicy.Matches(m,CurrentMap,Workshop));
-  if(selected is null)return; // Wait for the cached scan, at most two minutes.
+  if(selected is null||!PreparedMapReady(selected))return; // Keep the base map while preparation is pending.
   startupMapGate.Complete();Schedule(selected,2);idleTransition=pending?.Id==selected.Id;
   startupRotationStatus=idleTransition?"Startmap angefordert: "+selected.Id:"Aktuelle Map beibehalten";WriteStatus();
  }

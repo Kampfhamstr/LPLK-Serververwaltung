@@ -15,7 +15,7 @@ public sealed partial class Plugin
         c.ReplyLplk("[LPLK] Adminrollen werden zentral unter https://verwaltung.lplk.de verwaltet: Spieler / Rollen. Hier wurden keine Rollen geändert.");
     },c.ReplyLplk);
     private bool LegacyMapAllowed(IPlayer p)=>settings.LegacyPlayerMenus&&(Has(p,"admin.map")||Has(p,"lplk.admin"));
-    [Command("map")] public void LegacyMap(ICommandContext c)=>LegacyMapRequest(c,false);
+    [Command("admin_map")] public void LegacyMap(ICommandContext c)=>LegacyMapRequest(c,false);
     [Command("wsmap")] public void LegacyWorkshop(ICommandContext c)=>LegacyMapRequest(c,true);
     private void LegacyMapRequest(ICommandContext c,bool workshop)=>Guard(()=>
     {

@@ -53,6 +53,8 @@ public sealed partial record MapSettings
     public int AutoVoteMinutes { get; init; } = 0;
     public int IdleRotationMinutes { get; init; }
     public bool RotateStartupMap { get; init; }
+    public bool WorkshopMaintenanceEnabled { get; init; } = true;
+    public string[] AutomaticMapExcludedIds { get; init; } = [];
     public int ChangeDelaySeconds { get; init; } = 3;
     public bool RtvEnabled { get; init; } = true;
     public bool RtvInWarmup { get; init; }
@@ -91,6 +93,7 @@ public sealed partial record MapSettings
             s.TriggerRoundsBeforeEnd is < 1 or > 30 || s.MatchEndDelaySeconds is < 0 or > 60 || s.VerifySeconds is < 2 or > 60 ||
             s.MaxAttempts is < 1 or > 10 || s.WorkshopPath is null || s.WorkshopPath.Contains('\0') ||
             s.CollectionId is null || (s.CollectionId.Length>0 && WorkshopId(s.CollectionId) is null) ||
+            s.AutomaticMapExcludedIds is null || s.AutomaticMapExcludedIds.Any(id=>WorkshopId(id) is null) ||
             s.ExcludedWorkshopIds is null || s.ExcludedWorkshopIds.Any(id=>WorkshopId(id) is null) ||
             s.WorkshopIds is null || s.WorkshopIds.Length>2000 || s.WorkshopIds.Any(id=>WorkshopId(id) is null) ||
             s.PoolRefreshMinutes is < 1 or > 1440 || s.EmptySecondsBeforeProbe is < 15 or > 3600 ||
