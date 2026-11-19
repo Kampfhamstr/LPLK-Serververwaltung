@@ -4,7 +4,7 @@ namespace LPLK_Teams;
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed record TeamSettings
 {
-    public bool Enabled { get; init; } // Actual Inner Circle configuration: disabled.
+    public bool Enabled { get; init; } // Profile activation is explicit.
     public int BotFillSlots { get; init; } // Independent of team-switch protection; 0 disables management.
     public bool TwoPlayerBotVoteEnabled { get; init; }
     public ulong[] ConfiguredSteamIds { get; init; } = [];
@@ -19,6 +19,7 @@ public sealed record TeamSettings
     public int HalftimeSwitchGraceSeconds { get; init; } = 30;
     public bool TreatWinScoreAsMatchEnd { get; init; } = true;
     public bool BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd { get; init; } = true;
+    public bool BlockWinningTeamDuringMatchEnd { get; init; }
     public int MatchEndGuardWindowSeconds { get; init; } = 15;
     public bool UseRoundEndFallback { get; init; } = true;
     public bool AnnounceWhenTeamBecomesProtected { get; init; } = true;
@@ -71,12 +72,13 @@ public static class TeamPolicy
         return ct&&(!t||score.Ct>score.T)?1<<3:t&&(!ct||score.T>score.Ct)?1<<2:0;
     }
     public static bool IsProtected(int mask,int team)=>team is 2 or 3&&(mask&(1<<team))!=0;
-    public static bool Block(TeamSettings s,int current,int requested,int mask,bool halftime,int guardWinner,bool selected)
+    public static bool Block(TeamSettings s,int current,int requested,int mask,bool halftime,int guardWinner,bool selected,int matchEndWinner=0)
     {
         if(!s.Enabled || current==requested)return false;
         if(requested==1)return !s.AllowSpectator;
-        if(requested==0)return mask!=0&&!halftime || selected&&guardWinner is 2 or 3;
+        if(requested==0)return mask!=0&&!halftime || selected&&guardWinner is 2 or 3 || s.BlockWinningTeamDuringMatchEnd&&matchEndWinner is 2 or 3;
         if(requested is not (2 or 3))return false;
+        if(s.BlockWinningTeamDuringMatchEnd&&requested==matchEndWinner)return true;
         if(selected&&s.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd&&requested==guardWinner)return true;
         return !halftime&&IsProtected(mask,requested);
     }
@@ -109,6 +111,8 @@ public sealed class MatchWindows
     public void End(double now,int seconds,int team){if(endSeen||team is not (2 or 3))return;endSeen=true;winner=team;endUntil=now+seconds;}
     public bool HalfActive(double now)=>now<halfUntil;
     public int Winner(double now)=>now<endUntil?winner:0;
+    // The final scoreboard can last longer than the legacy selected-player window.
+    public int JoinWinner(double now,bool matchEnded)=>matchEnded?winner:Winner(now);
 }
 
 // Fallback uses a round-start baseline, never adds a winner to an already updated end score.

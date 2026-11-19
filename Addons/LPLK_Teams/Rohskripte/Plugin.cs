@@ -15,7 +15,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_Teams;
 
-[PluginMetadata(Id="LPLK_Teams",Name="LPLK_Teams",Version="0.2.15",Author="LPLK; reference Kampfhamster",Description="Teamwechselregeln und Gewinnerteam-Schutz",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Teams",Name="LPLK_Teams",Version="0.2.16",Author="LPLK; reference Kampfhamster",Description="Teamwechselregeln und Gewinnerteam-Schutz",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -50,7 +50,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     }
     private void LoadCore(bool hotReload)
     { ChatTheme.Initialize("LPLK_Teams",()=>Core.PlayerManager.GetAllPlayers().Where(p=>p.IsValid&&!p.IsFakeClient).Select(p=>p.Name));
-        module=new(Core,"LPLK_Teams","Teams · jakob1933-Schutz","lplk.teams.admin",OpenAdmin,p=>Core.Permission.PlayerHasPermission(p.SteamID,"wl.admin"));
+        module=new(Core,"LPLK_Teams","Teams · Jakob WTJ Schutz","lplk.teams.admin",OpenAdmin,p=>Core.Permission.PlayerHasPermission(p.SteamID,"wl.admin"));
         config=new(module.SettingsPath,TeamSettings.Validate);settings=config.Current;
         if(File.Exists(SelectionPath))
         {
@@ -67,7 +67,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventGamePhaseChanged>(e=>{PhaseChanged(e.NewPhase);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventCsWinPanelMatch>(_=>{Refresh();if(phase==(int)GamePhase.GAMEPHASE_MATCH_ENDED)EndMatch();return HookResult.Continue;});
         WriteStatus();
-        Core.Logger.LogInformation("LPLK_Teams 0.2.15 geladen; enabled={Enabled}; Auswahl={Count}",settings.Enabled,selected.Count);
+        Core.Logger.LogInformation("LPLK_Teams 0.2.16 geladen; enabled={Enabled}; Auswahl={Count}",settings.Enabled,selected.Count);
     }
     public override void UseSharedInterface(IInterfaceManager manager)=>interfaces=manager;
     public override void ConfigureSharedInterface(IInterfaceManager manager)
@@ -86,16 +86,16 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         try { UnloadCore(); }
         finally { LPLK.Common.RoundData.Drain(); LPLK.Common.DeferredJson.Drain(); LPLK.Common.RoundFileStore.Drain(); LPLK.Common.RoundFileStore.EndUnload(); }
     }
-    private void UnloadCore(){SaveBotVote();CloseBotVoteMenus();if(!botVote.Suppressed)RestoreBotQuota();loaded=false;if(module is not null)module.Active=false;epoch++;permits.Clear();sequences.Clear();intents.Clear(); LPLK.Common.DeferredJson.Drain(); }
+    private void UnloadCore(){SyncReturnTeams();SaveReturnTeams();SaveBotVote();CloseBotVoteMenus();if(!botVote.Suppressed)RestoreBotQuota();loaded=false;if(module is not null)module.Active=false;epoch++;permits.Clear();sequences.Clear();intents.Clear(); LPLK.Common.DeferredJson.Drain(); }
     [EventListener<EventDelegates.OnClientDisconnected>]
-    public void Disconnect(IOnClientDisconnectedEvent e)=>Invalidate(e.PlayerId);
+    public void Disconnect(IOnClientDisconnectedEvent e){if(returnReady&&returnTeams.Disconnect(e.PlayerId))SaveReturnTeams();Invalidate(e.PlayerId);}
     [EventListener<EventDelegates.OnMapUnload>]
     public void MapUnload(IOnMapUnloadEvent e){SaveBotVote();mapRuntimeUnloading=true;CloseBotVoteMenus();RestoreBotQuota();Reset(false,settings.ResetScoreOnNewMap);ready=false;}
     [EventListener<EventDelegates.OnMapLoad>]
-    public void MapLoad(IOnMapLoadEvent e){Reset(false,settings.ResetScoreOnNewMap);botVoteSession=null;botVoteStateReady=false;mapRuntimeUnloading=false;ResetBotVote();InitializeMapRuntime();}
+    public void MapLoad(IOnMapLoadEvent e){Reset(false,settings.ResetScoreOnNewMap);returnSession=null;returnReady=false;botVoteSession=null;botVoteStateReady=false;mapRuntimeUnloading=false;ResetBotVote();InitializeMapRuntime();}
     private void Reset(bool complete,bool resetScore=true)
     {
-        epoch++;revision++;if(resetScore)tracker.Reset(complete);windows.Reset();permits.Clear();sequences.Clear();intents.Clear();
+        epoch++;revision++;if(resetScore)tracker.Reset(complete);windows.Reset();ClearReturnTeams();permits.Clear();sequences.Clear();intents.Clear();
         score=null;mask=0;phase=-1;ready=false;endApplied=false;
     }
     private Score? ReadLive()
@@ -132,6 +132,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     private bool Halftime=>phase==(int)GamePhase.GAMEPHASE_HALFTIME || settings.AllowHalftimeTeamSwitchException&&windows.HalfActive(Now);
     private bool Effective=>loaded&&module.Active&&settings.Enabled&&ready;
     private int GuardWinner=>settings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd?windows.Winner(Now):0;
+    private int WinningJoinGuard=>settings.BlockWinningTeamDuringMatchEnd?windows.JoinWinner(Now,phase==(int)GamePhase.GAMEPHASE_MATCH_ENDED):0;
     private IEnumerable<ulong> SelectionIds=>selected.Keys.Concat(settings.ConfiguredSteamIds).Distinct();
     private bool HasSelection(ulong id)=>selected.ContainsKey(id)||settings.ConfiguredSteamIds.Contains(id);
     private bool Selected(ulong target)=>settings.ConfiguredSteamIds.Contains(target)||selected.TryGetValue(target,out var actor)&&CanAdminId(actor)&&CanTarget(actor,target);
@@ -154,7 +155,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(endApplied)return;endApplied=true;
         if(!settings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd)return;
         foreach(var p in Core.PlayerManager.GetAllValidPlayers().ToArray())
-            if(IsHuman(p)&&p.Controller.TeamNum==GuardWinner&&Selected(p.SteamID))QueueMove(p,GuardWinner==3?2:3,true);
+            if(IsHuman(p)&&p.Controller.TeamNum==GuardWinner&&Selected(p.SteamID)&&!returnTeams.Restored(Key(p),p.Controller.TeamNum))QueueMove(p,GuardWinner==3?2:3,true);
     }
     private HookResult ClientCommand(int slot,string line)
     {
@@ -166,7 +167,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         // An event alone does not identify its initiator. Correct only a matching recent client request.
         // Admin/engine/mode changes without such an intent remain authoritative.
         intents[slot]=new(Key(p!),p!.Controller.TeamNum,team.Value,Now+1);
-        if(!TeamPolicy.Block(settings,p!.Controller.TeamNum,team.Value,mask,Halftime,GuardWinner,Selected(p.SteamID)))return HookResult.Continue;
+        if(returnReady&&returnTeams.CanReturn(Key(p),p.Controller.TeamNum,team.Value))return HookResult.Continue;
+        if(!TeamPolicy.Block(settings,p!.Controller.TeamNum,team.Value,mask,Halftime,GuardWinner,Selected(p.SteamID),WinningJoinGuard))return HookResult.Continue;
         blocked++;Trace("Clientwechsel gesperrt: {OldTeam} -> {NewTeam}",p.Controller.TeamNum,team.Value);Message(p);return HookResult.Stop;
     }
     private void Permit(IPlayer p,int target)
@@ -183,17 +185,20 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     {
         var p=e.UserIdPlayer;if(!IsHuman(p)||e.Disconnect)return HookResult.Continue;
         sequences[p!.PlayerID]=Sequence(p.PlayerID)+1;
-        if(ConsumePermit(p,e.Team))return HookResult.Continue;
+        if(ConsumePermit(p,e.Team)){ObserveReturnTeam(p,e.Team);return HookResult.Continue;}
         bool requested=intents.Remove(p.PlayerID,out var intent)&&intent.Matches(Key(p),e.OldTeam,e.Team,Now);
         Refresh();
+        if(returnReady&&returnTeams.TryReturn(Key(p),e.OldTeam,e.Team)){SaveReturnTeams();return HookResult.Continue;}
         // Engine halftime, warmup and authorized server-side moves never trigger a rollback.
-        if(!requested||!Effective||phase==(int)GamePhase.GAMEPHASE_HALFTIME||e.Team==e.OldTeam||e.Team is not (2 or 3))return HookResult.Continue;
+        if(!requested||!Effective||phase==(int)GamePhase.GAMEPHASE_HALFTIME||e.Team==e.OldTeam||e.Team is not (2 or 3)){ObserveReturnTeam(p,e.Team);return HookResult.Continue;}
+        if(WinningJoinGuard==e.Team){QueueMove(p,TeamPolicy.FallbackTeam(e.OldTeam,1<<e.Team),false,true);return HookResult.Continue;}
         if(GuardWinner==e.Team&&Selected(p.SteamID)){QueueMove(p,e.Team==3?2:3,true);return HookResult.Continue;}
         if(settings.ForceBackIfSwitchStillHappened&&!Halftime&&TeamPolicy.IsProtected(mask,e.Team))
             QueueMove(p,TeamPolicy.FallbackTeam(e.OldTeam,mask),false);
+        else ObserveReturnTeam(p,e.Team);
         return HookResult.Continue;
     }
-    private void QueueMove(IPlayer player,int target,bool forced)
+    private void QueueMove(IPlayer player,int target,bool forced,bool matchEndJoin=false)
     {
         var move=new PendingMove(Key(player),player.Controller.TeamNum,target,epoch,revision,Sequence(player.PlayerID));
         Core.Scheduler.NextTick(()=>
@@ -205,7 +210,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
                 if(!IsHuman(p))return;
                 Refresh();
                 if(!MovePolicy.StillCurrent(move,Key(p!),p!.Controller.TeamNum,epoch,revision,Sequence(p.PlayerID),Effective)||Halftime)return;
-                if(forced ? GuardWinner!=p.Controller.TeamNum||!Selected(p.SteamID) : !settings.ForceBackIfSwitchStillHappened||!TeamPolicy.IsProtected(mask,p.Controller.TeamNum))return;
+                if(returnTeams.Restored(Key(p),p.Controller.TeamNum))return;
+                if(matchEndJoin ? WinningJoinGuard!=p.Controller.TeamNum : forced ? GuardWinner!=p.Controller.TeamNum||!Selected(p.SteamID) : !settings.ForceBackIfSwitchStillHappened||!TeamPolicy.IsProtected(mask,p.Controller.TeamNum))return;
                 Permit(p,target);
                 p.ChangeTeam((Team)target);corrected++;Trace("Teamkorrektur nach bestätigter Anfrage: {OldTeam} -> {NewTeam}",move.ExpectedTeam,target);
                 if(forced){if(settings.ShowForceToLosingTeamMessage)p.SendCenter("MATCHENDE: Für dich ist das Verliererteam ausgewählt.");}
@@ -231,7 +237,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
                 ReloadSettings();
             }
             if(!InitializeMapRuntime()){ready=false;return;}
-            TickBotVote();ReconcileBots();Refresh();
+            SyncReturnTeams();TickBotVote();ReconcileBots();Refresh();
             if(Now>=nextStatus){nextStatus=Now+2;WriteStatus();}
         }
         catch(Exception ex){ready=false;if(errors++==0)Core.Logger.LogError(ex,"LPLK_Teams: Status unbekannt; keine Teamkorrektur.");}
@@ -247,7 +253,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     {
         try
         {
-            LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.2.15",settings,botVote=BotVoteStatus(),botPopulation=new{humanScope="T/CT only; spectators and SourceTV excluded",fillSlots=settings.BotFillSlots,humans=botHumans,desiredBots=botDesired,actualBots=botActual,removalAttempts=botRemovalAttempts,adjustments=botAdjustments,teamT=new{humans=botHumanT,bots=botT,targetBots=botTargetT},teamCt=new{humans=botHumanCt,bots=botCt,targetBots=botTargetCt},teamMoves=botTeamMoves,balanceState=botBalanceState},ready,effective=Effective,score,scoreSource=tracker.Source,maxRounds=rounds,roundsSource,threshold=TeamPolicy.Threshold(settings,rounds),protectedTeams=ProtectedText(),halftime=Halftime,matchEndWinner=GuardWinner,selectedCount=SelectionIds.Count(),bridgeReady=BridgeReady(),blocked,corrected,errors,reloadError});
+            LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.2.16",settings,botVote=BotVoteStatus(),botPopulation=new{humanScope="T/CT only; spectators and SourceTV excluded",fillSlots=settings.BotFillSlots,humans=botHumans,desiredBots=botDesired,actualBots=botActual,removalAttempts=botRemovalAttempts,adjustments=botAdjustments,teamT=new{humans=botHumanT,bots=botT,targetBots=botTargetT},teamCt=new{humans=botHumanCt,bots=botCt,targetBots=botTargetCt},teamMoves=botTeamMoves,balanceState=botBalanceState},ready,effective=Effective,score,scoreSource=tracker.Source,maxRounds=rounds,roundsSource,threshold=TeamPolicy.Threshold(settings,rounds),protectedTeams=ProtectedText(),halftime=Halftime,matchEndWinner=GuardWinner,selectedCount=SelectionIds.Count(),bridgeReady=BridgeReady(),blocked,corrected,errors,reloadError});
             statusWriteFailed=false;
         }
         catch(Exception e)when(e is IOException or UnauthorizedAccessException)

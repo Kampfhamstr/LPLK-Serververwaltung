@@ -18,7 +18,7 @@
 | LPLK_Sounds | 0.1.16 | [LPLK_Sounds.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Sounds.zip) |
 | LPLK_Statistics | 0.2.22 | [LPLK_Statistics.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Statistics.zip) |
 | LPLK_Surf | 0.1.13 | [LPLK_Surf.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Surf.zip) |
-| LPLK_Teams | 0.2.15 | [LPLK_Teams.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Teams.zip) |
+| LPLK_Teams | 0.2.16 | [LPLK_Teams.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/teams-0.2.16-2026.11.19/LPLK_Teams.zip) |
 | LPLK_ThirdPerson | 0.1.10 | [LPLK_ThirdPerson.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_ThirdPerson.zip) |
 | LPLK_Weapons | 0.2.10 | [LPLK_Weapons.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Weapons.zip) |
 | LPLK_Whitelist | 0.2.13 | [LPLK_Whitelist.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Whitelist.zip) |

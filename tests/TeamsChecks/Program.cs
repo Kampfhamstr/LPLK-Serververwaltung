@@ -33,6 +33,17 @@ Check(!TeamPolicy.Block(on,2,3,8,true,0,false),"halftime grace");
 Check(TeamPolicy.Block(on,2,3,0,true,3,true),"selected match-end guard");
 Check(!TeamPolicy.Block(on,2,3,0,false,3,false),"unselected match-end target unaffected");
 Check(!TeamPolicy.Block(on,2,3,0,false,0,true),"guard expired");
+var wtj=on with{BlockWinningTeamDuringMatchEnd=true};
+foreach(int winner in new[]{2,3})
+{
+    foreach(int current in new[]{0,1,winner==3?2:3})Check(TeamPolicy.Block(wtj,current,winner,0,false,0,false,winner),"Unselected new join and team switch denied at match end, independent of score threshold");
+    Check(TeamPolicy.Block(wtj,1,0,0,false,0,false,winner),"Auto assign cannot enter winner at match end");
+    Check(!TeamPolicy.Block(wtj,winner,winner,0,false,0,false,winner),"Legitimate winner may remain in same team");
+    Check(!TeamPolicy.Block(wtj,1,winner==3?2:3,0,false,0,false,winner),"Losing team remains available");
+    Check(!TeamPolicy.Block(wtj,2,1,0,false,0,false,winner),"Spectator remains available");
+    Check(!TeamPolicy.Block(wtj with{Enabled=false},1,winner,0,false,0,false,winner),"Global switch disables match-end protection");
+    Check(!TeamPolicy.Block(on,1,winner,0,false,0,false,winner),"Other profiles preserve legacy behavior");
+}
 foreach(var (command,team) in new[]{("jointeam 3",3),("JOINTEAM \"2\"",2),("teammenu ct",3),("jointeam spectator",1),("jointeam 0",0),("jointeam\t2",2)})
     Eq(TeamPolicy.ParseRequest(command),team,"client team request");
 foreach(string command in new[]{"say jointeam 3","jointeam","teammenu","jointeam 99","jointeamx 3","jointeam 3;quit"})
@@ -46,8 +57,11 @@ Check(!w.HalfActive(40),"half deadline exclusive");
 w.Half(41,30);Check(!w.HalfActive(41),"same halftime cannot reopen on polling");
 w.End(50,15,3);Eq(w.Winner(64),3,"guard active");
 w.End(64,15,2);Eq(w.Winner(65),0,"same ending does not extend or flip winner");
+Eq(w.JoinWinner(180,true),3,"Full final scoreboard stays guarded after 15-second window");
+Eq(w.JoinWinner(180,false),0,"Leaving match-end phase ends extended protection");
 w.Reset();w.Half(100,30);Check(w.HalfActive(101),"new match can have a halftime");
 Eq(w.Winner(101),0,"reset clears winner");
+Eq(w.JoinWinner(101,true),0,"New match or map clears remembered winning team");
 Check(!TeamPolicy.ScoreEndsMatch(on,new(10,9),20,false,true),"not one round too early");
 Check(TeamPolicy.ScoreEndsMatch(on,new(11,8),20,false,true),"real clinch");
 Check(!TeamPolicy.ScoreEndsMatch(on,new(11,8),20,false,false),"clinch disabled by server");
@@ -100,10 +114,31 @@ var reference=JsonDocument.Parse(File.ReadAllText(Path.Combine(workspace,"state/
 var legacy=reference.RootElement.GetProperty("settings");
 var shared=legacy.EnumerateObject().Where(p=>typeof(TeamSettings).GetProperty(p.Name) is not null).ToDictionary(p=>p.Name,p=>p.Value);
 var omitted=typeof(TeamSettings).GetProperties().Where(p=>!shared.ContainsKey(p.Name)).Select(p=>p.Name).Order().ToArray();
-Check(omitted.SequenceEqual(new[]{"BlockedMessage","BotFillSlots","CenterMessage","ChatPrefix","ConfiguredSteamIds","TwoPlayerBotVoteEnabled"}),"New optional bot policy and diagnostic-redacted fields absent from legacy reference");
+Check(omitted.SequenceEqual(new[]{"BlockWinningTeamDuringMatchEnd","BlockedMessage","BotFillSlots","CenterMessage","ChatPrefix","ConfiguredSteamIds","TwoPlayerBotVoteEnabled"}.Order()),"New optional policies and diagnostic-redacted fields absent from legacy reference");
 Check(new TeamSettings().BotFillSlots==0,"Bot population remains untouched on profiles without explicit opt-in");
 var live=JsonSerializer.Deserialize<TeamSettings>(JsonSerializer.Serialize(shared))!;
 foreach(var pair in shared){var property=typeof(TeamSettings).GetProperty(pair.Key)!;Eq(JsonSerializer.Serialize(property.GetValue(live)),JsonSerializer.Serialize(property.GetValue(settings)),"Default equals actual reference: "+pair.Key);}
+var returns=new ReconnectTeams();
+var original=new ConnectionKey(5,76561198000000001,100);
+var rejoined=original with{Slot=6,Session=101};
+returns.Observe(original,3);returns.Disconnect(original.Slot);
+Check(returns.CanReturn(rejoined,0,3),"Disconnected winner may rejoin original team");
+Check(!returns.CanReturn(rejoined,0,2),"Return exception cannot change team");
+Check(!returns.CanReturn(rejoined with{Steam=76561198000000002},0,3),"Different Steam identity has no return exception");
+returns.Observe(rejoined,0);returns.Observe(rejoined,1);
+Check(returns.CanReturn(rejoined,1,3),"Initial unassigned/spectator state preserves return");
+Check(returns.TryReturn(rejoined,1,3)&&returns.Restored(rejoined,3),"Confirmed return exempts legacy end correction");
+Check(!returns.CanReturn(rejoined,2,3)&&!returns.Restored(rejoined with{Session=102},3),"Return is connection-bound and cannot bypass a team switch");
+returns.Observe(rejoined,1);
+Check(!returns.CanReturn(rejoined,1,3)&&!returns.Restored(rejoined,3),"Voluntarily leaving team consumes return exception");
+returns.Observe(rejoined,2);returns.Disconnect(rejoined.Slot);
+var restoredReturns=new ReconnectTeams();restoredReturns.Restore(returns.Snapshot());
+Check(restoredReturns.CanReturn(rejoined with{Session=102},0,2),"Pending return survives same-map plugin reload");
+restoredReturns.Clear();
+Check(!restoredReturns.CanReturn(rejoined,0,2),"Map/new-match reset clears all return exceptions");
+returns.Clear();returns.Observe(original,3);restoredReturns.Restore(returns.Snapshot());
+Check(restoredReturns.ReconcileMissing([rejoined])&&restoredReturns.CanReturn(rejoined,0,3),"Disconnect during reload is recovered from saved connection");
+Check(!TeamPolicy.Block(wtj,0,2,TeamPolicy.Protected(wtj,new Score(0,0),24),false,0,false,0)&&!TeamPolicy.Block(wtj,0,3,0,false,0,false,0),"New map starts with free T and CT choice");
 var permits=new TeamPermits();
 permits.Grant(key,3,100);Check(permits.Consume(key,3,100.5),"admin move exempt once");
 Check(!permits.Consume(key,3,100.6),"permit consumed");

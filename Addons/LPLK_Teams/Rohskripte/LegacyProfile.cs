@@ -22,7 +22,7 @@ public sealed partial class Plugin
         if(c.Sender is {} p){PlayersRoot(p);return;}
         AdminCommand(c);
     }
-    private void PlayersRoot(IPlayer p)=>CompactMenu.Open(Core,p,"jakob1933-Schutz · Matchende",()=>loaded,CanUseSelection,_=>new (string,Action<IPlayer>)[]{
+    private void PlayersRoot(IPlayer p)=>CompactMenu.Open(Core,p,"Jakob WTJ Schutz · Matchende",()=>loaded,CanUseSelection,_=>new (string,Action<IPlayer>)[]{
         ($"Aktiv: {settings.Enabled}",a=>{Set(a,nameof(TeamSettings.Enabled),false,toggle:true);PlayersRoot(a);}),
         ("Ausgewählte",a=>PlayersMenu(a,0,SelectionFilter.Active)),
         ("Nicht ausgewählte",a=>PlayersMenu(a,0,SelectionFilter.Inactive)),

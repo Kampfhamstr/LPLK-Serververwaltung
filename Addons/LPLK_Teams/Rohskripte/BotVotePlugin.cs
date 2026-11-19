@@ -33,7 +33,7 @@ public sealed partial class Plugin
   var session=BotVoteIdentity();if(session is null)return false;
   try{if(Core.EntitySystem.GetGameRules() is null)return false;}
   catch(InvalidOperationException){return false;}
-  LoadBotVote(session);return true;
+  LoadBotVote(session);LoadReturnTeams(session);return true;
  }
  private IPlayer[] BotVotePlayers()
  {

@@ -1,5 +1,5 @@
-# LPLK_Teams 0.2.15
+# LPLK_Teams 0.2.16 – Jakob WTJ Schutz
 
-Geprüftes Paket vom 19.11.2026: [Download](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Teams.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK-Plugins-Source.zip) · [Installation, Funktionen dieser Ausgabe und Prüfgrenzen](../../docs/RELEASE-20261119.md).
+[Plugin herunterladen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/teams-0.2.16-2026.11.19/LPLK_Teams.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/teams-0.2.16-2026.11.19/LPLK-Plugins-Source.zip)
 
-Einstellungen, Daten und Rechte bei Updates erhalten; Paket nur im passenden Serverprofil einsetzen. Lizenz- und Herkunftshinweise stehen bei dieser Komponente.
+[Funktionen, Installation, Prüfungen und Grenzen](../../docs/JAKOB-WTJ-20261119.md).

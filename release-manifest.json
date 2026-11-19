@@ -1,5 +1,5 @@
 {
-  "tag": "fleet-2026.11.19-current",
+  "tag": "teams-0.2.16-2026.11.19",
   "versions": {
     "AddonsManager": "2.0.3-lplk.7",
     "LPLK_Admin": "0.11.10",
@@ -17,7 +17,7 @@
     "LPLK_Sounds": "0.1.16",
     "LPLK_Statistics": "0.2.22",
     "LPLK_Surf": "0.1.13",
-    "LPLK_Teams": "0.2.15",
+    "LPLK_Teams": "0.2.16",
     "LPLK_ThirdPerson": "0.1.10",
     "LPLK_Weapons": "0.2.10",
     "LPLK_Whitelist": "0.2.13",
@@ -123,12 +123,6 @@
       "bytes": 2961346
     },
     {
-      "name": "LPLK_Teams.zip",
-      "path": "Addons/LPLK_Teams/Build/LPLK_Teams.zip",
-      "sha256": "af1cc28830f9f441afd618d47ec13a4aef9df0251dee357a31304d8be179c91e",
-      "bytes": 102673
-    },
-    {
       "name": "LPLK_ThirdPerson.zip",
       "path": "Addons/LPLK_ThirdPerson/Build/LPLK_ThirdPerson.zip",
       "sha256": "0fc64f7af0b653dfda36800ba1ca739991f924e5c682c566aafc8aa53ea389c1",
@@ -163,6 +157,12 @@
       "path": "Addons/SerververwaltungBridge/Build/SerververwaltungBridge.zip",
       "sha256": "93f389b2685a3c7fad3463dd0130164cc43d9bc09e5f41e262fa79e85a98ca46",
       "bytes": 1251608
+    },
+    {
+      "name": "LPLK_Teams.zip",
+      "path": "Addons/LPLK_Teams/Build/LPLK_Teams.zip",
+      "sha256": "2adc471d9f2f380f3a980a02c0ae1a5b9e24c2373993d8b35613daf4a44840ba",
+      "bytes": 108627
     }
   ],
   "compiledSources": {
@@ -470,15 +470,17 @@
       "Addons/LPLK_Maps/Rohskripte/VpkMaps.cs": "24f264e075cd0a1dba058e03883d5916908f6f62f8cc46f1ce7c3d57958225fd"
     },
     "LPLK_Teams": {
-      "Addons/LPLK_Teams/Rohskripte/Administration.cs": "4a22aedf5c8bf8cebf438901e16ab72a38742311abb3fef07f918bce641b060d",
+      "Addons/LPLK_Teams/Rohskripte/Administration.cs": "44788364e74c83bbb10cd69b263c32573e32cbb327b418cf6d0bb0c63218103a",
       "Addons/LPLK_Teams/Rohskripte/BotPopulation.cs": "f53b6ebea31b840e7a99e2d6163e22a516d5e8a2359677f27f2d85ad53af3cb5",
-      "Addons/LPLK_Teams/Rohskripte/BotVotePlugin.cs": "bd9e772791cfa94653b5d6d9a5dafc67ad96abaad3bc82afcf33e816ba303501",
-      "Addons/LPLK_Teams/Rohskripte/LegacyProfile.cs": "37634773fad2f87f072fc3266278d2740f224f1aa746dfeab13a2c38a26989c3",
-      "Addons/LPLK_Teams/Rohskripte/PlayerActions.cs": "b7e256537206496c2bc9a0c0b89acc2892cfa3255340eb34fe15859a02435cd7",
-      "Addons/LPLK_Teams/Rohskripte/Plugin.cs": "1abcec5cefa5cbe341a2b9765070a7b939af23824e9cc445bfc9221172989a6c",
-      "Addons/LPLK_Teams/Rohskripte/TeamPolicy.cs": "491bb3d8630c8056153003de337e6bfc07279257904fae570889038f97b455e8",
+      "Addons/LPLK_Teams/Rohskripte/BotVotePlugin.cs": "239e25f82f4f422123691ea0187e78c20d65601a44091e787d3431babbb4acfc",
+      "Addons/LPLK_Teams/Rohskripte/LegacyProfile.cs": "a56c904aca7b1857ff71d9eff2baa1aa20fa8587d0a7318d0ed71aee48652d9e",
+      "Addons/LPLK_Teams/Rohskripte/PlayerActions.cs": "c959b4dbdaefb2631595b39f772af26f1e3c024304e6746fcc4738b97ec749c8",
+      "Addons/LPLK_Teams/Rohskripte/Plugin.cs": "0d77945b4ebf6eef3291e4739ad50dd366f19a7e6454e8f49272de354253413d",
+      "Addons/LPLK_Teams/Rohskripte/ReconnectTeams.cs": "c751699264d21104909c9623c809edeb3c2f3996b664b8ae2a476bed2c32d811",
+      "Addons/LPLK_Teams/Rohskripte/ReconnectTeamsPlugin.cs": "b4559c0e34d85e3b3742d78eef986e75d4f37b798d00b41bdeed9b6cc4803e68",
+      "Addons/LPLK_Teams/Rohskripte/TeamPolicy.cs": "104e8e2454d9d3123a56aa27f309cd5f497ae180ca56b38a7691a74f5b0d1d97",
       "Addons/LPLK_Teams/Rohskripte/TwoPlayerBotVote.cs": "b70ab5fa1b360cb8904e5b804fd1df8e00e83b5a97cb0edadd036d931c951a06",
-      "Addons/LPLK_Teams/Rohskripte/LPLK_Teams.csproj": "ddafb6edad091c4c2a27db305ecffd617a1cb3838d12a1c6ee8586e9f1d9961f",
+      "Addons/LPLK_Teams/Rohskripte/LPLK_Teams.csproj": "98990b118f353de30611205a4b42e170110e05e089714aa613db01976b058508",
       "Addons/_Gemeinsam/AdminActionPolicy.cs": "03727057ec8915f6fc693c9c1203c82a04b8dfa60044ceb023622d4f4c90b928",
       "Addons/_Gemeinsam/ChatTheme.cs": "b2cbf26e0e63559c7a1535487946535be7c9ffb09322bb2b683afce6f6f71497",
       "Addons/_Gemeinsam/CompactMenu.cs": "79feb9adf82dc121ede9d851dbef234f8a1c871459c4f002a226b1632a98883e",
@@ -655,12 +657,9 @@
     }
   },
   "validation": {
-    "mapParity": 152,
-    "teamPolicy": 139,
-    "botVoteMenus": 20,
+    "teamPolicy": 171,
+    "botVoteAndReconnectPersistence": 24,
     "startupAndBotPopulation": 625,
-    "mapsApi": 436,
-    "teamsApi": 391,
     "commandFixtures": 15,
     "commandProfiles": 7
   }

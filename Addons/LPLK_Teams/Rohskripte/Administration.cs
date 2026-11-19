@@ -16,8 +16,9 @@ public sealed partial class Plugin
     {
         if(c.Sender is {} p){OpenAdmin(p);return;}
         Refresh();WriteStatus();
-        c.Reply($"LPLK_BOTPOP {JsonSerializer.Serialize(new{version="0.2.15",humans=botHumans,desired=botDesired,actual=botActual,removalAttempts=botRemovalAttempts,quota=Core.ConVar.Find<int>("bot_quota")?.Value,mode=Core.ConVar.Find<string>("bot_quota_mode")?.Value,teamT=new{humans=botHumanT,bots=botT,targetBots=botTargetT},teamCt=new{humans=botHumanCt,bots=botCt,targetBots=botTargetCt},teamMoves=botTeamMoves,balanceState=botBalanceState})}");
-        c.ReplyLplk($"LPLK_Teams 0.2.15: enabled={settings.Enabled}; ready={ready}; bridgeReady={BridgeReady()}; CT={score?.Ct}; T={score?.T}; source={tracker.Source}; rounds={rounds}; threshold={TeamPolicy.Threshold(settings,rounds)}; selected={SelectionIds.Count()}; errors={errors}; reloadError={reloadError??"none"}");
+        c.Reply($"LPLK_WTJ {JsonSerializer.Serialize(new{version="0.2.16",enabled=settings.Enabled,matchEndProtection=settings.BlockWinningTeamDuringMatchEnd,selectedProtection=settings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd,selected=SelectionIds.Count(),winner=WinningJoinGuard,ready,effective=Effective,errors,reloadError,returnReady,returnError,returnPending=returnTeams.PendingCount})}");
+        c.Reply($"LPLK_BOTPOP {JsonSerializer.Serialize(new{version="0.2.16",humans=botHumans,desired=botDesired,actual=botActual,removalAttempts=botRemovalAttempts,quota=Core.ConVar.Find<int>("bot_quota")?.Value,mode=Core.ConVar.Find<string>("bot_quota_mode")?.Value,teamT=new{humans=botHumanT,bots=botT,targetBots=botTargetT},teamCt=new{humans=botHumanCt,bots=botCt,targetBots=botTargetCt},teamMoves=botTeamMoves,balanceState=botBalanceState})}");
+        c.ReplyLplk($"LPLK_Teams 0.2.16: enabled={settings.Enabled}; ready={ready}; bridgeReady={BridgeReady()}; CT={score?.Ct}; T={score?.T}; source={tracker.Source}; rounds={rounds}; threshold={TeamPolicy.Threshold(settings,rounds)}; selected={SelectionIds.Count()}; errors={errors}; reloadError={reloadError??"none"}");
     }
     [Command("tsbscore")]
     public void ScoreCommand(ICommandContext c)
@@ -27,9 +28,9 @@ public sealed partial class Plugin
         c.ReplyLplk($"[LPLK] Teams {(settings.Enabled?"AN":"AUS")}: CT {score?.Ct.ToString()??"?"} : {score?.T.ToString()??"?"} T; geschützt: {ProtectedText()}; Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds}; Halbzeit {Halftime}; Quelle {tracker.Source}.");
     }
     private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,title,()=>loaded,module.CanAdmin,rows,back);
-    private void OpenAdmin(IPlayer p)=>Page(p,"Teams · jakob1933-Schutz",_=>new (string,Action<IPlayer>)[]{
+    private void OpenAdmin(IPlayer p)=>Page(p,"Teams · Jakob WTJ Schutz",_=>new (string,Action<IPlayer>)[]{
         ("Spielstand",a=>{Refresh();a.SendLplkChat($"[LPLK] CT {score?.Ct} : {score?.T} T | {ProtectedText()} | Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds} | {roundsSource} | {tracker.Source} | Konfiguration: {reloadError??"gültig"}");}),
-        ($"jakob1933-Schutz ({SelectionIds.Count()})",PlayersRoot),
+        ($"Jakob WTJ Schutz ({SelectionIds.Count()})",PlayersRoot),
         ($"Aktiv: {settings.Enabled}",a=>Set(a,nameof(TeamSettings.Enabled),false,toggle:true))}.Concat(Groups.SelectMany((g,index)=>SettingRows(index))).Concat(TextSettingRows()).ToArray());
     private void SettingsRoot(IPlayer p)=>OpenAdmin(p);
     private static readonly (string Name,string Label)[][] Groups=
@@ -37,7 +38,7 @@ public sealed partial class Plugin
         [(nameof(TeamSettings.BotFillSlots),"Bot-Füllziel (0 = aus)"),(nameof(TeamSettings.AutoDetectMaxRounds),"Autorunden"),(nameof(TeamSettings.FallbackMaxRounds),"Ersatz-Rundenzahl"),(nameof(TeamSettings.BlockAtMaxRoundsPercent),"Sperranteil"),
          (nameof(TeamSettings.BlockOnlyIfTeamIsLeading),"Führungsschutz"),(nameof(TeamSettings.BlockBothTeamsIfBothReachedLimit),"Doppelsperre"),(nameof(TeamSettings.AllowSpectator),"Zuschauer erlauben"),(nameof(TeamSettings.ForceBackIfSwitchStillHappened),"Rückversetzen")],
         [(nameof(TeamSettings.AllowHalftimeTeamSwitchException),"Halbzeitausnahme"),(nameof(TeamSettings.HalftimeSwitchGraceSeconds),"Halbzeitdauer"),(nameof(TeamSettings.TreatWinScoreAsMatchEnd),"Siegpunkt"),
-         (nameof(TeamSettings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd),"jakob1933-Schutz bei Matchende"),(nameof(TeamSettings.MatchEndGuardWindowSeconds),"Sperrdauer"),(nameof(TeamSettings.ResetScoreOnNewMap),"Map-Rücksetzung"),(nameof(TeamSettings.ResetScoreOnNewMatch),"Match-Rücksetzung")],
+         (nameof(TeamSettings.BlockWinningTeamDuringMatchEnd),"Matchende schützen"),(nameof(TeamSettings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd),"Ausgewählte schützen"),(nameof(TeamSettings.MatchEndGuardWindowSeconds),"Sperrdauer"),(nameof(TeamSettings.ResetScoreOnNewMap),"Map-Rücksetzung"),(nameof(TeamSettings.ResetScoreOnNewMatch),"Match-Rücksetzung")],
         [(nameof(TeamSettings.UseRoundEndFallback),"Rundenersatz"),(nameof(TeamSettings.AnnounceWhenTeamBecomesProtected),"Sperrteam ankündigen"),(nameof(TeamSettings.ShowBlockedMessageInChat),"Chathinweis"),
          (nameof(TeamSettings.ShowBlockedMessageInCenter),"Bildschirmhinweis"),(nameof(TeamSettings.ShowForceToLosingTeamMessage),"Verliererteam-Hinweis"),(nameof(TeamSettings.AllowChatStatusCommand),"Spielstandbefehl"),(nameof(TeamSettings.EnableLosingTeamMenu),"Verlierermenü"),(nameof(TeamSettings.Debug),"Diagnose")]
     ];
@@ -91,7 +92,7 @@ public sealed partial class Plugin
         if(!CanUseSelection(p))return;
         var ids=Core.PlayerManager.GetAllValidPlayers().Where(IsHuman).Select(x=>x.SteamID).Concat(SelectionIds).Distinct().Where(id=>SelectionMatches(filter,HasSelection(id))).Order().ToArray();
         page=0;
-        var builder=Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).Design.SetMenuTitle(MenuColors.Heading("jakob1933-Schutz · Spielerauswahl")).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter);
+        var builder=Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).Design.SetMenuTitle(MenuColors.Heading("Jakob WTJ Schutz · Spielerauswahl")).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter);
         var numbers=new MenuNumbers();
         foreach(var id in ids)
         {
@@ -127,7 +128,7 @@ public sealed partial class Plugin
         }
         Navigation("Zurück",PlayersRoot,true);Core.MenusAPI.OpenMenuForPlayer(p,builder.Build());
     }
-    private void ConfirmSelection(IPlayer actor,ulong id,ConnectionKey identity,int page,SelectionFilter filter=SelectionFilter.All)=>module.Menu(actor,"jakob1933-Schutz bestätigen",1,
+    private void ConfirmSelection(IPlayer actor,ulong id,ConnectionKey identity,int page,SelectionFilter filter=SelectionFilter.All)=>module.Menu(actor,"Jakob WTJ Schutz bestätigen",1,
         ("Bestätigen",a=>
         {
             var p=Core.PlayerManager.GetPlayer(identity.Slot);
