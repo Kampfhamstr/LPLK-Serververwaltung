@@ -52,7 +52,7 @@ public sealed partial class Plugin
     }
     private void WriteSettingsStatus()
     {
-        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.11.5",reasons=settings.Reasons.Length,durations=settings.Durations.Length,reloadError=settingsError,commands=aliasRegistrations.Count,commandError});settingsStatusFailed=false;}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version=PluginVersion,reasons=settings.Reasons.Length,durations=settings.Durations.Length,reloadError=settingsError,commands=aliasRegistrations.Count,commandError});settingsStatusFailed=false;}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!settingsStatusFailed)Core.Logger.LogWarning(e,"LPLK_Admin: Status nicht schreibbar.");settingsStatusFailed=true;}
     }
     private void SettingsMenu(IPlayer p)=>Menu(p,"Admin · Einstellungen",_=>new (string,Action<IPlayer>)[]{
@@ -60,7 +60,14 @@ public sealed partial class Plugin
     private void ChangeSettings(IPlayer p,Func<AdminSettings,AdminSettings> edit,Action<IPlayer> back)
     {
         if(!CanConfigure(p))return;
-        try{settingsFile.Change(edit);SyncSettings();p.SendLplkChat("[LPLK] Einstellung gespeichert.");}
+        try
+        {
+            var previous = settings;
+            settingsFile.Change(edit);
+            SyncSettings();
+            if (!AdminSettingsFile.Same(previous, settings)) NotifyAdminAction(p, "Admin-Einstellungen geändert");
+            p.SendLplkChat("[LPLK] Einstellung gespeichert.");
+        }
         catch(Exception e)when(SettingsFailure(e)){Core.Logger.LogWarning(e,"LPLK_Admin: Einstellung nicht gespeichert.");p.SendLplkChat("[LPLK] Nicht gespeichert. Konfiguration und Auswahl prüfen.");ReloadSettings();}
         WriteSettingsStatus();back(p);
     }

@@ -105,8 +105,15 @@ Check(Get<List<MapEntry>>(mapsPlugin,"maps").Single(m=>m.Id=="123") is {Name:"Ei
 Check(!mw.Labels.Any(l=>l.Contains("Starten")),"Start hidden during download");
 backend.State=new(true,false,false,1024,1024);Call(mapsPlugin,"PollWorkshopTest",Environment.TickCount64,true);Check(!Job("Ready"),"Installed flag alone cannot complete download");
 backend.Complete!("123",true,"OK");Check(!Job("Ready"),"Completion callback without map file cannot complete download");
-WriteMap(Path.Combine(workshop,"123","test.vpk"));Call(mapsPlugin,"PollWorkshopTest",Environment.TickCount64,true);Check(Job("Ready")&&mw.Labels.Any(l=>l.Contains("Starten")),"Callback plus state plus VPK enables explicit start");
-Check(Get<object?>(mapsPlugin,"pending") is null,"Completed download still does not auto-start");await mw.Click("Starten");var confirm=mw.Find("Bestätigen");mw.Permissions.Clear();await mw.Click(confirm);Check(Get<object?>(mapsPlugin,"pending") is null,"Start confirmation rechecks admin rights");mw.Permissions.Add("lplk.maps.admin");
+mw.Current=null;WriteMap(Path.Combine(workshop,"123","test.vpk"));
+for(int n=0;n<200&&!Job("Ready");n++){Call(mapsPlugin,"PollWorkshopTest",Environment.TickCount64,true);await Task.Delay(5);}
+Check(Job("Ready")&&mw.Current!.Configuration.Title.Contains("Map jetzt starten?")&&mw.Labels.Any(l=>l.Contains("Jetzt starten")),"Complete download automatically prompts owner even after closing status menu");
+Check(Get<object?>(mapsPlugin,"pending") is null,"Completed download still does not auto-start");
+MapSettings.Validate(new MapSettings{MaxWorkshopGiB=0,MinimumFreeDiskGiB=10});Check(new MapSettings().MaxWorkshopGiB==0,"Unlimited workshop cap is valid and the default");
+Call(mapsPlugin,"ChangeConfiguration",(Func<MapSettings,MapSettings>)(s=>s with{BuiltinMapsOnly=true}),false,null);
+Check(!(bool)Call(mapsPlugin,"Available",Get<List<MapEntry>>(mapsPlugin,"maps").Single(m=>m.Id=="123"))!,"Standard-map pool excludes downloaded manual test map");
+await mw.Click("Später");var later=mw.Current;Call(mapsPlugin,"WriteTestDownload");Check(ReferenceEquals(later,mw.Current)&&Get<object?>(mapsPlugin,"pending") is null,"Later keeps downloaded map without repeating prompt or changing map");
+await mw.Click("Starten");var confirm=mw.Find("Jetzt starten");mw.Permissions.Clear();await mw.Click(confirm);Check(Get<object?>(mapsPlugin,"pending") is null,"Start confirmation rechecks admin rights");mw.Permissions.Add("lplk.maps.admin");
 backend.State=new(true,true,true,500,1024);await mw.Click(confirm);Check(Get<object?>(mapsPlugin,"pending") is null,"New update invalidates stale start confirmation");backend.State=new(true,false,false,1024,1024);await mw.Click(confirm);Check(Get<object?>(mapsPlugin,"pending") is not null,"Explicit fresh confirmation schedules map change");Set(mapsPlugin,"pending",null);
 await Begin("456");mw.Permissions.Clear();await FinishMetadata(new("456","Unauthorized",true,1));Check(Job("Failed")&&backend.Downloads==1,"Rights revoked during metadata query prevent download");mw.Permissions.Add("lplk.maps.admin");
 await Begin("789");await FinishMetadata(new("789","Not a map",false,1));Check(Job("Failed")&&backend.Downloads==1,"Non-map Workshop item refused");

@@ -22,7 +22,7 @@ public static class AdminCommandNames
     };
     // These belong to the map service or the existing central role management.
     public static readonly string[] Unsupported=[];
-    private static readonly HashSet<string> Reserved=new(["menu","lplk_admin_commands",
+    private static readonly HashSet<string> Reserved=new(["menu","lplk_admin_commands","supergod","superguns","sgm",
         "say_team","quit","exit","exec","execifexists","changelevel","host_workshop_map","connect","disconnect","status","bind","unbind","alias","sv_password","rcon_password"],StringComparer.OrdinalIgnoreCase);
     public static string Normalize(string? value)
     {
@@ -149,7 +149,7 @@ public sealed partial class Plugin
         if(!active)return;
         if(c.Sender is {} p&&!CanManage(p)){c.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         ReloadSettings();
-        c.ReplyLplk("LPLK_Admin commands: "+JsonSerializer.Serialize(new{version="0.11.11",registered=aliasRegistrations.Keys.Order().ToArray(),
+        c.ReplyLplk("LPLK_Admin commands: "+JsonSerializer.Serialize(new{version=PluginVersion,registered=aliasRegistrations.Keys.Order().ToArray(),
             unsupported=settings.Commands.Keys.Where(k=>AdminCommandNames.Unsupported.Contains(k,StringComparer.OrdinalIgnoreCase)).Order().ToArray(),commandError,reloadError=settingsError}));
     }
 
@@ -171,8 +171,8 @@ public sealed partial class Plugin
         // numbered chunk stays well below that limit; consumers require all.
         string run=Guid.NewGuid().ToString("N");var chunks=entries.Chunk(8).ToArray();
         for(int index=0;index<chunks.Length;index++)
-            c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version="0.11.11",run,index,total=chunks.Length+1,entries=chunks[index]}));
-        c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version="0.11.11",run,index=chunks.Length,total=chunks.Length+1,
+            c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version=PluginVersion,run,index,total=chunks.Length+1,entries=chunks[index]}));
+        c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version=PluginVersion,run,index=chunks.Length,total=chunks.Length+1,
             entries=Array.Empty<object>(),collisions,entryCount=entries.Length,exactCount=Core.Command.GetAllCommands().Count}));
     }
 }

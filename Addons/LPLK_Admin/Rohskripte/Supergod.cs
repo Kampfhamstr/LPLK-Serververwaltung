@@ -1,0 +1,219 @@
+using LPLK.Common;
+using Microsoft.Extensions.Logging;
+using SwiftlyS2.Shared.Commands;
+using SwiftlyS2.Shared.Events;
+using SwiftlyS2.Shared.GameEventDefinitions;
+using SwiftlyS2.Shared.GameHooks;
+using SwiftlyS2.Shared.Misc;
+using SwiftlyS2.Shared.Players;
+using SwiftlyS2.Shared.SchemaDefinitions;
+
+namespace LPLK_Admin;
+
+public sealed partial class Plugin
+{
+    private const float SupergodSpeed = 3.0f;
+    private sealed record SupergodLife(ulong SteamId, string Session, uint Pawn, int Team, float PreviousSpeed);
+    private readonly Dictionary<int, SupergodLife> supergod = [];
+    private readonly List<Guid> supergodEvents = [];
+
+    private bool CanUseSupergod(IPlayer player) => Can(player, "noclip") || Has(player, "admin.root");
+
+    private CCSPlayerPawn? LiveAdminPawn(IPlayer player) =>
+        CanUseSupergod(player) && player.IsAlive &&
+        player.Controller is { IsValid: true, TeamNum: 2 or 3 } &&
+        player.PlayerPawn is { IsValid: true, Health: > 0 } pawn ? pawn : null;
+
+    private bool SameSupergodPawn(IPlayer player, CCSPlayerPawn pawn, SupergodLife life) =>
+        player.SteamID == life.SteamId && player.SessionId.ToString() == life.Session &&
+        Core.EntitySystem.GetRefEHandle(pawn).Raw == life.Pawn;
+
+    private CCSPlayerPawn? ActiveSupergodPawn(IPlayer player)
+    {
+        if (!supergod.TryGetValue(player.PlayerID, out var life) || LiveAdminPawn(player) is not { } pawn)
+            return null;
+        return SameSupergodPawn(player, pawn, life) && player.Controller.TeamNum == life.Team ? pawn : null;
+    }
+
+    private static void SetSupergodSpeed(CCSPlayerPawn pawn, float speed)
+    {
+        if (pawn.VelocityModifier == speed) return;
+        pawn.VelocityModifier = speed;
+        pawn.VelocityModifierUpdated();
+    }
+
+    private void SetSupergod(IPlayer player, bool enable)
+    {
+        if (!CanUseSupergod(player)) throw new InvalidOperationException("Keine Berechtigung für den Supergodmodus.");
+        if (enable)
+        {
+            if (ActiveSupergodPawn(player) is not null) return;
+            StopSupergod(player.PlayerID);
+            var pawn = LiveAdminPawn(player)
+                ?? throw new InvalidOperationException("Du musst in T oder CT leben.");
+            var life = new SupergodLife(player.SteamID, player.SessionId.ToString(),
+                Core.EntitySystem.GetRefEHandle(pawn).Raw, player.Controller.TeamNum, pawn.VelocityModifier);
+            supergod.Add(player.PlayerID, life);
+            try
+            {
+                SetSupergodSpeed(pawn, SupergodSpeed);
+                if (pawn.WeaponServices?.ActiveWeapon.Value is { IsValid: true } weapon)
+                    RefillSupergodMagazine(weapon);
+            }
+            catch
+            {
+                StopSupergod(player.PlayerID);
+                throw;
+            }
+        }
+        else StopSupergod(player.PlayerID);
+
+        Core.Logger.LogInformation("Supergodmodus {State} für Admin {SteamId}", enable ? "AN" : "AUS", player.SteamID);
+        NotifyAdminAction(player, enable ? "Supergodmodus AN" : "Supergodmodus AUS");
+        player.SendLplkChat(enable
+            ? "[LPLK] Supergodmodus AN · Unverwundbar, volle Magazine, Tempo 3×. Waffen: !superguns"
+            : "[LPLK] Supergodmodus AUS.");
+    }
+
+    private void StopSupergod(int slot)
+    {
+        if (!supergod.Remove(slot, out var life)) return;
+        if (Core.PlayerManager.GetPlayer(slot) is { IsValid: true } player &&
+            player.PlayerPawn is { IsValid: true } pawn && SameSupergodPawn(player, pawn, life) &&
+            pawn.VelocityModifier == SupergodSpeed)
+            SetSupergodSpeed(pawn, life.PreviousSpeed);
+    }
+
+    private void StopAllSupergod()
+    {
+        foreach (int slot in supergod.Keys.ToArray()) StopSupergod(slot);
+    }
+
+    private void LoadSupergod()
+    {
+        if (Core.GameHooks?.Entities?.TakeDamage is { } damage) damage.Pre += ProtectSupergod;
+        supergodEvents.Add(Core.GameEvent.HookPost<EventWeaponFire>(OnSupergodFire));
+        supergodEvents.Add(Core.GameEvent.HookPost<EventItemEquip>(OnSupergodEquip));
+        supergodEvents.Add(Core.GameEvent.HookPost<EventPlayerDeath>(e => EndSupergodLife(e.UserIdPlayer)));
+        supergodEvents.Add(Core.GameEvent.HookPost<EventPlayerSpawn>(e => EndSupergodLife(e.UserIdPlayer)));
+        supergodEvents.Add(Core.GameEvent.HookPost<EventPlayerTeam>(e => EndSupergodLife(e.UserIdPlayer)));
+        supergodEvents.Add(Core.GameEvent.HookPost<EventRoundEnd>(_ =>
+        {
+            StopAllSupergod();
+            return HookResult.Continue;
+        }));
+    }
+
+    private void UnloadSupergod()
+    {
+        if (Core.GameHooks?.Entities?.TakeDamage is { } damage) damage.Pre -= ProtectSupergod;
+        foreach (Guid handle in supergodEvents)
+            if (handle != Guid.Empty) Core.GameEvent.Unhook(handle);
+        supergodEvents.Clear();
+        StopAllSupergod();
+    }
+
+    private HookResult EndSupergodLife(IPlayer? player)
+    {
+        if (player is not null) StopSupergod(player.PlayerID);
+        return HookResult.Continue;
+    }
+
+    [EventListener<EventDelegates.OnClientDisconnected>]
+    public void SupergodDisconnect(IOnClientDisconnectedEvent e) => StopSupergod(e.PlayerId);
+
+    [EventListener<EventDelegates.OnMapUnload>]
+    public void SupergodMapUnload(IOnMapUnloadEvent e) => StopAllSupergod();
+
+    [EventListener<EventDelegates.OnTick>]
+    public void SupergodTick()
+    {
+        if (!active || supergod.Count == 0) return;
+        foreach (int slot in supergod.Keys.ToArray())
+        {
+            var player = Core.PlayerManager.GetPlayer(slot);
+            if (player is null || ActiveSupergodPawn(player) is not { } pawn)
+            {
+                StopSupergod(slot);
+                continue;
+            }
+            if (pawn.VelocityModifier == SupergodSpeed) continue;
+            // If another server action sets a speed, keep that value for deactivation.
+            supergod[slot] = supergod[slot] with { PreviousSpeed = pawn.VelocityModifier };
+            SetSupergodSpeed(pawn, SupergodSpeed);
+        }
+    }
+
+    private void ProtectSupergod(ref TakeDamageEntityPreContext context)
+    {
+        if (!active || supergod.Count == 0 ||
+            context.Params.Entity is not { IsValid: true, DesignerName: "player" } target) return;
+        var player = Core.PlayerManager.GetPlayerFromPawn(target.As<CBasePlayerPawn>());
+        if (player is not null && ActiveSupergodPawn(player) is { } pawn && pawn.Address == target.Address)
+            context.SetHookResult(HookResult.Stop);
+    }
+
+    private string SupergodWeaponId(CBasePlayerWeapon weapon) =>
+        Core.Helpers.GetClassnameByDefinitionIndex(weapon.AttributeManager.Item.ItemDefinitionIndex) ?? weapon.DesignerName;
+
+    private void RefillSupergodMagazine(CBasePlayerWeapon weapon)
+    {
+        if (WeaponCatalog.Find(SupergodWeaponId(weapon)) is null || weapon.Clip1 < 0) return;
+        var data = weapon.As<CCSWeaponBase>().WeaponBaseVData;
+        if (!data.IsValid || data.MaxClip1 <= weapon.Clip1) return;
+        // Definition limits are shared; update this weapon's live clip only.
+        weapon.Clip1 = data.MaxClip1;
+        weapon.Clip1Updated();
+    }
+
+    private HookResult OnSupergodFire(EventWeaponFire e)
+    {
+        if (!active || supergod.Count == 0 || e.UserIdPlayer is not { } player ||
+            ActiveSupergodPawn(player)?.WeaponServices?.ActiveWeapon.Value is not { IsValid: true } weapon)
+            return HookResult.Continue;
+        if (e.Weapon is not { Length: > 0 } fired) return HookResult.Continue;
+        string id = fired.StartsWith("weapon_", StringComparison.OrdinalIgnoreCase) ? fired : "weapon_" + fired;
+        if (id.Equals(SupergodWeaponId(weapon), StringComparison.OrdinalIgnoreCase)) RefillSupergodMagazine(weapon);
+        return HookResult.Continue;
+    }
+
+    private HookResult OnSupergodEquip(EventItemEquip e)
+    {
+        if (active && supergod.Count != 0 && e.UserIdPlayer is { } player &&
+            ActiveSupergodPawn(player)?.WeaponServices?.ActiveWeapon.Value is { IsValid: true } weapon)
+            RefillSupergodMagazine(weapon);
+        return HookResult.Continue;
+    }
+
+    [Command("supergod")]
+    [CommandAlias("sgm")]
+    public void SupergodCommand(ICommandContext context)
+    {
+        if (context.Sender is not { } player)
+        {
+            context.ReplyLplk("[LPLK] Supergodmodus nur im Spiel.");
+            return;
+        }
+        if (context.Args.Length != 0)
+        {
+            context.ReplyLplk("[LPLK] Verwendung: !sgm");
+            return;
+        }
+        Guard(() => SetSupergod(player, ActiveSupergodPawn(player) is null), context.ReplyLplk);
+    }
+
+    private void SupergodMenu(IPlayer player) => Menu(player, "Supergodmodus", admin =>
+    {
+        bool enabled = ActiveSupergodPawn(admin) is not null;
+        var entries = new List<(string, Action<IPlayer>)>
+        {
+            (enabled ? "Supergodmodus: AN" : "Supergodmodus: AUS", a =>
+            {
+                SetSupergod(a, !enabled);
+                SupergodMenu(a);
+            })
+        };
+        if (enabled) entries.Add(("Waffen holen", SupergodWeapons));
+        return entries;
+    }, PlayerManagement, CanUseSupergod, colorSwitches: true);
+}

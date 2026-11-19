@@ -181,6 +181,8 @@ Check(typeof(Plugin).GetMethod(nameof(Plugin.Admin))!.GetCustomAttributes<Comman
 Check(world.AllMenus.Where(m => m.Configuration.Title?.StartsWith("<font") == true).All(m => m.Configuration.MaxVisibleItems == 5), "All central lists use five visible rows");
 await SoundFlowChecks.Run(Check);
 await ClarityChecks.Run(Check);
+await SupergodChecks.Run(Check);
+AdminActionNoticeChecks.Run(Check);
 await MenuPositionChecks.Run(Check);
 MenuVisualChecks.Run(Check);
 await LegacyMenuChecks.Run(Check);

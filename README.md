@@ -1,5 +1,5 @@
 # LPLK CS2-Plugins
 
-Aktuell: [Admin-Menüs und Admin-Mapvorrang](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/menus-2026.11.19). [Änderungen und Prüfgrenzen](docs/ADMIN-MENUES-20261119.md).
+Aktuell ist [LPLK_Admin 0.11.13 mit Supergodmodus](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/admin-0.11.13-supergod). Diese Vorabversion wurde auf dem Testserver geladen. Die Bedienung und die Prüfgrenzen stehen in der [Anleitung](docs/ADMIN-SUPERGOD.md).
 
-18 aktualisierte Pluginpakete plus vollständige zugehörige Quellen. [Alle aktuellen Downloads](docs/DOWNLOADS.md). Testserver, Atlas und Inner Circle nativ geprüft; Produktionsinstallation ohne Serverneustart. Die behobenen Abstürze während der Testdiagnose sind im Prüfbericht dokumentiert. Vorabversion ohne neue menschliche Client-Sichtabnahme. Keine Zugangsdaten oder Server-/Spielerdaten enthalten.
+[Downloads aller Plugins](docs/DOWNLOADS.md)

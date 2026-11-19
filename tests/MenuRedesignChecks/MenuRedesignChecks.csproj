@@ -7,6 +7,7 @@
   <Compile Include="../../Addons/_Gemeinsam/ModuleSupport.cs" Link="ModuleSupport.cs"/>
   <Compile Include="../../Addons/_Gemeinsam/CompactMenu.cs" Link="CompactMenu.cs"/>
   <Compile Include="../../Addons/_Gemeinsam/AdminActionPolicy.cs" Link="AdminActionPolicy.cs"/>
+  <Compile Include="../../Addons/_Gemeinsam/WeaponCatalog.cs" Link="WeaponCatalog.cs"/>
   <Compile Include="../EconomyChecks/MenuWorld.cs" Link="MenuWorld.cs"/>
   <PackageReference Include="SwiftlyS2.CS2" Version="1.4.14"/>
   <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0"/>

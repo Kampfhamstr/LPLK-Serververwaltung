@@ -74,6 +74,31 @@ var permissions=Proxy.Make(typeof(ISwiftlyCore).GetProperty("Permission")!.Prope
 var core=Proxy.Make<ISwiftlyCore>((m,a)=>m.Name=="get_Command"?commands:m.Name=="get_Permission"?permissions:m.Invoke(w.Core,a));
 var p=new Plugin(core);
 bool Occupied(string name)=>(bool)typeof(Plugin).GetMethod("CommandNameOccupied",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(p,[name])!;
+if(args.Contains("--registration-collisions"))
+{
+    foreach(string name in new[]{"say","kick","noclip","rcon","map","restart","adminmenu","ban"})
+        Check(Occupied(name),"Positive native result cannot be dismissed because a prefixed plugin command exists: "+name);
+    Check(typeof(Plugin).GetMethod(nameof(Plugin.LegacyMap))!.GetCustomAttribute<Command>()!.Name=="admin_map","Modern Maps owns sw_map; legacy Admin uses sw_admin_map");
+    Check(!AdminCommandNames.Groups["ChangeMap"].Contains("map"),"Default Admin aliases do not recreate Maps command");
+    foreign.Clear();fixedNames.Clear();
+    foreach(string name in new[]{"say","kick","noclip","rcon","map","restart","help","addons","stats","say_team","quit","exit","status","exec","changelevel","host_workshop_map","sw_map"})
+        Check(Occupied(name),"Known engine command protected even before native discovery: "+name);
+    Check(!Occupied("sw_admin_map"),"Legacy Admin map entry remains separate from Maps during cold start");
+    Check(typeof(Plugin).GetMethod(nameof(Plugin.CommandAudit))!.GetCustomAttribute<Command>()!.Name=="lplk_command_audit","Scoped read-only command ownership diagnostic");
+    Check(!Occupied("lplk_free_alias"),"Unused custom alias remains available");
+    foreign.Add("lplk_taken_alias");Check(Occupied("lplk_taken_alias"),"Foreign custom command protected");
+    string build=Environment.GetEnvironmentVariable("LPLK_BUILD_ROOT")!;
+    var economy=Assembly.LoadFrom(Path.Combine(build,"LPLK_Economy/bin/Release/net10.0/LPLK_Economy.dll"));
+    var help=economy.GetType("LPLK_Economy.Plugin")!.GetMethod("HelpCommand")!;
+    Check(help.GetCustomAttribute<Command>()!.Name=="help"&&!help.GetCustomAttribute<Command>()!.RegisterRaw,"Bank help keeps prefixed/chat entry");
+    Check(!help.GetCustomAttributes<CommandAlias>().Any(x=>x.Alias=="help"&&x.RegisterRaw),"Engine help never registered as raw alias");
+    foreach(string name in new[]{"bbhelp","betbankhelp"})Check(help.GetCustomAttributes<CommandAlias>().Any(x=>x.Alias==name&&x.RegisterRaw),"Nonconflicting legacy bank help retained");
+    var addons=Assembly.LoadFrom(Path.Combine(build,"AddonsManager/bin/Release/net10.0/AddonsManager.dll"));
+    var status=addons.GetType("AddonsManager.Commands.AddonsCommands")!.GetMethod("OpenStatusMenu")!.GetCustomAttribute<Command>()!;
+    Check(status.Name=="addonstatus"&&!status.RegisterRaw,"Workshop status uses sw_addonstatus, leaving engine addons and sw_addons help alone");
+    Console.WriteLine($"CommandCollisionChecks: {checks} passed; actual compiled command attributes and occupied-name guard; no production commands executed.");
+    return;
+}
 Check(!Occupied("kick"),"Native sw_ fallback to own attributed command is not an exact collision");
 Check(!Occupied("adminmenu"),"Native fallback to own attributed alias is not an exact collision");
 ownFixedVisible=false;Check(Occupied("kick"),"Unknown ownership remains occupied");ownFixedVisible=true;
@@ -128,7 +153,7 @@ Check(registrations.Values.Any(x=>x.Name=="control")&&registrations.Values.Any(x
 await w.Click(w.FindExact("control"));await w.Click(w.FindExact("Entfernen"));await w.Click(w.FindExact("Bestätigen"));
 Check(!registrations.Values.Any(x=>x.Name=="control"),"Menu confirms removal of custom alias");
 Check((int)JsonNode.Parse(File.ReadAllText(cfg))!["Future"]! ==42,"Unknown configuration fields survive editor");
-p.CommandStatus(Context([],true));Check(w.Messages.Last().Contains("\"version\":\"0.10.4\""),"Own diagnostic reports version and registered names");
+p.CommandStatus(Context([],true));Check(w.Messages.Last().Contains("\"version\":\"0.11.1\""),"Own diagnostic reports version and registered names");
 var last=Handler("replacement");p.Unload();count=w.AdminCalls.Count;last(Context(["76561198000000000","5"],true));p.Ban(Context(["76561198000000000","5"],true));
 Check(w.AdminCalls.Count==count&&registrations.Count==0&&foreign.SetEquals(["sw_foreign"]),"Unload blocks stale console callbacks and keeps foreign handler");
 Check(w.EntityAccesses==0,"No synthetic native entities");

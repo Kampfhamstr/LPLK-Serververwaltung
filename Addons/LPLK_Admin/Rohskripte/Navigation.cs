@@ -14,7 +14,7 @@ public sealed partial class Plugin
     private bool CanOpenAdmin(IPlayer p) => Connected(p) && (CanManage(p) || CanConfigure(p) || Modules(p).Length > 0);
 
     private void Menu(IPlayer p, string caption, Func<IPlayer, IEnumerable<(string Label, Action<IPlayer> Action)>> entries,
-        Action<IPlayer>? back, Func<IPlayer, bool> allowed, int page = 0, Action<IPlayer, int>? changePage = null, bool scroll = true)
+        Action<IPlayer>? back, Func<IPlayer, bool> allowed, int page = 0, Action<IPlayer, int>? changePage = null, bool scroll = true, bool colorSwitches = false)
     {
         ReloadSettings();
         if (!allowed(p)) { p.SendLplkChat("[LPLK] Dieser Bereich ist nicht mehr freigegeben."); return; }
@@ -28,7 +28,8 @@ public sealed partial class Plugin
         var numbers = new MenuNumbers();
         void Add(string label, Action<IPlayer> action, bool navigation = false)
         {
-            var option = new ButtonMenuOption(navigation ? MenuColors.Back(MenuLayout.Label(label)) : numbers.Next(MenuLayout.Label(label))) { CloseAfterClick = false };
+            bool? enabled = colorSwitches ? MenuColors.SwitchValue(label) : null;
+            var option = new ButtonMenuOption(navigation ? MenuColors.Back(MenuLayout.Label(label)) : numbers.Next(MenuLayout.Label(label), enabled: enabled)) { CloseAfterClick = false };
             GameThreadMenu.Bind(Core, option, p, () => active && serial == generation, a =>
             {
                 ReloadSettings();if(serial!=generation){a.SendLplkChat("[LPLK] Einstellungen geändert; Menü neu öffnen.");return;}
@@ -42,7 +43,7 @@ public sealed partial class Plugin
         void Navigate(IPlayer a, int index)
         {
             if (changePage is not null) changePage(a, index);
-            else Menu(a, caption, entries, back, allowed, index);
+            else Menu(a, caption, entries, back, allowed, index, colorSwitches: colorSwitches);
         }
         if (slice.Index > 0) Add("Vorherige Seite", a => Navigate(a, slice.Index - 1), true);
         if (slice.Index + 1 < slice.Count) Add("Nächste Seite", a => Navigate(a, slice.Index + 1), true);
@@ -55,7 +56,7 @@ public sealed partial class Plugin
     public void PlayerMenuCommand(ICommandContext context)
     {
         if (context.Sender is { } player && Connected(player)) OpenPlayerMenu(player);
-        else context.ReplyLplk("LPLK_Admin 0.11.7; Spielermenü: !menu; Administration: !admin / !adminmenu.");
+        else context.ReplyLplk($"LPLK_Admin {PluginVersion}; Spielermenü: !menu; Administration: !admin / !adminmenu.");
     }
 
     private bool Loaded(string id) => active && Core.PluginManager.GetAllPlugins().Contains(id) && Core.PluginManager.GetPluginStatus(id)==SwiftlyS2.Shared.Plugins.PluginStatus.Loaded;
@@ -176,6 +177,7 @@ public sealed partial class Plugin
         var entries = new List<(string, Action<IPlayer>)>();
         Action<IPlayer> back = PlayerManagement;
         if (HasPlayerActions(a)) entries.Add(("Spieler", b => PlayerList(b, 0)));
+        if (CanUseSupergod(a)) entries.Add(("Supergodmodus", SupergodMenu));
         if (Can(a, "unban")) entries.Add(("Entbannen", b => Input(b, "SteamID64 entsperren", (c, id) =>
         {
             if (!AdminActionPolicy.SteamId(id)) throw new ArgumentException("Ungültige SteamID64.");
@@ -220,7 +222,7 @@ public sealed partial class Plugin
             ("Anzeigen", b => b.SendLplkChat("[LPLK] " + string.Join(", ", Core.Permission.GetPlayerPermissions(b.SteamID)))),
             ("Webpanel", b => b.SendLplkChat("[LPLK] Rollenquelle: https://verwaltung.lplk.de – Spieler/Rollen, danach für diesen Server synchronisieren."))
         };
-        if (Has(a, "admin.root")) entries.Add(("Neuladen", b => { if (Has(b, "admin.root")) { LoadSettings(); b.SendLplkChat("[LPLK] Konfiguration geladen."); } }));
+        if (Has(a, "admin.root")) entries.Add(("Neuladen", b => { if (Has(b, "admin.root")) { LoadSettings(); NotifyAdminAction(b, "Admin-Konfiguration neu geladen"); b.SendLplkChat("[LPLK] Konfiguration geladen."); } }));
         return entries;
     }, back, CanOpenAdmin);
 }

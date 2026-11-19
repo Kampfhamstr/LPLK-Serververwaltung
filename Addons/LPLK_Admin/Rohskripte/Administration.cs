@@ -13,7 +13,7 @@ public sealed partial class Plugin
     private string SettingsPath=>Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"settings.json");
     private bool Has(IPlayer p,string permission)=>active&&p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&Core.Permission.PlayerHasPermission(p.SteamID,permission);
     private bool Can(IPlayer p,string action)=>active&&p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&AdminActionPolicy.Allowed(action,s=>Has(p,s));
-    private bool CanManage(IPlayer p)=>Has(p,"admin.menu")||Has(p,"admin.map")||AdminActionPolicy.Permissions.Keys.Any(a=>Can(p,a));
+    private bool CanManage(IPlayer p)=>Has(p,"admin.menu")||Has(p,"admin.map")||CanUseSupergod(p)||AdminActionPolicy.Permissions.Keys.Any(a=>Can(p,a));
     private Func<ulong,string,string,string>? Backend()=>active&&interfaces is not null&&interfaces.TryGetSharedInterface<IReadOnlyDictionary<string,Delegate>>("LPLK.Bridge.Admin.v1",out var api)&&api.TryGetValue("execute",out var call)?call as Func<ulong,string,string,string>:null;
     private IPlayer? Find(ulong id)=>Core.PlayerManager.GetAllPlayers().FirstOrDefault(p=>p.IsValid&&!p.IsFakeClient&&p.IsAuthorized&&p.SteamID==id);
     private void Run(IPlayer? actor,string action,string? target,Dictionary<string,object>? payload,Action<string> reply)
@@ -21,9 +21,14 @@ public sealed partial class Plugin
         if(actor is not null&&!Can(actor,action))throw new InvalidOperationException("Keine Berechtigung.");
         var execute=Backend()??throw new InvalidOperationException("SerververwaltungBridge 1.6.2 ist nicht bereit.");
         RequireLocalSanctions(action);
+        // A successful kick can remove its target before the backend returns.
+        string? noticeTarget = ulong.TryParse(target, out ulong targetId)
+            ? Find(targetId)?.Name ?? "Offline-Spieler"
+            : null;
         using var result=JsonDocument.Parse(execute(actor?.SteamID??0,action,JsonSerializer.Serialize(new {target,payload=payload??[]})));
         bool success=result.RootElement.GetProperty("success").GetBoolean();string message=result.RootElement.GetProperty("message").GetString()??"Keine Rückmeldung.";
         if(!success)throw new InvalidOperationException(message);
+        NotifyAdminAction(actor, AdminActionLabel(action, payload), noticeTarget);
         reply("[LPLK] "+message);
     }
     private void Guard(Action action,Action<string> reply)

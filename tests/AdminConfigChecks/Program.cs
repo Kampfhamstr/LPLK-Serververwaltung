@@ -19,7 +19,7 @@ int closes=0;var menus=Proxy.Make<IMenuManagerAPI>((m,a)=>{if(m.Name=="CloseMenu
 var core=Proxy.Make<ISwiftlyCore>((m,a)=>m.Name=="get_MenusAPI"?menus:m.Invoke(w.Core,a));
 var p=new Plugin(core);p.Load(false);p.UseSharedInterface(w.Interfaces);
 AdminSettings Settings()=>Field<AdminSettings>(p,"settings");
-void Refresh(){Set(p,"nextSettingsCheck",0L);p.SettingsTick();}
+void Refresh(){Set(p,"nextSettingsCheck",0L);p.SettingsTick();DisplayChecks.Settle(p);}
 async Task Click(string label)=>await w.Click(w.FindExact(label));
 async Task Paged(string label){for(int i=0;i<30;i++){try{await Click(label);return;}catch(InvalidOperationException){await Click("Nächste Seite");}}throw new Exception(label);}
 async Task Open(){p.Admin(w.Context);await Click("Serververwaltung");await Paged("Einstellungen");}

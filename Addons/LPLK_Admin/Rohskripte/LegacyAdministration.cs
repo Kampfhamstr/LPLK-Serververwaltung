@@ -51,6 +51,7 @@ public sealed partial class Plugin
             ReloadSettings();
             if(!active||serial!=generation||!settings.LegacyPlayerMenus||Loaded("LPLK_Maps")||actor is not null&&(!LegacyMapAllowed(actor)||actor.SessionId.ToString()!=session))throw new InvalidOperationException("Mapwechsel wegen geänderter Freigabe/Verbindung verworfen.");
             Core.Engine.ExecuteCommand(command);
+            NotifyAdminAction(actor, "Mapwechsel angefordert", command.Split(' ')[1]);
             Core.Logger.LogInformation("LPLK_Admin: {Actor} requested {MapCommand}",actor?.SteamID.ToString()??"console",command);
         },reply));
         reply("[LPLK] Mapwechsel angefordert.");
