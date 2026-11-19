@@ -16,12 +16,15 @@ public sealed partial class Plugin
     private sealed record SupergodLife(ulong SteamId, string Session, uint Pawn, int Team, float PreviousSpeed);
     private readonly Dictionary<int, SupergodLife> supergod = [];
     private readonly List<Guid> supergodEvents = [];
+    private readonly Dictionary<int, SupergodRespawn> supergodRespawns = [];
+    private sealed record SupergodRespawn(ulong SteamId, ulong Session, int Team, long ExpiresAt, bool SpawnObserved = false);
+    private Func<IPlayer, int> supergodTeam = player => player.Controller is { IsValid: true } controller ? controller.TeamNum : 0;
 
     private bool CanUseSupergod(IPlayer player) => Can(player, "noclip") || Has(player, "admin.root");
 
     private CCSPlayerPawn? LiveAdminPawn(IPlayer player) =>
         CanUseSupergod(player) && player.IsAlive &&
-        player.Controller is { IsValid: true, TeamNum: 2 or 3 } &&
+        supergodTeam(player) is 2 or 3 &&
         player.PlayerPawn is { IsValid: true, Health: > 0 } pawn ? pawn : null;
 
     private bool SameSupergodPawn(IPlayer player, CCSPlayerPawn pawn, SupergodLife life) =>
@@ -32,7 +35,7 @@ public sealed partial class Plugin
     {
         if (!supergod.TryGetValue(player.PlayerID, out var life) || LiveAdminPawn(player) is not { } pawn)
             return null;
-        return SameSupergodPawn(player, pawn, life) && player.Controller.TeamNum == life.Team ? pawn : null;
+        return SameSupergodPawn(player, pawn, life) && supergodTeam(player) == life.Team ? pawn : null;
     }
 
     private static void SetSupergodSpeed(CCSPlayerPawn pawn, float speed)
@@ -45,31 +48,67 @@ public sealed partial class Plugin
     private void SetSupergod(IPlayer player, bool enable)
     {
         if (!CanUseSupergod(player)) throw new InvalidOperationException("Keine Berechtigung für den Supergodmodus.");
-        if (enable)
+        if (!enable)
         {
-            if (ActiveSupergodPawn(player) is not null) return;
+            if (PendingSupergodRespawn(player) is not null)
+            {
+                supergodRespawns.Remove(player.PlayerID);
+                player.SendLplkChat("[LPLK] Supergodmodus bleibt AUS.");
+                return;
+            }
+            if (ActiveSupergodPawn(player) is null) return;
             StopSupergod(player.PlayerID);
-            var pawn = LiveAdminPawn(player)
-                ?? throw new InvalidOperationException("Du musst in T oder CT leben.");
-            var life = new SupergodLife(player.SteamID, player.SessionId.ToString(),
-                Core.EntitySystem.GetRefEHandle(pawn).Raw, player.Controller.TeamNum, pawn.VelocityModifier);
-            supergod.Add(player.PlayerID, life);
+            AnnounceSupergod(player, false);
+            return;
+        }
+
+        if (ActiveSupergodPawn(player) is not null || PendingSupergodRespawn(player) is not null) return;
+        int team = supergodTeam(player);
+        if (team is not (2 or 3)) throw new InvalidOperationException("Du musst in T oder CT sein.");
+        if (!player.IsAlive)
+        {
+            StopSupergod(player.PlayerID);
+            supergodRespawns[player.PlayerID] = new(player.SteamID, player.SessionId, team, Environment.TickCount64 + 3000);
             try
             {
-                SetSupergodSpeed(pawn, SupergodSpeed);
-                if (pawn.WeaponServices?.ActiveWeapon.Value is { IsValid: true } weapon)
-                    RefillSupergodMagazine(weapon);
+                player.Respawn();
             }
             catch
             {
-                StopSupergod(player.PlayerID);
+                supergodRespawns.Remove(player.PlayerID);
                 throw;
             }
+            return;
         }
-        else StopSupergod(player.PlayerID);
 
+        var pawn = LiveAdminPawn(player) ?? throw new InvalidOperationException("Dein Spieler ist noch nicht bereit.");
+        ActivateSupergod(player, pawn, false);
+    }
+
+    private void ActivateSupergod(IPlayer player, CCSPlayerPawn pawn, bool respawned)
+    {
+        StopSupergod(player.PlayerID);
+        var life = new SupergodLife(player.SteamID, player.SessionId.ToString(),
+            Core.EntitySystem.GetRefEHandle(pawn).Raw, supergodTeam(player), pawn.VelocityModifier);
+        supergod.Add(player.PlayerID, life);
+        try
+        {
+            SetSupergodSpeed(pawn, SupergodSpeed);
+            if (pawn.WeaponServices?.ActiveWeapon.Value is { IsValid: true } weapon)
+                RefillSupergodMagazine(weapon);
+        }
+        catch
+        {
+            StopSupergod(player.PlayerID);
+            throw;
+        }
+        AnnounceSupergod(player, true, respawned);
+    }
+
+    private void AnnounceSupergod(IPlayer player, bool enable, bool respawned = false)
+    {
         Core.Logger.LogInformation("Supergodmodus {State} für Admin {SteamId}", enable ? "AN" : "AUS", player.SteamID);
-        NotifyAdminAction(player, enable ? "Supergodmodus AN" : "Supergodmodus AUS");
+        NotifyAdminAction(player, respawned ? "Respawn · Supergodmodus AN" : enable ? "Supergodmodus AN" : "Supergodmodus AUS");
         player.SendLplkChat(enable
             ? "[LPLK] Supergodmodus AN · Unverwundbar, volle Magazine, Tempo 3×. Waffen: !superguns"
             : "[LPLK] Supergodmodus AUS.");
@@ -86,7 +125,55 @@ public sealed partial class Plugin
 
     private void StopAllSupergod()
     {
+        supergodRespawns.Clear();
         foreach (int slot in supergod.Keys.ToArray()) StopSupergod(slot);
+    }
+
+    private bool MatchesRespawn(IPlayer player, SupergodRespawn request) =>
+        CanUseSupergod(player) && player.SteamID == request.SteamId &&
+        player.SessionId == request.Session && supergodTeam(player) == request.Team;
+
+    private SupergodRespawn? PendingSupergodRespawn(IPlayer player)
+    {
+        if (!supergodRespawns.TryGetValue(player.PlayerID, out var request) || !MatchesRespawn(player, request))
+            return null;
+        return Environment.TickCount64 < request.ExpiresAt ? request : null;
+    }
+
+    private HookResult OnSupergodSpawn(EventPlayerSpawn e)
+    {
+        SupergodPlayerSpawned(e.UserIdPlayer);
+        return HookResult.Continue;
+    }
+
+    private void SupergodPlayerSpawned(IPlayer? player)
+    {
+        if (player is null) return;
+        StopSupergod(player.PlayerID);
+        if (PendingSupergodRespawn(player) is { } request)
+            supergodRespawns[player.PlayerID] = request with { SpawnObserved = true };
+    }
+
+    private void FinishSupergodRespawns()
+    {
+        foreach (var (slot, request) in supergodRespawns.ToArray())
+        {
+            var player = Core.PlayerManager.GetPlayer(slot);
+            if (player is null || !MatchesRespawn(player, request))
+            {
+                supergodRespawns.Remove(slot);
+                continue;
+            }
+            if (Environment.TickCount64 >= request.ExpiresAt)
+            {
+                supergodRespawns.Remove(slot);
+                player.SendLplkChat("[LPLK] Respawn konnte nicht bestätigt werden. Supergodmodus bleibt AUS.");
+                continue;
+            }
+            if (!request.SpawnObserved || LiveAdminPawn(player) is not { } pawn) continue;
+            supergodRespawns.Remove(slot);
+            Guard(() => ActivateSupergod(player, pawn, true), player.SendLplkChat);
+        }
     }
 
     private void LoadSupergod()
@@ -95,7 +182,7 @@ public sealed partial class Plugin
         supergodEvents.Add(Core.GameEvent.HookPost<EventWeaponFire>(OnSupergodFire));
         supergodEvents.Add(Core.GameEvent.HookPost<EventItemEquip>(OnSupergodEquip));
         supergodEvents.Add(Core.GameEvent.HookPost<EventPlayerDeath>(e => EndSupergodLife(e.UserIdPlayer)));
-        supergodEvents.Add(Core.GameEvent.HookPost<EventPlayerSpawn>(e => EndSupergodLife(e.UserIdPlayer)));
+        supergodEvents.Add(Core.GameEvent.HookPost<EventPlayerSpawn>(OnSupergodSpawn));
         supergodEvents.Add(Core.GameEvent.HookPost<EventPlayerTeam>(e => EndSupergodLife(e.UserIdPlayer)));
         supergodEvents.Add(Core.GameEvent.HookPost<EventRoundEnd>(_ =>
         {
@@ -115,12 +202,18 @@ public sealed partial class Plugin
 
     private HookResult EndSupergodLife(IPlayer? player)
     {
-        if (player is not null) StopSupergod(player.PlayerID);
+        if (player is not null) CancelSupergodLife(player.PlayerID);
         return HookResult.Continue;
     }
 
+    private void CancelSupergodLife(int slot)
+    {
+        supergodRespawns.Remove(slot);
+        StopSupergod(slot);
+    }
+
     [EventListener<EventDelegates.OnClientDisconnected>]
-    public void SupergodDisconnect(IOnClientDisconnectedEvent e) => StopSupergod(e.PlayerId);
+    public void SupergodDisconnect(IOnClientDisconnectedEvent e) => CancelSupergodLife(e.PlayerId);
 
     [EventListener<EventDelegates.OnMapUnload>]
     public void SupergodMapUnload(IOnMapUnloadEvent e) => StopAllSupergod();
@@ -128,7 +221,9 @@ public sealed partial class Plugin
     [EventListener<EventDelegates.OnTick>]
     public void SupergodTick()
     {
-        if (!active || supergod.Count == 0) return;
+        if (!active) return;
+        if (supergodRespawns.Count != 0) FinishSupergodRespawns();
+        if (supergod.Count == 0) return;
         foreach (int slot in supergod.Keys.ToArray())
         {
             var player = Core.PlayerManager.GetPlayer(slot);
@@ -199,17 +294,19 @@ public sealed partial class Plugin
             context.ReplyLplk("[LPLK] Verwendung: !sgm");
             return;
         }
-        Guard(() => SetSupergod(player, ActiveSupergodPawn(player) is null), context.ReplyLplk);
+        Guard(() => SetSupergod(player, ActiveSupergodPawn(player) is null && PendingSupergodRespawn(player) is null), context.ReplyLplk);
     }
 
     private void SupergodMenu(IPlayer player) => Menu(player, "Supergodmodus", admin =>
     {
         bool enabled = ActiveSupergodPawn(admin) is not null;
+        bool respawning = PendingSupergodRespawn(admin) is not null;
+        string label = enabled ? "Supergodmodus: AN" : respawning ? "Start abbrechen" : "Supergodmodus: AUS";
         var entries = new List<(string, Action<IPlayer>)>
         {
-            (enabled ? "Supergodmodus: AN" : "Supergodmodus: AUS", a =>
+            (label, a =>
             {
-                SetSupergod(a, !enabled);
+                SetSupergod(a, !enabled && !respawning);
                 SupergodMenu(a);
             })
         };

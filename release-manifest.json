@@ -1,8 +1,8 @@
 {
-  "tag": "admin-0.11.13-supergod",
+  "tag": "admin-0.11.14-supergod-respawn",
   "versions": {
     "AddonsManager": "2.0.3-lplk.7",
-    "LPLK_Admin": "0.11.13",
+    "LPLK_Admin": "0.11.14",
     "LPLK_AntiCamp": "0.1.13",
     "LPLK_AntiTeamFlash": "0.1.10",
     "LPLK_BombWires": "0.1.14",
@@ -149,8 +149,8 @@
     {
       "name": "LPLK_Admin.zip",
       "path": "Addons/LPLK_Admin/Build/LPLK_Admin.zip",
-      "sha256": "edee0e82589a6ba1052356943c6de34fba206c2959cfdccd8725fb6cce8f5e71",
-      "bytes": 130923
+      "sha256": "7b4ca012452258c2a9719c9e5775ef54a88a8f84905337c3302790a305b9641b",
+      "bytes": 133004
     },
     {
       "name": "LPLK_Maps.zip",
@@ -174,7 +174,7 @@
       "Addons/LPLK_Admin/Rohskripte/Administration.cs": "2efe9733d51bfc991cece1c365a8517f17e53855dea29b465efc018c11369aa1",
       "Addons/LPLK_Admin/Rohskripte/CommandMenus.cs": "bbfc4a04a33479ad2343cade1c19e3a51c246bcf4c8fcd7c9546a288a66f3811",
       "Addons/LPLK_Admin/Rohskripte/Commands.cs": "5515f23fbad2b6cb7edc1353c224bda8584f0050a28c821eaac3a6a8f05900bc",
-      "Addons/LPLK_Admin/Rohskripte/LPLK_Admin.csproj": "bc17902d4a00bef373b93b6837f16549a5bd0c06b0cb9c9a94eacc8d401fd054",
+      "Addons/LPLK_Admin/Rohskripte/LPLK_Admin.csproj": "4e68f32718384e32e814ec952a8dd241cdecc35a6d796bce0596809e7a9236e4",
       "Addons/LPLK_Admin/Rohskripte/LegacyAdminTargets.cs": "191748c18acef641c998241c4f5891b84b9c1d405d71cff4b0d3fc032d95280f",
       "Addons/LPLK_Admin/Rohskripte/LegacyAdministration.cs": "a2277f77884cb18ea1f612fc2416b94044d523541577d5ab823cf2459b49d388",
       "Addons/LPLK_Admin/Rohskripte/LegacyPlayerMenus.cs": "82f8f90b5e5342549cb749021f8b8a0eb4061bad283baf7923d6aa52a50d244d",
@@ -186,9 +186,9 @@
       "Addons/LPLK_Admin/Rohskripte/Navigation.cs": "cb2b1d7917e76642544327c56385c72fcc5d4fbe594f358eaca5505f39107989",
       "Addons/LPLK_Admin/Rohskripte/PlayerControlState.cs": "353f736ba500d6b1c7ae7f80cc19f42dbd829adaa0828848128eaaf8f1d57d2f",
       "Addons/LPLK_Admin/Rohskripte/PlayerModules.cs": "3615258b06c29400f62bf880711a2bcb168fef88bbf8f3b26da5e81ffedba6db",
-      "Addons/LPLK_Admin/Rohskripte/Plugin.cs": "f0e7306afed373e3002463bc530937ec2aaa75688e0122444fe24244222fa569",
+      "Addons/LPLK_Admin/Rohskripte/Plugin.cs": "c76507fbbf990b2ac356966124fa2368d75d1a42383cf092dd2607240b2a3c1b",
       "Addons/LPLK_Admin/Rohskripte/SettingsMenus.cs": "557176df10f47d58e149da17660d11ac07afd4a22daaec17c6f2143764336f9a",
-      "Addons/LPLK_Admin/Rohskripte/Supergod.cs": "e71054b275f55ceb755465e72c8f47a28a66387cfb1ff1d2dfd27c62c7741f1d",
+      "Addons/LPLK_Admin/Rohskripte/Supergod.cs": "98f47f9d38aa31034b3c0d424ab8caa36ed48331a9f1f18e04e8b77e929d8b72",
       "Addons/LPLK_Admin/Rohskripte/SupergodWeapons.cs": "9298bedc6e6cd2dace36afefef69e2e5e173d30c75d59d4ad92f088000c30bc4",
       "Addons/_Gemeinsam/AdminActionPolicy.cs": "03727057ec8915f6fc693c9c1203c82a04b8dfa60044ceb023622d4f4c90b928",
       "Addons/_Gemeinsam/ChatTheme.cs": "b2cbf26e0e63559c7a1535487946535be7c9ffb09322bb2b683afce6f6f71497",
@@ -656,17 +656,17 @@
       "AdminConfigChecks: historical stale settings timing assertion",
       "MenuRedesignChecks: historical missing ExtraWorkshopMapFile reference"
     ],
-    "adminMenu": 1382,
-    "supergodMenu": 9,
+    "adminMenu": 1394,
+    "respawn": 12,
     "adminNotice": 14,
-    "apiChecks": 497,
-    "frameworkReferences": 265,
+    "apiChecks": 499,
+    "frameworkReferences": 266,
     "commandFixtures": 15,
     "commandProfiles": 7
   },
   "shippedProjectHashes": {
     "AddonsManager": "03bcbace93513383826bb09e42a6a5b5b1dcf4b0c53fa0bcd1d53f6db1038575",
-    "LPLK_Admin": "bc17902d4a00bef373b93b6837f16549a5bd0c06b0cb9c9a94eacc8d401fd054",
+    "LPLK_Admin": "4e68f32718384e32e814ec952a8dd241cdecc35a6d796bce0596809e7a9236e4",
     "LPLK_AntiCamp": "40676cd9df49ab1b69d97790a66c30da0cc0734efcd4c5e8cc25f8344e62cbd4",
     "LPLK_AntiTeamFlash": "393068b1fee17c4bfe5f70b98228a8402fa8eb2fad6dbd147c5881cbee0deaed",
     "LPLK_BombWires": "fb4a2387d07f3f09cbde4f22c9c5b6d589286ad6e27ee1fc631896732230ab85",

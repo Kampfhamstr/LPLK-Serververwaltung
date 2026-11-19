@@ -12,7 +12,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private IInterfaceManager? interfaces;
     private bool active;
-    private const string PluginVersion = "0.11.13";
+    private const string PluginVersion = "0.11.14";
     public override void Load(bool hotReload)
     {
         LPLK.Common.RoundFileStore.BeginLoad(Core,this);

@@ -3,7 +3,7 @@
 | Plugin | Version | Download |
 |---|---|---|
 | AddonsManager | 2.0.3-lplk.7 | [AddonsManager.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/AddonsManager.zip) |
-| LPLK_Admin | 0.11.13 (Testserver) | [LPLK_Admin.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/admin-0.11.13-supergod/LPLK_Admin.zip) |
+| LPLK_Admin | 0.11.14 (Testserver) | [LPLK_Admin.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/admin-0.11.14-supergod-respawn/LPLK_Admin.zip) |
 | LPLK_AntiCamp | 0.1.13 | [LPLK_AntiCamp.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_AntiCamp.zip) |
 | LPLK_AntiTeamFlash | 0.1.10 | [LPLK_AntiTeamFlash.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_AntiTeamFlash.zip) |
 | LPLK_BombWires | 0.1.14 | [LPLK_BombWires.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_BombWires.zip) |
