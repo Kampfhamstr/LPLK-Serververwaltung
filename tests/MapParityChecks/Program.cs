@@ -8,6 +8,37 @@ void Check(bool ok,string label){checks++;if(!ok)throw new Exception(label);}
 void Reject(Action action,string label){bool bad=false;try{action();}catch(InvalidDataException){bad=true;}Check(bad,label);}
 foreach(string name in new[]{"surf_test","Workshop Surf_Test","kz_checkmate","xc_test","bkz_test","de_dust2"})Check(MapPolicy.Category(name)==(name.Contains("surf",StringComparison.OrdinalIgnoreCase)?MapCategory.Surf:name.Contains("_test")||name.StartsWith("kz")?MapCategory.Kz:MapCategory.Other),"category "+name);
 var settings=new MapSettings{MeasurementOnly=false,RescanBeforeVote=false,AllowSpectatorsToVote=true,ExtendEnabled=true,ExtendMinPlayers=0,EndVoteAllowExtend=true};
+var adminMap=new MapEntry{Id="de_admin_test",Name="Admin",InPool=false,Enabled=false,Removed=true,MinPlayers=90,MaxPlayers=128};
+Check(MapPolicy.AdminSelectable(adminMap,true,true),"Admin map choice ignores pool, disable, removal and player-limit approval");
+Check(!MapPolicy.AdminSelectable(adminMap,false,true),"Unavailable admin map remains unavailable technically");
+Check(!MapPolicy.AdminSelectable(adminMap with{IsMap=false},true,true),"Sound package cannot become admin map");
+Check(!MapPolicy.AdminSelectable(adminMap with{Id="de_test;quit"},true,true),"Unsafe native map token rejected");
+Check(!MapPolicy.AdminSelectable(adminMap,true,false),"Missing required crash protection remains a technical block");
+using(var overrideWorld=new World(settings with{Enabled=false,MeasurementOnly=true,BuiltinMapsOnly=true,ExcludedWorkshopIds=["12345"]}))
+{
+ var chosen=adminMap with{Id="12345",RemoteMapVerified=true};var old=adminMap with{Id="de_old"};
+ overrideWorld.Set("maps",new List<MapEntry>{chosen});overrideWorld.Set("pending",old);overrideWorld.Set("nextMap",old);
+ Check(((List<MapEntry>)overrideWorld.Call("MapChangeEntries",0)!).Any(m=>m.Id==chosen.Id),"Actual admin list includes disallowed/unapproved workshop map");
+ overrideWorld.Call("Schedule",chosen,3,false,false,null,"map_command");
+ Check(overrideWorld.Get<MapEntry>("pending").Id==chosen.Id&&overrideWorld.Get<MapEntry>("nextMap").Id==chosen.Id,"Actual admin dispatch replaces previously selected map despite disabled voting and builtin-only rules");
+ Check(!overrideWorld.Get<bool>("changeAtRoundEnd"),"Direct admin change is not held by old round-end request");
+ Check(!(bool)overrideWorld.Call("CanExtend",false)!,"Player extension cannot remove admin next-map priority");
+ overrideWorld.Set("pending",null);overrideWorld.Set("nextMap",chosen);overrideWorld.Call("MatchEnded");
+ Check(overrideWorld.Get<MapEntry>("pending").Id==chosen.Id,"Admin next-map priority survives match end even when vote module is disabled");
+ overrideWorld.Call("ResetParity");Check(overrideWorld.Get<string?>("adminNextMapId") is null,"New map removes previous admin priority");
+ overrideWorld.Set("pending",null);overrideWorld.Set("transitionIssued",true);
+ overrideWorld.Call("Schedule",chosen,3,false,false,null,"map_command");
+ Check(overrideWorld.Get<MapEntry>("pending").Id==chosen.Id&&!overrideWorld.Get<bool>("transitionIssued"),"Completed old engine transition cannot block a subsequent admin map change");
+ overrideWorld.Set("transitionIssued",true);overrideWorld.Call("Schedule",chosen with{Id="12346"},3,false,false,null,"map_command");
+ Check(overrideWorld.Get<MapEntry>("pending").Id==chosen.Id,"Already issued active engine transition is not replaced");
+ overrideWorld.Set("transitionIssued",false);
+ overrideWorld.Set("pending",null);overrideWorld.Set("nextMap",null);overrideWorld.Set("matchEnded",false);
+ var adminReason=Enum.Parse(typeof(Plugin).GetNestedType("Reason",BindingFlags.NonPublic)!,"Admin");
+ Check((bool)overrideWorld.Call("BeginVote",adminReason,new HashSet<string>{chosen.Id},null)!,"Admin-selected ballot can include restricted map while automatic voting is disabled");
+ overrideWorld.Call("CastBallot",overrideWorld.Menu.Player,chosen);
+ Check(overrideWorld.Get<Dictionary<ulong,string>>("ballots").GetValueOrDefault(overrideWorld.Menu.Player.SteamID)==chosen.Id,"Actual admin-selected ballot accepts vote despite ordinary eligibility rules");
+ overrideWorld.Call("FinishVote");Check(overrideWorld.Get<MapEntry>("nextMap").Id==chosen.Id&&overrideWorld.Get<string?>("adminNextMapId")==chosen.Id,"Admin ballot result keeps override through round or match end");
+}
 var configured=new MapEntry{Id="3618493746",Name="Zombie Sweden",MinPlayers=1,MaxPlayers=30,ConfiguredMaxPlayers=30};
 Check(!MapPolicy.LimitsUsable(configured,settings),"PvP still requires measured approved limits");
 Check(MapPolicy.LimitsUsable(configured,settings with{UseConfiguredZombieLimits=true})&&!MapPolicy.Measured(configured)&&!MapPolicy.LimitsApproved(configured),"Zombie configured limits are usable without fabricating measured approval");
@@ -79,7 +110,7 @@ using(var w=new World(settings))
  var selected=new HashSet<string>{"de_one","de_three"};w.Call("CustomVoteMenu",w.Menu.Player,selected);var start=w.Menu.Find("Abstimmung starten");
  w.Menu.Permissions.Clear();await w.Menu.Click(start);Check(w.Get<long>("voteEnds")==0,"custom admin vote rechecks permission");
  w.Menu.Permissions.Add("admin.mapsvote");w.Call("CustomVoteMenu",w.Menu.Player,selected);w.Set("maps",maps.Select(m=>m.Id=="de_three"?m with{Enabled=false}:m).ToList());
- await w.Menu.Click("Abstimmung starten");Check(w.Get<List<MapEntry>>("candidates").Select(m=>m.Id).SequenceEqual(new[]{"de_one"}),"custom vote preserves selected pool and rechecks eligibility");
+ await w.Menu.Click("Abstimmung starten");Check(w.Get<List<MapEntry>>("candidates").Select(m=>m.Id).SequenceEqual(new[]{"de_one","de_three"}),"custom admin vote preserves explicit selection despite ordinary pool disable");
  Check(w.Get<long>("voteEnds")>Environment.TickCount64,"custom map vote actually starts");
 }
 
@@ -116,6 +147,8 @@ using(var w=new World(settings with{RtvAtRoundEnd=true}))
  Check(result.GetProperty("VoteId").GetString()==start.GetProperty("VoteId").GetString()&&result.GetProperty("Data").GetProperty("winnerId").GetString()==maps[1].Id,"result tied to the actual vote/winner");
  Check(result.GetProperty("Data").GetProperty("ballots")[1].GetProperty("excludedReason").GetString()=="not_online_or_eligible","excluded voter explained in final result");
  w.Call("Schedule",maps[0],3,false,false,w.Menu.Player,"admin_menu");
+ Check(w.Get<MapEntry?>("pending") is null,"Map-vote permission alone cannot execute a direct admin map change");
+ w.Menu.Permissions.Add("lplk.maps.admin");w.Call("Schedule",maps[0],3,false,false,w.Menu.Player,"admin_menu");
  journal.ReleaseAfterRound();journal.WaitForReleasedWrites();
  using var changed=JsonDocument.Parse(File.ReadAllText(path));var admin=changed.RootElement.GetProperty("Events").EnumerateArray().Single(e=>e.GetProperty("Kind").GetString()=="admin_map_change");
  Check(admin.GetProperty("Data").GetProperty("actor").GetProperty("SteamId").GetString()==w.Menu.Player.SteamID.ToString()&&admin.GetProperty("Data").GetProperty("mapId").GetString()==maps[0].Id,"accepted admin change records actor and target");

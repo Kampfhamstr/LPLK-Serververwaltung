@@ -14,7 +14,7 @@ using SwiftlyS2.Shared.Players;
 using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.SchemaDefinitions;
 namespace LPLK_Demos;
-[PluginMetadata(Id="LPLK_Demos",Name="LPLK_Demos",Version="0.2.4",Author="LPLK; references K4ryuu/Chicken",Description="Isolierte lokale Demoaufnahmen und Anfragen",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Demos",Name="LPLK_Demos",Version="0.2.5",Author="LPLK; references K4ryuu/Chicken",Description="Isolierte lokale Demoaufnahmen und Anfragen",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
  private ModuleSupport module=null!;private DemoSettings settings=new();private DemoArchive archive=null!;private DemoRecord? recording;private string currentMap="";
@@ -45,7 +45,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   Core.GameEvent.HookPost<EventPlayerDeath>(e=>{IndexDeath(e);return HookResult.Continue;});
   Core.Scheduler.NextWorldUpdate(()=>{if(module.Active)ConfigureTv();});
   Core.GameEvent.HookPost<EventCsWinPanelMatch>(_=>{matchEnded=true;if(recording is {} done){done.CompleteMap=done.StartRound==1&&done.Rounds.FirstOrDefault()?.Partial==false;done.StopReason="match-end";}Stop(false);return HookResult.Continue;});
-  WriteStatus();Core.Logger.LogInformation("LPLK_Demos 0.2.4 geladen; Auto={Auto}; Anfragen={Requests}; nur lokaler Speicher",settings.AutoRecord,settings.RequestsEnabled);
+  WriteStatus();Core.Logger.LogInformation("LPLK_Demos 0.2.5 geladen; Auto={Auto}; Anfragen={Requests}; nur lokaler Speicher",settings.AutoRecord,settings.RequestsEnabled);
  }
  public override void ConfigureSharedInterface(IInterfaceManager manager)
  {
@@ -134,7 +134,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
  }
  private void WriteStatus()
  {
-  try{LPLK.Common.DeferredJson.Queue(statusPath,new{updatedAt=DateTimeOffset.UtcNow,version="0.2.4",settings.Enabled,settings.AutoRecord,settings.RequestsEnabled,settings.RecordWarmup,settings.CleanupEnabled,settings.RamRecording,ramLimitMiB=2048,ramReserveMiB=256,ramFreeBytes=ramFree,ramReady,exportPending=ramExporter?.Pending??0,exportDelayMilliseconds=1000,roundOpen,recording=recording?.State??"idle",currentFile=recording?.File,complete=archive.Records.Count(r=>r.State=="complete"),finalizing=finalizing.Count,last=archive.Records.LastOrDefault() is {} recent?new{recent.File,recent.State,recent.Map,recent.Kind,recent.IsTest,rounds=recent.Rounds.Count,kills=recent.Kills.Count}:null,indexSaveError=archive.SaveError,errors,lastError,reloadError,externalUploads=false,settings.RetentionHours,tvGuard,tvGuardError,tvKicksPrevented,cameraGuard,cameraGuardError,cameraAnalysesPrevented,cameraShotsReplaced,humansPlaying,storage});statusWriteFailed=false;}
+  try{LPLK.Common.DeferredJson.Queue(statusPath,new{updatedAt=DateTimeOffset.UtcNow,version="0.2.5",settings.Enabled,settings.AutoRecord,settings.RequestsEnabled,settings.RecordWarmup,settings.CleanupEnabled,settings.RamRecording,ramLimitMiB=2048,ramReserveMiB=256,ramFreeBytes=ramFree,ramReady,exportPending=ramExporter?.Pending??0,exportDelayMilliseconds=1000,roundOpen,recording=recording?.State??"idle",currentFile=recording?.File,complete=archive.Records.Count(r=>r.State=="complete"),finalizing=finalizing.Count,last=archive.Records.LastOrDefault() is {} recent?new{recent.File,recent.State,recent.Map,recent.Kind,recent.IsTest,rounds=recent.Rounds.Count,kills=recent.Kills.Count}:null,indexSaveError=archive.SaveError,errors,lastError,reloadError,externalUploads=false,settings.RetentionHours,tvGuard,tvGuardError,tvKicksPrevented,cameraGuard,cameraGuardError,cameraAnalysesPrevented,cameraShotsReplaced,humansPlaying,storage});statusWriteFailed=false;}
   catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Demos: Status nicht schreibbar.");statusWriteFailed=true;}
  }
  private void Save(IPlayer actor,Func<DemoSettings,DemoSettings> edit)
@@ -156,6 +156,6 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   if(c.Sender is {} p){OpenAdmin(p);return;}
   // Console path serves the permission-checked existing webpanel. No filenames or commands accepted.
   if(c.Args.Length==2&&c.Args[0]=="test300"&&long.TryParse(c.Args[1],out var requestTime))c.ReplyLplk(StartBotTest(requestTime));else if(c.Args.Length==1&&c.Args[0]=="start")Start();else if(c.Args.Length==1&&c.Args[0]=="stop")Stop(false);else if(c.Args.Length==1&&c.Args[0]=="repair")c.ReplyLplk(RepairEmptyServer());
-  WriteStatus();c.ReplyLplk($"LPLK_Demos 0.2.4: enabled={settings.Enabled}; auto={settings.AutoRecord}; requests={settings.RequestsEnabled}; recording={recording?.State??"idle"}; complete={archive.Records.Count(r=>r.State=="complete")}; errors={errors}; humansPlaying={humansPlaying}; tvGuard={tvGuard}; tvKicksPrevented={tvKicksPrevented}; cameraGuard={cameraGuard}; cameraAnalysesPrevented={cameraAnalysesPrevented}; cameraShotsReplaced={cameraShotsReplaced}; cameraGuardError={cameraGuardError??"none"}; guardError={tvGuardError??"none"}; error={lastError??"none"}");
+  WriteStatus();c.ReplyLplk($"LPLK_Demos 0.2.5: enabled={settings.Enabled}; auto={settings.AutoRecord}; requests={settings.RequestsEnabled}; recording={recording?.State??"idle"}; complete={archive.Records.Count(r=>r.State=="complete")}; errors={errors}; humansPlaying={humansPlaying}; tvGuard={tvGuard}; tvKicksPrevented={tvKicksPrevented}; cameraGuard={cameraGuard}; cameraAnalysesPrevented={cameraAnalysesPrevented}; cameraShotsReplaced={cameraShotsReplaced}; cameraGuardError={cameraGuardError??"none"}; guardError={tvGuardError??"none"}; error={lastError??"none"}");
  }
 }

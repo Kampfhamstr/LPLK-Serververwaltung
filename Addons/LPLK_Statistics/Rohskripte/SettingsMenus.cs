@@ -19,16 +19,16 @@ public sealed partial class Plugin
   var button=new ButtonMenuOption(MenuColors.Back("Zurück")){CloseAfterClick=false};GameThreadMenu.Bind(Core,button,p,()=>module.Active,a=>{if(module.CanAdmin(a))back(a);});
   Core.MenusAPI.OpenMenuForPlayer(p,Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).Design.SetMenuTitle(MenuColors.Heading(title)).Design.SetMaxVisibleItems(5).Design.SetGlobalScrollStyle(SwiftlyS2.Shared.Menus.MenuOptionScrollStyle.WaitingCenter).AddOption(input).AddOption(button).Build());
  }
- private void AdminRanking(IPlayer p) => OpenAdmin(p);
+ private void AdminRanking(IPlayer p) => AdminHome(p,"Rangliste");
     private IReadOnlyList<(string,Action<IPlayer>)> AdminRankingRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{Number(nameof(StatisticsSettings.TopCount),"Topplätze",1,100,AdminRanking)}))(p);
- private void AdminMinimums(IPlayer p) => OpenAdmin(p);
+ private void AdminMinimums(IPlayer p) => AdminHome(p,"Minimum");
     private IReadOnlyList<(string,Action<IPlayer>)> AdminMinimumsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new[]{Number(nameof(StatisticsSettings.MinShots),"PvP-Schüsse",1,int.MaxValue,AdminMinimums),Number(nameof(StatisticsSettings.MinKills),"PvP-Kills",1,int.MaxValue,AdminMinimums),Number(nameof(StatisticsSettings.MinBotShots),"Botschüsse",1,int.MaxValue,AdminMinimums),Number(nameof(StatisticsSettings.MinBotKills),"Botkills",1,int.MaxValue,AdminMinimums)}))(p);
- private void AdminWeights(IPlayer p) => OpenAdmin(p);
+ private void AdminWeights(IPlayer p) => AdminHome(p,"Gewicht");
     private IReadOnlyList<(string,Action<IPlayer>)> AdminWeightsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new[]{Number(nameof(StatisticsSettings.HeadshotWeight),"Kopfquote",0,double.MaxValue,AdminWeights),Number(nameof(StatisticsSettings.KillEfficiencyWeight),"Kill-Effizienz",0,double.MaxValue,AdminWeights),Number(nameof(StatisticsSettings.HeadshotEfficiencyWeight),"Kopf-Effizienz",0,double.MaxValue,AdminWeights),Number(nameof(StatisticsSettings.VolumeWeight),"Menge",0,double.MaxValue,AdminWeights)}))(p);
- private void AdminFullScore(IPlayer p) => OpenAdmin(p);
+ private void AdminFullScore(IPlayer p) => AdminHome(p,"Punktegrenze");
     private IReadOnlyList<(string,Action<IPlayer>)> AdminFullScoreRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new[]{Number(nameof(StatisticsSettings.FullKillEfficiency),"Kill-Effizienz",0,double.MaxValue,AdminFullScore,true),Number(nameof(StatisticsSettings.FullHeadshotEfficiency),"Kopf-Effizienz",0,double.MaxValue,AdminFullScore,true),Number(nameof(StatisticsSettings.FullHeadshots),"Kopftreffer",1,int.MaxValue,AdminFullScore)}))(p);
- private void AdminWeaponDetails(IPlayer p) => OpenAdmin(p);
+ private void AdminWeaponDetails(IPlayer p) => AdminHome(p,"Waffendetails");
     private IReadOnlyList<(string,Action<IPlayer>)> AdminWeaponDetailsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{($"Standard-HUD: {settings.DefaultHud}",a=>{Save(a,s=>s with{DefaultHud=!s.DefaultHud});AdminWeaponDetails(a);}),Number(nameof(StatisticsSettings.InspectCooldownMs),"Inspect-Pause (ms)",100,10000,AdminWeaponDetails),Number(nameof(StatisticsSettings.HudDurationMs),"Anzeigezeit (ms)",250,10000,AdminWeaponDetails),Number(nameof(StatisticsSettings.InfernoSeconds),"Feuerzuordnung (s)",1,120,AdminWeaponDetails),($"Unbekanntes Feuer: {settings.UnknownInferno}",a=>{Save(a,s=>s with{UnknownInferno=s.UnknownInferno=="molotov"?"incgrenade":s.UnknownInferno=="incgrenade"?"inferno":"molotov"});AdminWeaponDetails(a);})}))(p);
- private void AdminDamageRules(IPlayer p) => OpenAdmin(p);
+ private void AdminDamageRules(IPlayer p) => AdminHome(p,"Schadensregeln");
     private IReadOnlyList<(string,Action<IPlayer>)> AdminDamageRulesRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{($"Teamschaden: {settings.ShowFriendlyDamage}",a=>{Save(a,s=>s with{ShowFriendlyDamage=!s.ShowFriendlyDamage});AdminDamageRules(a);}),($"Nur Angreifer: {settings.ShowOnlyKiller}",a=>{Save(a,s=>s with{ShowOnlyKiller=!s.ShowOnlyKiller});AdminDamageRules(a);}),($"Alle Schäden: {settings.ShowAllDamages}",a=>{Save(a,s=>s with{ShowAllDamages=!s.ShowAllDamages});AdminDamageRules(a);}),($"Ohne Runden: {settings.NoRoundsMode}",a=>{Save(a,s=>s with{NoRoundsMode=!s.NoRoundsMode});AdminDamageRules(a);})}))(p);
 }

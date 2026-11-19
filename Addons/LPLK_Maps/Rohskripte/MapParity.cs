@@ -25,7 +25,7 @@ public sealed partial class Plugin
     }
     private bool CanExtend(bool endVote=false)
     {
-        if(!GameplayAvailable||!(endVote?settings.EndVoteAllowExtend:settings.ExtendEnabled)||warmup&&!settings.ExtendInWarmup||rounds<settings.ExtendMinRounds||Voters().Count<settings.ExtendMinPlayers||extensions>=settings.ExtendLimit)return false;
+        if(adminNextMapId is not null||!GameplayAvailable||!(endVote?settings.EndVoteAllowExtend:settings.ExtendEnabled)||warmup&&!settings.ExtendInWarmup||rounds<settings.ExtendMinRounds||Voters().Count<settings.ExtendMinPlayers||extensions>=settings.ExtendLimit)return false;
         try{var l=Limits();MapPolicy.Extension(settings,extensions,l.Minutes,l.Rounds,l.Wins);return true;}catch{return false;}
     }
     private bool ExtendMap(bool endVote=false)
@@ -60,6 +60,7 @@ public sealed partial class Plugin
     }
     private void ResetParity()
     {
+        adminNextMapId=null;
         if(originalLimits is {} before&&appliedLimits is {} after)RestoreOwnedLimits(before,after);
         originalLimits=appliedLimits=null;extensions=earliestEndRound=0;nextVoteAllowed=autoVotePostponedUntil=0;extendVotes.Clear();directVotes.Clear();
     }
@@ -158,10 +159,15 @@ public sealed partial class Plugin
     public void SetNextMap(ICommandContext ctx)
     {
         if(ctx.Sender is {} p&&!MayManage(p,s=>s.SetNextMapPermission)){ctx.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
-        if(!GameplayAvailable){ctx.ReplyLplk("[LPLK] Mapwahl derzeit nicht aktiv.");return;}
-        var map=MapPolicy.Resolve(maps.Where(m=>Available(m)&&m.Enabled&&m.InPool),string.Join(" ",ctx.Args));
+        if(!module.Active||pending is not null&&transitionIssued){ctx.ReplyLplk("[LPLK] Mapwechsel wird bereits ausgeführt.");return;}
+        var map=MapPolicy.Resolve(maps.Where(AdminAvailable),string.Join(" ",ctx.Args));
         if(map is null){ctx.ReplyLplk("[LPLK] setnextmap <eindeutige Map oder ID>");return;}
-        Audit("admin_next_map",new {actor=Actor(ctx.Sender),mapId=map.Id,mapName=map.Name});CancelVote();nextMap=map;endVoteStarted=true;ctx.ReplyLplk("[LPLK] Nächste Map: "+map.Name);
+        Audit("admin_next_map",new {actor=Actor(ctx.Sender),mapId=map.Id,mapName=map.Name});CancelVote();
+        if(idleTransition)CompleteAutomaticJournal("Durch administrative nächste Map ersetzt");
+        pending=null;idleTransition=false;probeId=probeOrigin=null;changeAtRoundEnd=false;
+        nextMap=map;adminNextMapId=map.Id;endVoteStarted=true;
+        if(matchEnded)Schedule(map,settings.MatchEndDelaySeconds,adminSource:"admin_next_map");
+        ctx.ReplyLplk("[LPLK] Nächste Map: "+map.Name);
     }
     [Command("mapsvote")]
     public void AdminMapsVote(ICommandContext ctx)
@@ -172,10 +178,10 @@ public sealed partial class Plugin
     private void CustomVoteMenu(IPlayer player,HashSet<string> selected)
     {
         int serial=generation;
-        bool Allowed(IPlayer p)=>MayManage(p,s=>s.MapsVotePermission)&&GameplayAvailable&&voteEnds==0&&nextMap is null;
-        selected.IntersectWith(Eligible().Select(m=>m.Id));
+        bool Allowed(IPlayer p)=>MayManage(p,s=>s.MapsVotePermission)&&module.Active&&!matchEnded&&pending is null&&voteEnds==0&&nextMap is null;
+        selected.IntersectWith(maps.Where(AdminAvailable).Select(m=>m.Id));
         CompactMenu.Open(Core,player,$"Admin-Mapwahl · {selected.Count} ausgewählt",()=>module.Active&&serial==generation,Allowed,_=>
-        [("Maps auswählen",p=>Categories(p,"Map zur Abstimmung",()=>Eligible(),(actor,map)=>{if(!selected.Add(map.Id))selected.Remove(map.Id);CustomVoteMenu(actor,selected);},Allowed)),
+        [("Maps auswählen",p=>Categories(p,"Map zur Abstimmung",()=>maps.Where(AdminAvailable).ToList(),(actor,map)=>{if(!selected.Add(map.Id))selected.Remove(map.Id);CustomVoteMenu(actor,selected);},Allowed)),
          ("Abstimmung starten",p=>{if(!StartSelectedVote(p,selected))p.SendLplkChat("[LPLK] Mindestens eine weiterhin zulässige Map auswählen; Abstimmung muss frei sein.");}),
          ("Auswahl leeren",p=>CustomVoteMenu(p,new HashSet<string>()))],p=>p.ExecuteCommand("sw_admin"));
     }
@@ -224,9 +230,9 @@ public sealed partial class Plugin
     private List<MapEntry> BallotChoices()=>candidates.Concat(reason==Reason.EndOfMap&&CanExtend(true)?[new MapEntry{Id=ExtendChoice,Name="Aktuelle Map verlängern"}]:Array.Empty<MapEntry>()).ToList();
     private void CastBallot(IPlayer actor,MapEntry map)
     {
-        if(!GameplayAvailable||!CanVote(actor)||voteEnds<=Environment.TickCount64)return;
+        if(!(adminSelectedVote?module.Active&&!matchEnded&&pending is null:GameplayAvailable)||!CanVote(actor)||voteEnds<=Environment.TickCount64)return;
         if(map.Id==ExtendChoice){if(reason!=Reason.EndOfMap||!CanExtend(true))return;}
-        else if(!candidates.Any(m=>m.Id==map.Id)||!Eligible().Any(m=>m.Id==map.Id)){actor.SendLplkChat("[LPLK] Map inzwischen nicht mehr wählbar.");return;}
+        else if(!candidates.Any(m=>m.Id==map.Id)||!BallotEligible().Any(m=>m.Id==map.Id)){actor.SendLplkChat("[LPLK] Map inzwischen nicht mehr wählbar.");return;}
         bool changed=ballots.TryGetValue(actor.SteamID,out var previous);
         string choice=map.Id==ExtendChoice?"die Verlängerung der aktuellen Map":map.Name;
         if(previous==map.Id){actor.SendLplkChat($"[LPLK] Deine Stimme für {choice} ist bereits gespeichert.");Close(actor.PlayerID);return;}

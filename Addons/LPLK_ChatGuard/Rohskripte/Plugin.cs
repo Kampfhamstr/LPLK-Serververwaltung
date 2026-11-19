@@ -21,7 +21,7 @@ using SwiftlyS2.Shared.ProtobufDefinitions;
 
 namespace LPLK_ChatGuard;
 
-[PluginMetadata(Id="LPLK_ChatGuard",Name="LPLK_ChatGuard",Version="0.1.11",Author="LPLK",Description="Chat-, Namen- und Werbeschutz mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_ChatGuard",Name="LPLK_ChatGuard",Version="0.1.12",Author="LPLK",Description="Chat-, Namen- und Werbeschutz mit gemeinsamer Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private readonly JsonSerializerOptions _json = new()
@@ -129,7 +129,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         _serverNetMessageHookGuids.Add(Core.NetMessage.HookServerMessage<CCSUsrMsg_KeyHintText>(OnCsKeyHintText));
         _serverNetMessageHookGuids.Add(Core.NetMessage.HookServerMessage<CCSUsrMsg_RadioText>(OnCsRadioText));
         _active=true;_module.Active=true;WriteStatus();
-        Core.Logger.LogInformation("LPLK_ChatGuard 0.1.11 geladen. Config: {Path}", _configPath);
+        Core.Logger.LogInformation("LPLK_ChatGuard 0.1.12 geladen. Config: {Path}", _configPath);
     }
 
     public override void Unload()

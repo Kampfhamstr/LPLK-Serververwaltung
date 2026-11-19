@@ -31,15 +31,17 @@ public sealed partial class Plugin
             finally{if(camera!=uint.MaxValue)world.Destroy(camera);WriteStatus();}
             return;
         }
-        WriteStatus();ctx.ReplyLplk($"LPLK_ThirdPerson 0.1.10: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; permission={settings.UseTpPermission}; distance={settings.ThirdPersonDistance}; height={settings.ThirdPersonHeight}; smooth={settings.UseSmoothCam}; damage={settings.DamageMode}; cameras={cameras.Count}; errors={errors}; reloadError={reloadError??"none"}; command={activeCommandName}; commandError={commandError??"none"}");
+        WriteStatus();ctx.ReplyLplk($"LPLK_ThirdPerson 0.1.11: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; permission={settings.UseTpPermission}; distance={settings.ThirdPersonDistance}; height={settings.ThirdPersonHeight}; smooth={settings.UseSmoothCam}; damage={settings.DamageMode}; cameras={cameras.Count}; errors={errors}; reloadError={reloadError??"none"}; command={activeCommandName}; commandError={commandError??"none"}");
     }
-    private void OpenAdmin(IPlayer p) => module.Menu(p,"LPLK · ThirdPerson-Kamera",((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Camera",CameraMenuRows(actor)),("Schaden",DamageMenuRows(actor)),("Berechtigung",PermissionMenuRows(actor)))))(p));
+
+    private void OpenAdmin(IPlayer p)=>AdminHome(p,null);
+    private void AdminHome(IPlayer p,string? section)=>MenuRows.Home(p,"LPLK · ThirdPerson-Kamera",(a,t,r,b)=>module.Menu(a,t,b is null?0:1,b is null?r(a).ToArray():r(a).Append(("Zurück",b)).ToArray()),OpenAdminRows,section,("Kamera",CameraMenuRows),("Schaden",DamageMenuRows),("Berechtigung",PermissionMenuRows));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Aktiv: {(Enabled?"AN":"AUS")}",ToggleEnabled)}))(p);
-    private void CameraMenu(IPlayer p) => OpenAdmin(p);
+    private void CameraMenu(IPlayer p) => AdminHome(p,"Kamera");
     private IReadOnlyList<(string,Action<IPlayer>)> CameraMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Abstand: {settings.ThirdPersonDistance:0.##}",a=>NumberInput(a,"Abstand",20,250,settings.ThirdPersonDistance,(s,v)=>s with{ThirdPersonDistance=v})),($"Höhe: {settings.ThirdPersonHeight:0.##}",a=>NumberInput(a,"Höhe",20,120,settings.ThirdPersonHeight,(s,v)=>s with{ThirdPersonHeight=v})),($"Weiche Bewegung: {(settings.UseSmoothCam?"AN":"AUS")}",a=>{Apply(a,s=>s with{UseSmoothCam=!s.UseSmoothCam});CameraMenu(a);}),($"Glättung: {settings.SmoothCameraSpeed:0.00}",a=>NumberInput(a,"Glättung",.01f,1,settings.SmoothCameraSpeed,(s,v)=>s with{SmoothCameraSpeed=v}))}))(p);
-    private void DamageMenu(IPlayer p) => OpenAdmin(p);
+    private void DamageMenu(IPlayer p) => AdminHome(p,"Schaden");
     private IReadOnlyList<(string,Action<IPlayer>)> DamageMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Schadensmodus: {settings.DamageMode}",a=>{Apply(a,s=>s with{DamageMode=s.DamageMode=="back"?"none":s.DamageMode=="none"?"all":"back"});DamageMenu(a);}),($"Messerhinweise: {(settings.EnableKnifeWarnings?"AN":"AUS")}",a=>{Apply(a,s=>s with{EnableKnifeWarnings=!s.EnableKnifeWarnings});DamageMenu(a);}),("Modi erklären",a=>a.SendLplkChat("[LPLK] back: Schaden an Spielern hinter dir sperren. none: eigenen Spielerschaden in ThirdPerson sperren. all: keine zusätzliche Sperre. Kameraposition kann Treffer beeinflussen; !tp schaltet zur Egoansicht."))}))(p);
-    private void PermissionMenu(IPlayer p) => OpenAdmin(p);
+    private void PermissionMenu(IPlayer p) => AdminHome(p,"Berechtigung");
     private IReadOnlyList<(string,Action<IPlayer>)> PermissionMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Recht: {(settings.UseTpPermission.Length==0?"alle Spieler":settings.UseTpPermission)}",InputPermission),("Alle erlauben",a=>{Apply(a,s=>s with{UseTpPermission=""});PermissionMenu(a);}),($"Befehl: {(activeCommandName.Length==0?"keiner":activeCommandName)}",InputCommand)}))(p);
     private void InputCommand(IPlayer p)
     {

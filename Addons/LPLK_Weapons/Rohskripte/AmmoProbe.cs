@@ -18,7 +18,7 @@ public sealed partial class Plugin
         using var proof=JsonDocument.Parse(File.ReadAllText(authorization));var expires=proof.RootElement.GetProperty("expires").GetDateTimeOffset();
         if(proof.RootElement.GetProperty("server").GetString()!="89450e53-b4c5-4511-a4f6-82696809154b"||expires<DateTimeOffset.UtcNow||expires>DateTimeOffset.UtcNow.AddMinutes(5)){ctx.ReplyLplk("[LPLK] Testfreigabe ungültig.");return;}
         File.Delete(authorization);bool success=false,restored=false;string? failure=null;int oldClip=0,oldAmmo=0,clip=-1,ammo=-1;int errorsBefore=errors;
-        void Stage(string phase)=>AtomicJson.Write(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"ammo-probe.json"),new{at=DateTimeOffset.UtcNow,version="0.2.10",success=false,phase,nativeTestInProgress=true});
+        void Stage(string phase)=>AtomicJson.Write(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"ammo-probe.json"),new{at=DateTimeOffset.UtcNow,version="0.2.11",success=false,phase,nativeTestInProgress=true});
         try
         {
             // Use the framework's weapon definition lookup. A synthetic unowned
@@ -35,7 +35,7 @@ public sealed partial class Plugin
         catch(Exception e){failure=e.GetType().Name;}
         finally{Stage("cleanup");ResetAmmo();}
         string assemblySha256=Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(LPLK.Common.RoundFileStore.PluginPath(Core),"LPLK_Weapons.dll"))));
-        AtomicJson.Write(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"ammo-probe.json"),new{at=DateTimeOffset.UtcNow,version="0.2.10",assemblySha256,success,failure,oldClip,oldAmmo,clip,ammo,restored,errorsBefore,errorsAfter=errors,nativeRefillTested=false,clientWeaponFireTested=false,clientSwitchTested=false});
+        AtomicJson.Write(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"ammo-probe.json"),new{at=DateTimeOffset.UtcNow,version="0.2.11",assemblySha256,success,failure,oldClip,oldAmmo,clip,ammo,restored,errorsBefore,errorsAfter=errors,nativeRefillTested=false,clientWeaponFireTested=false,clientSwitchTested=false});
         WriteStatus();ctx.ReplyLplk(success?"[LPLK] Native Magazin-/Reservelimits und Rücksetzung bestätigt.":"[LPLK] Waffenprüfung fehlgeschlagen.");
     }
 }

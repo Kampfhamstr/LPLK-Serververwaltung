@@ -8,12 +8,13 @@ public static class LegacyMenuChecks
     {
         var w=new MenuWorld {DataDirectory=Path.Combine(Environment.GetEnvironmentVariable("LPLK_BUILD_ROOT")!,"AdminMenuChecks","legacy-fixture")};
         Directory.CreateDirectory(w.DataDirectory);string path=Path.Combine(w.DataDirectory,"settings.json");
-        void Settings(bool enabled)=>File.WriteAllText(path,JsonSerializer.Serialize(new AdminSettings{LegacyPlayerMenus=enabled}));
+        bool loaded=false;
+        void Settings(bool enabled){var text=JsonSerializer.Serialize(new AdminSettings{LegacyPlayerMenus=enabled});if(loaded)LPLK.Common.RamFile.WriteAllText(path,text);else File.WriteAllText(path,text);}
         Settings(false);w.Plugins=["headshotonly","ThirdPerson","betbank"];
         w.OwnedCommands["headshotonly"]=[new(){CommandName="rtv",RegisterRaw=true,Permission="",HelpText=""},new(){CommandName="nominate",RegisterRaw=true,Permission="",HelpText=""}];
         w.OwnedCommands["ThirdPerson"]=[new(){CommandName="thirdperson",RegisterRaw=false,Permission="camera.use",HelpText=""}];
         w.OwnedCommands["betbank"]=[new(){CommandName="bank",RegisterRaw=true,Permission="",HelpText=""}];
-        var p=new Plugin(w.Core);p.Load(false);p.UseSharedInterface(w.Interfaces);
+        var p=new Plugin(w.Core);p.Load(false);p.UseSharedInterface(w.Interfaces);loaded=true;
         p.PlayerMenuCommand(w.Context);check(w.Labels.Count==1,"Legacy menus require explicit per-server opt-in");
         Settings(true);p.PlayerMenuCommand(w.Context);check(w.Labels[0].Contains("Mapmenü")&&w.Labels[1].Contains("Konto"),"Legacy maps and bank preserve requested order");
         w.Plugins.Add("MapChooser");w.OwnedCommands["MapChooser"]=[new(){CommandName="rtv",RegisterRaw=false,Permission="",HelpText=""},new(){CommandName="nominate",RegisterRaw=false,Permission="",HelpText=""}];p.PlayerMenuCommand(w.Context);check(w.Labels[0].Contains("Mapmenü"),"Existing HeadshotOnly raw routes remain authoritative beside prefixed MapChooser");

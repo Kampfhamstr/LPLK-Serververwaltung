@@ -18,7 +18,7 @@ using SwiftlyS2.Shared.ProtobufDefinitions;
 
 namespace LPLK_Whitelist;
 
-[PluginMetadata(Id="LPLK_Whitelist",Name="LPLK_Whitelist",Version="0.2.13",Author="LPLK",Description="Zugangsliste, Webpanel-Befehle und !admin",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Whitelist",Name="LPLK_Whitelist",Version="0.2.14",Author="LPLK",Description="Zugangsliste, Webpanel-Befehle und !admin",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -48,7 +48,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Reload();module.Active=true;
         Core.GameEvent.HookPost<EventPlayerConnectFull>(e=>{if(e.UserIdPlayer is {} p)Enforce(p);return HookResult.Continue;});
         Core.Scheduler.NextWorldUpdate(()=>{if(module.Active)EnforceAll();});
-        Core.Logger.LogInformation("LPLK_Whitelist 0.2.13 geladen: Modus {Mode}, {Count} Einträge, AdminBypass={Bypass}",settings.Mode,ids.Count,settings.AdminBypass);
+        Core.Logger.LogInformation("LPLK_Whitelist 0.2.14 geladen: Modus {Mode}, {Count} Einträge, AdminBypass={Bypass}",settings.Mode,ids.Count,settings.AdminBypass);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
     public override void Unload()
@@ -119,12 +119,12 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(c.Sender is {} p){if(module.CanAdmin(p))OpenAdmin(p);else c.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         if(c.Args.Length==2&&c.Args[0]=="check"&&AccessPolicy.ValidId(c.Args[1]))
         {c.ReplyLplk($"LPLK_Whitelist: listed={ids.Contains(c.Args[1])}; allowedWithoutBypass={AccessPolicy.Allows(settings,ids.Contains(c.Args[1]),false)}");return;}
-        c.ReplyLplk($"LPLK_Whitelist 0.2.13: enabled={settings.Enabled}; mode={settings.Mode}; entries={ids.Count}; adminBypass={settings.AdminBypass}; persisted={File.Exists(ListPath)}; reloadError={reloadError??"none"}; addCommand=sw_{activeCommandNames.Add}; removeCommand=sw_{activeCommandNames.Remove}; commandError={commandError??"none"}");
+        c.ReplyLplk($"LPLK_Whitelist 0.2.14: enabled={settings.Enabled}; mode={settings.Mode}; entries={ids.Count}; adminBypass={settings.AdminBypass}; persisted={File.Exists(ListPath)}; reloadError={reloadError??"none"}; addCommand=sw_{activeCommandNames.Add}; removeCommand=sw_{activeCommandNames.Remove}; commandError={commandError??"none"}");
     }
     private void WriteSettings(AccessSettings value)=>AtomicJson.Write(ConfigPath,new{Whitelist=new{value.Enabled,value.Mode,value.AdminBypass,value.KickMessage,value.PermissionForCommands,AddCommand="wl",RemoveCommand="uwl"}});
     private void WriteStatus()
     {
-        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.2.13",settings.Enabled,settings.Mode,settings.AdminBypass,entries=ids.Count,reloadError,addCommand="sw_"+activeCommandNames.Add,removeCommand="sw_"+activeCommandNames.Remove,commandError});statusWriteFailed=false;}
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.2.14",settings.Enabled,settings.Mode,settings.AdminBypass,entries=ids.Count,reloadError,addCommand="sw_"+activeCommandNames.Add,removeCommand="sw_"+activeCommandNames.Remove,commandError});statusWriteFailed=false;}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Whitelist: Status nicht schreibbar.");statusWriteFailed=true;}
     }
     private void Apply(Func<AccessSettings,AccessSettings> edit,IPlayer p)
@@ -138,9 +138,11 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         catch(Exception e){Core.Logger.LogWarning(e,"LPLK_Whitelist: Änderung nicht gespeichert");p.SendLplkChat("[LPLK] Nicht gespeichert. Aktuelle Zugangsdateien prüfen.");}
         OpenRules(p);
     }
-    private void OpenAdmin(IPlayer p) => module.Menu(p,"LPLK · Zugang",((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("OpenRules",OpenRulesRows(actor)))))(p));
+
+    private void OpenAdmin(IPlayer p)=>AdminHome(p,null);
+    private void AdminHome(IPlayer p,string? section)=>MenuRows.Home(p,"LPLK · Zugang",(a,t,r,b)=>module.Menu(a,t,b is null?0:1,b is null?r(a).ToArray():r(a).Append(("Zurück",b)).ToArray()),OpenAdminRows,section,("Regeln",OpenRulesRows));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Einträge",OpenEntries)}))(p);
-    private void OpenRules(IPlayer p) => OpenAdmin(p);
+    private void OpenRules(IPlayer p) => AdminHome(p,"Regeln");
     private IReadOnlyList<(string,Action<IPlayer>)> OpenRulesRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Aktiv: {(settings.Enabled?"Ja":"Nein")}",a=>Apply(s=>s with{Enabled=!s.Enabled},a)),($"Modus: {(settings.Mode==1?"Whitelist":"Blacklist")}",a=>Apply(s=>s with{Mode=s.Mode==1?2:1},a)),($"Admin-Ausnahme: {(settings.AdminBypass?"Ja":"Nein")}",a=>Apply(s=>s with{AdminBypass=!s.AdminBypass},a)),("Neuladen",a=>{if(Reload())EnforceAll();OpenRules(a);})}))(p);
     private void OpenEntries(IPlayer p)=>module.Menu(p,"Einträge",1,
         ("Hinzufügen",a=>Input(a,true)),("Entfernen",a=>Input(a,false)),($"Liste ({ids.Count})",a=>ShowEntries(a,0)),("Zurück",OpenAdmin));

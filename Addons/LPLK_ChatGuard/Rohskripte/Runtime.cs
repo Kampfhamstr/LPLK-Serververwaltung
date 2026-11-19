@@ -74,7 +74,7 @@ public sealed partial class Plugin
     }
     private void WriteStatus()
     {
-        try{LPLK.Common.DeferredJson.Queue(Path.Combine(_root,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.11",enabled=_config.Enabled,bridgePresent=BridgePresent,filterReady=_active,bridgeFilterReady=BridgeFilterReady(),localData=true,centralExport=false,
+        try{LPLK.Common.DeferredJson.Queue(Path.Combine(_root,"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.12",enabled=_config.Enabled,bridgePresent=BridgePresent,filterReady=_active,bridgeFilterReady=BridgeFilterReady(),localData=true,centralExport=false,
             trackedDisconnects=_advertisingDisconnects.Count,activeGags=_gagUntil.Count,localDomains=_config.BlockedDomains.Count,allowedDomains=_config.AllowedDomains.Count,
             globalDomains=_globalBlockedDomains.Count,globalPhrases=_globalBlockedPhrases.Count,importedBlockedIdentities=_globalBlockedSteamIds.Count,configError=_configError});_statusWriteFailed=false;}
         catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!_statusWriteFailed)Core.Logger.LogWarning(e,"ChatGuard-Status konnte nicht geschrieben werden.");_statusWriteFailed=true;}

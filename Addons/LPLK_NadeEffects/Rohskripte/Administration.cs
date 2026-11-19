@@ -30,7 +30,7 @@ public sealed partial class Plugin
             finally{if(fade!=uint.MaxValue)world.Destroy(fade);WriteStatus();}
             return;
         }
-        WriteStatus();ctx.ReplyLplk($"LPLK_NadeEffects 0.1.10: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; selected={effects.Selected}; pending={effects.PendingCount}; fades={effects.FadeCount}; cooldown={settings.TriggerCooldownSeconds}; remove={settings.RemoveNades}; errors={errors}; reloadError={reloadError??"none"}");
+        WriteStatus();ctx.ReplyLplk($"LPLK_NadeEffects 0.1.11: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; selected={effects.Selected}; pending={effects.PendingCount}; fades={effects.FadeCount}; cooldown={settings.TriggerCooldownSeconds}; remove={settings.RemoveNades}; errors={errors}; reloadError={reloadError??"none"}");
     }
     private IMenuBuilderAPI Builder(string title)=>Core.MenusAPI.CreateBuilder().SetPlayerFrozen(false).SetAutoCloseDelay(0)
         .SetSelectButton(Enum.Parse<KeyBind>(settings.SelectButton)).SetMoveForwardButton(Enum.Parse<KeyBind>(settings.MoveUpButton)).SetMoveBackwardButton(Enum.Parse<KeyBind>(settings.MoveDownButton)).SetExitButton(Enum.Parse<KeyBind>(settings.ExitButton))
@@ -45,7 +45,9 @@ public sealed partial class Plugin
         }
         Core.MenusAPI.OpenMenuForPlayer(player,builder.Build());
     }
-    private void OpenAdmin(IPlayer p) => Menu(p,"LPLK · Granateneffekte",0,((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Auslöser",TriggerMenuRows(actor)),("Bildschirm",FadeMenuRows(actor)),("Darstellung",AppearanceMenuRows(actor)),("Meldung",MessageMenuRows(actor)),("Warnung",WarningMenuRows(actor)),("Darstellung",MenuAppearanceRows(actor)),("Adminhinweis",AdminNoticesRows(actor)))))(p));
+
+    private void OpenAdmin(IPlayer p)=>AdminHome(p,null);
+    private void AdminHome(IPlayer p,string? section)=>MenuRows.Home(p,"LPLK · Granateneffekte",(a,t,r,b)=>Menu(a,t,0,b is null?r(a).ToArray():r(a).Append(("Zurück",b)).ToArray()),OpenAdminRows,section,("Allgemein",SettingsMenuRows),("Auslöser",TriggerMenuRows),("Bildschirm",FadeMenuRows),("Darstellung",AppearanceMenuRows),("Meldung",MessageMenuRows),("Warnung",WarningMenuRows),("Darstellung",MenuAppearanceRows),("Adminhinweis",AdminNoticesRows));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Spieler ({effects.Selected})",a=>Targets(a,0)),("Zurücksetzen",a=>{if(ready)effects.Clear();WriteStatus();OpenAdmin(a);})}))(p);
     private void Targets(IPlayer p,int requested)
     {
@@ -71,9 +73,9 @@ public sealed partial class Plugin
         if(page.Index>0)Navigation("Vorherige Seite",a=>Targets(a,page.Index-1));if(page.Index+1<page.Pages)Navigation("Nächste Seite",a=>Targets(a,page.Index+1));Navigation("Zurück",OpenAdmin,true);
         Core.MenusAPI.OpenMenuForPlayer(p,builder.Build());
     }
-    private void SettingsMenu(IPlayer p) => OpenAdmin(p);
+    private void SettingsMenu(IPlayer p) => AdminHome(p,"Allgemein");
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,s=>s with{Enabled=!s.Enabled});SettingsMenu(a);})}))(p);
-    private void TriggerMenu(IPlayer p) => OpenAdmin(p);
+    private void TriggerMenu(IPlayer p) => AdminHome(p,"Auslöser");
     private IReadOnlyList<(string,Action<IPlayer>)> TriggerMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Granatentypen",a=>Grenades(a,0)),($"Auslösesperre: {settings.TriggerCooldownSeconds:0.##} s",a=>NumberInput(a,nameof(NadeSettings.TriggerCooldownSeconds),"Auslösesperre (Sekunden)",0.1,60,TriggerMenu)),($"Granaten entfernen: {(settings.RemoveNades?"AN":"AUS")}",a=>{Apply(a,s=>s with{RemoveNades=!s.RemoveNades});TriggerMenu(a);}),($"Danach Messer: {(settings.SwitchToKnifeAfterRemove?"AN":"AUS")}",a=>{Apply(a,s=>s with{SwitchToKnifeAfterRemove=!s.SwitchToKnifeAfterRemove});TriggerMenu(a);})}))(p);
     private static readonly (string Property,string Label)[] GrenadeRows=[(nameof(NadeSettings.EnableFlashbang),"Flashbang"),(nameof(NadeSettings.EnableHEGrenade),"HE-Granate"),(nameof(NadeSettings.EnableSmoke),"Smoke"),(nameof(NadeSettings.EnableMolotov),"Molotov"),(nameof(NadeSettings.EnableIncendiary),"Incendiary"),(nameof(NadeSettings.EnableDecoy),"Decoy"),(nameof(NadeSettings.EnableTAGrenade),"TA-Granate")];
     private void Grenades(IPlayer p,int requested)
@@ -83,17 +85,17 @@ public sealed partial class Plugin
         {var prop=typeof(NadeSettings).GetProperty(name)!;rows.Add(($"{label}: {((bool)prop.GetValue(settings)!?"AN":"AUS")}",a=>{Apply(a,s=>{var next=s with{};prop.SetValue(next,!(bool)prop.GetValue(s)!);return next;});Grenades(a,0);}));}
         rows.Add(("Zurück",TriggerMenu));Menu(p,"Granaten",1,rows.ToArray());
     }
-    private void FadeMenu(IPlayer p) => OpenAdmin(p);
+    private void FadeMenu(IPlayer p) => AdminHome(p,"Bildschirm");
     private IReadOnlyList<(string,Action<IPlayer>)> FadeMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Fade: {(settings.UseEnvFade?"AN":"AUS")}",a=>{Apply(a,s=>s with{UseEnvFade=!s.UseEnvFade});FadeMenu(a);}),($"Dauer: {settings.FadeDuration:0.##} s",a=>NumberInput(a,nameof(NadeSettings.FadeDuration),"Fade-Dauer (Sekunden)",0,10,FadeMenu)),($"Haltezeit: {settings.FadeHoldTime:0.##} s",a=>NumberInput(a,nameof(NadeSettings.FadeHoldTime),"Haltezeit (Sekunden)",0,10,FadeMenu))}))(p);
-    private void AppearanceMenu(IPlayer p) => OpenAdmin(p);
+    private void AppearanceMenu(IPlayer p) => AdminHome(p,"Darstellung");
     private IReadOnlyList<(string,Action<IPlayer>)> AppearanceMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Farbe: {settings.FadeColor}",ColorInput),($"Deckkraft: {settings.FadeAlpha}",a=>NumberInput(a,nameof(NadeSettings.FadeAlpha),"Deckkraft",0,255,AppearanceMenu)),($"Lebensdauer: {settings.FadeEntityRemoveDelaySeconds:0.#} s",a=>NumberInput(a,nameof(NadeSettings.FadeEntityRemoveDelaySeconds),"Lebensdauer (Sekunden)",0.1,30,AppearanceMenu))}))(p);
-    private void MessageMenu(IPlayer p) => OpenAdmin(p);
+    private void MessageMenu(IPlayer p) => AdminHome(p,"Meldung");
     private IReadOnlyList<(string,Action<IPlayer>)> MessageMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{}))(p);
-    private void WarningMenu(IPlayer p) => OpenAdmin(p);
+    private void WarningMenu(IPlayer p) => AdminHome(p,"Warnung");
     private IReadOnlyList<(string,Action<IPlayer>)> WarningMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Warntext ändern",WarnInput),($"Bildschirmhinweis: {(settings.UseCenterWarning?"AN":"AUS")}",a=>{Apply(a,s=>s with{UseCenterWarning=!s.UseCenterWarning});WarningMenu(a);}),($"Hinweisdauer: {settings.CenterWarningDurationMs} ms",a=>NumberInput(a,nameof(NadeSettings.CenterWarningDurationMs),"Hinweisdauer (Millisekunden)",100,10000,WarningMenu))}))(p);
-    private void MenuAppearance(IPlayer p) => OpenAdmin(p);
+    private void MenuAppearance(IPlayer p) => AdminHome(p,"Darstellung");
     private IReadOnlyList<(string,Action<IPlayer>)> MenuAppearanceRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Namenslänge: {settings.MenuNameMaxLength}",a=>NumberInput(a,nameof(NadeSettings.MenuNameMaxLength),"Namenslänge",5,64,MenuAppearance)),("Tastenbelegung",a=>{a.SendLplkChat($"[LPLK] Auswahl: {settings.SelectButton}; aufwärts: {settings.MoveUpButton}; abwärts: {settings.MoveDownButton}; schließen: {settings.ExitButton}. Änderung in settings.json; vier unterschiedliche Tasten erforderlich.");MenuAppearance(a);})}))(p);
-    private void AdminNotices(IPlayer p) => OpenAdmin(p);
+    private void AdminNotices(IPlayer p) => AdminHome(p,"Adminhinweis");
     private IReadOnlyList<(string,Action<IPlayer>)> AdminNoticesRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Bei Markierung: {(settings.NotifyAdminsOnToggle?"AN":"AUS")}",a=>{Apply(a,s=>s with{NotifyAdminsOnToggle=!s.NotifyAdminsOnToggle});AdminNotices(a);}),($"Bei Auslösung: {(settings.NotifyAdminsOnTrigger?"AN":"AUS")}",a=>{Apply(a,s=>s with{NotifyAdminsOnTrigger=!s.NotifyAdminsOnTrigger});AdminNotices(a);})}))(p);
     private void WarnInput(IPlayer p)=>TextInput(p,"Granateneffekte · Warntext",settings.WarnMessage,160,NadeSettings.TextValid,(s,v)=>s with{WarnMessage=v},WarningMenu);
     private void ColorInput(IPlayer p)=>TextInput(p,"Farbe: Rot Grün Blau",settings.FadeColor,11,NadeSettings.ColorValid,(s,v)=>s with{FadeColor=v},AppearanceMenu);

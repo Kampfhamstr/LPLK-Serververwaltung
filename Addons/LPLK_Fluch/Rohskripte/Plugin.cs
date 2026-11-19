@@ -9,7 +9,7 @@ using SwiftlyS2.Shared.Misc;
 using SwiftlyS2.Shared.Plugins;
 namespace LPLK_Fluch;
 
-[PluginMetadata(Id="LPLK_Fluch",Name="LPLK_Fluch",Version="0.1.10",Author="LPLK; reference Kampfhamster",Description="Hühnerfluch mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Fluch",Name="LPLK_Fluch",Version="0.1.11",Author="LPLK; reference Kampfhamster",Description="Hühnerfluch mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -38,7 +38,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerTeam>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventRoundPrestart>(_=>{if(ready)curses.Clear();return HookResult.Continue;});
-        WriteStatus();Core.Logger.LogInformation("LPLK_Fluch 0.1.10 geladen; Hühner={Count}; Dauer={Duration}; Schaden={Damage}",settings.ChickenCount,settings.OrbitDurationSeconds,settings.TotalDamage);
+        WriteStatus();Core.Logger.LogInformation("LPLK_Fluch 0.1.11 geladen; Hühner={Count}; Dauer={Duration}; Schaden={Damage}",settings.ChickenCount,settings.OrbitDurationSeconds,settings.TotalDamage);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
@@ -80,7 +80,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     {
         try
         {
-            LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.10",settings,ready,effective=Enabled,activeCurses=curses.Count,chickens=curses.ChickenCount,explosions=curses.Explosions,errors,reloadError});
+            LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.11",settings,ready,effective=Enabled,activeCurses=curses.Count,chickens=curses.ChickenCount,explosions=curses.Explosions,errors,reloadError});
             statusWriteFailed=false;
         }
         catch(Exception e)when(e is IOException or UnauthorizedAccessException)

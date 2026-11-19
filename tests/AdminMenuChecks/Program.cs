@@ -153,8 +153,9 @@ Check(world.ModuleOpens == bankOpens + 1, "Economy opens without gameplay and ec
 world.EconomyEnabled=false; plugin.Admin(ctx);
 Check(await FindPaged("Bank") is not null, "Loaded disabled Economy administration remains reachable");
 world.EconomyEnabled=true;world.MapsEnabled=true;world.Plugins.Add("LPLK_Maps");plugin.PlayerMenuCommand(ctx);Check(world.Labels.Count>=5&&!world.Labels.Any(x=>x.Contains("Nächste Seite")),"Five public root actions fit one page without back row");
+typeof(Plugin).GetField("playerControlState",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.SetValue(plugin,(Func<SwiftlyS2.Shared.Players.IPlayer,PlayerControlState>)(_=>new(false,false)));
 world.IncludePlayer=true;plugin.Admin(ctx);await world.Click("Spielerverwaltung");await world.Click(world.FindExact("Spieler"));Check(world.Current!.Configuration.MaxVisibleItems==5,"Player selector uses the framework scrolling window");await world.Click("Testspieler");
-foreach(var action in new[]{"Kicken","Bannen","Chat","Team","Töten","Respawn","Hinteleportieren","Herholen","Einfrieren","Freigeben","Heilen","Rüsten","Noclip an","Noclip aus","Nachricht"}) Check(world.Labels.Any(x=>x.Contains(action)),"All player actions share selected player: "+action);
+foreach(var action in new[]{"Kicken","Bannen","Chat","Team","Töten","Respawn","Hinteleportieren","Herholen","Einfrieren","Heilen","Rüsten","Noclip einschalten","Nachricht"}) Check(world.Labels.Any(x=>x.Contains(action)),"Matching player actions share selected player: "+action);
 Check(!world.Labels.Any(x=>x.Contains("Weitere")||x.Contains("Nächste Seite")),"One scrolling action list without secondary branch");
 await world.Click("Heilen");await world.Click("Bestätigen");Check(world.AdminCalls.Last().StartsWith("health:")&&world.AdminCalls.Last().Contains("100"),"Heal executes existing backend with 100 HP");
 plugin.Admin(ctx);await world.Click("Spielerverwaltung");await world.Click(world.FindExact("Spieler"));Check(world.Current!.Configuration.MaxVisibleItems==5,"Player selector uses the framework scrolling window");await world.Click("Testspieler");var oldHeal=world.Find("Heilen");world.Permissions.Clear();int adminCalls=world.AdminCalls.Count;await world.Click(oldHeal);Check(world.AdminCalls.Count==adminCalls,"Revoked rights cannot execute old player action");
@@ -179,6 +180,7 @@ Check(world.Labels.Any(s => s.Contains("Adminmenü")), "Unloaded plugin callback
 Check(typeof(Plugin).GetMethod(nameof(Plugin.Admin))!.GetCustomAttributes<CommandAlias>().Any(a => a.Alias == "adminmenu"), "Admin alias uses same permission-protected handler");
 Check(world.AllMenus.Where(m => m.Configuration.Title?.StartsWith("<font") == true).All(m => m.Configuration.MaxVisibleItems == 5), "All central lists use five visible rows");
 await SoundFlowChecks.Run(Check);
+await ClarityChecks.Run(Check);
 await MenuPositionChecks.Run(Check);
 MenuVisualChecks.Run(Check);
 await LegacyMenuChecks.Run(Check);

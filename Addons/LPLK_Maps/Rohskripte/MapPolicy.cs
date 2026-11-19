@@ -105,6 +105,9 @@ public sealed partial record MapSettings
 
 public static partial class MapPolicy
 {
+    // Explicit admin choice bypasses gameplay eligibility, never technical validity.
+    public static bool AdminSelectable(MapEntry map,bool installed,bool cameraReady)
+        =>map.IsMap&&cameraReady&&(map.Workshop||SafeMapToken(map.Id))&&(installed||map.RemoteMapVerified);
     public static MapEntry CaptureMeasurement(MapEntry map,int t,int ct,int bombSites,int hostages)
     {
         var limits=MeasuredLimits(t,ct,bombSites,hostages,map.ConfiguredMaxPlayers??128);

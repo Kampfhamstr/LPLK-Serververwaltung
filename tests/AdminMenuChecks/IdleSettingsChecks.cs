@@ -14,17 +14,19 @@ public static class IdleSettingsChecks
         var plugin=new Plugin(world.Core);plugin.Load(false);
         var worldHandlers=typeof(Plugin).GetMethods().Where(m=>m.GetCustomAttributes().Any(a=>a.GetType()==typeof(EventListener<EventDelegates.OnWorldUpdate>))).ToArray();
         check(worldHandlers.Length==1,"Idle server has a world-update settings handler");
-        File.WriteAllText(settings,JsonSerializer.Serialize(new AdminSettings {Reasons=["Neu","Zwei"]}));
+
+
+        LPLK.Common.RamFile.WriteAllText(settings,JsonSerializer.Serialize(new AdminSettings {Reasons=["Neu","Zwei"]}));
         // Simulate a hibernating server: dispatch only world updates, never game ticks.
         foreach(var handler in worldHandlers)handler.Invoke(plugin,[]);
         LPLK.Common.DeferredJson.Drain();
-        using(var json=JsonDocument.Parse(File.ReadAllText(status)))check(json.RootElement.GetProperty("reasons").GetInt32()==2&&json.RootElement.GetProperty("reloadError").ValueKind==JsonValueKind.Null,"Settings refresh while game ticks are stopped");
+        using(var json=JsonDocument.Parse(File.ReadAllText(status)))check(json.RootElement.GetProperty("reasons").GetInt32()==2&&json.RootElement.GetProperty("reloadError").ValueKind==JsonValueKind.Null,"RAM menu edits refresh while game ticks are stopped");
         string first=File.ReadAllText(status);
-        File.WriteAllText(settings,JsonSerializer.Serialize(new AdminSettings {Reasons=["Drei","Vier","Fuenf"]}));
+        LPLK.Common.RamFile.WriteAllText(settings,JsonSerializer.Serialize(new AdminSettings {Reasons=["Drei","Vier","Fuenf"]}));
         foreach(var handler in worldHandlers)handler.Invoke(plugin,[]);
         check(File.ReadAllText(status)==first,"World updates retain two-second I/O throttle");
         typeof(Plugin).GetField("nextSettingsCheck",BindingFlags.NonPublic|BindingFlags.Instance)!.SetValue(plugin,0L);
-        File.WriteAllText(settings,"{invalid");
+        LPLK.Common.RamFile.WriteAllText(settings,"{invalid");
         foreach(var handler in worldHandlers)handler.Invoke(plugin,[]);
         LPLK.Common.DeferredJson.Drain();
         using(var json=JsonDocument.Parse(File.ReadAllText(status)))check(json.RootElement.GetProperty("reasons").GetInt32()==2&&json.RootElement.GetProperty("reloadError").ValueKind==JsonValueKind.String,"Bad idle configuration keeps last valid values and reports error");

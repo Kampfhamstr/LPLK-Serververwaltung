@@ -44,7 +44,7 @@ public sealed partial class Plugin
         p.SendLplkChat($"[LPLK Economy] Kill-Belohnung: {s.PercentOfVictimCash}% des Opfer-Cash, ab {s.MinReward:N0} $ berechnetem Bonus, maximal {(s.MaxReward<0?"unbegrenzt":s.MaxReward.ToString("N0")+" $")}. Auszahlung: {s.RewardMode}. Dem Opfer wird dafür nichts abgezogen.");
         p.SendLplkChat($"[LPLK Economy] Teamkills {(s.IgnoreTeamKills?"ausgeschlossen":"zugelassen")}; Bots und Botübernahme ausgeschlossen. Wie bisher auch im Warmup und in Pistolenrunden. Eigene offene Ansprüche: {bank!.KillRewardClaims().Where(c=>c.Account==Id(p)).Sum(c=>(long)c.Remaining):N0} $.");
     }
-    private void KillRewardAdmin(IPlayer p) => OpenAdmin(p);
+    private void KillRewardAdmin(IPlayer p) => AdminHome(p,"Killbelohnung");
     private IReadOnlyList<(string,Action<IPlayer>)> KillRewardAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>
     {
         var rows=new List<(string,Action<IPlayer>)>();

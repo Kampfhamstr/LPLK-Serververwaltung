@@ -1,9 +1,5 @@
 <Project>
-<PropertyGroup>
-<LplkReleaseChatTheme>$(MSBuildThisFileDirectory)Addons/_Gemeinsam/ChatTheme.cs</LplkReleaseChatTheme>
-<LplkReleaseChatTheme Condition="'$(MSBuildProjectName)' == 'LPLK_AntiCamp' Or '$(MSBuildProjectName)' == 'LPLK_AntiTeamFlash' Or '$(MSBuildProjectName)' == 'LPLK_BombWires' Or '$(MSBuildProjectName)' == 'LPLK_ChatGuard' Or '$(MSBuildProjectName)' == 'LPLK_CombatRules' Or '$(MSBuildProjectName)' == 'LPLK_Demos' Or '$(MSBuildProjectName)' == 'LPLK_Fluch' Or '$(MSBuildProjectName)' == 'LPLK_NadeEffects' Or '$(MSBuildProjectName)' == 'LPLK_Sounds' Or '$(MSBuildProjectName)' == 'LPLK_Statistics' Or '$(MSBuildProjectName)' == 'LPLK_ThirdPerson' Or '$(MSBuildProjectName)' == 'LPLK_Weapons' Or '$(MSBuildProjectName)' == 'LPLK_Whitelist' Or '$(MSBuildProjectName)' == 'LPLK_Zombie' Or '$(MSBuildProjectName)' == 'SerververwaltungBridge'">$(MSBuildThisFileDirectory)Addons/_Gemeinsam/ReleaseCompatibility/ChatTheme.cs</LplkReleaseChatTheme>
-</PropertyGroup>
-
+<PropertyGroup><LplkReleaseChatTheme>$(MSBuildThisFileDirectory)Addons/_Gemeinsam/ChatTheme.cs</LplkReleaseChatTheme><LplkReleaseChatTheme Condition="'$(MSBuildProjectName)' == 'LPLK_Zombie'">$(MSBuildThisFileDirectory)Addons/_Gemeinsam/ReleaseCompatibility/ChatTheme.cs</LplkReleaseChatTheme><LplkReleaseChatTheme Condition="'$(MSBuildProjectName)' == 'SerververwaltungBridge'">$(MSBuildThisFileDirectory)Addons/_Gemeinsam/ReleaseCompatibility/ChatTheme.cs</LplkReleaseChatTheme></PropertyGroup>
   <PropertyGroup Condition="'$(LPLK_BUILD_ROOT)' != ''">
     <PublishDir>$(LPLK_BUILD_ROOT)\$(MSBuildProjectName)\publish\$(AssemblyName)\</PublishDir>
   </PropertyGroup>

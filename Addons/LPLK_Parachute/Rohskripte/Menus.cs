@@ -4,14 +4,16 @@ namespace LPLK_Parachute;
 public sealed partial class Plugin
 {
     private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,title,()=>module.Active,module.CanAdmin,rows,back);
-    private void OpenAdmin(IPlayer p) => Page(p,"LPLK · Fallschirm",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Bewegung",MovementMenuRows(actor))));
+
+    private void OpenAdmin(IPlayer p)=>AdminHome(p,null);
+    private void AdminHome(IPlayer p,string? section)=>MenuRows.Home(p,"LPLK · Fallschirm",(a,t,r,b)=>Page(a,t,r,b),OpenAdminRows,section,("Allgemein",SettingsMenuRows),("Bewegung",MovementMenuRows));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{("Status",a=>a.SendLplkChat($"[LPLK] Fallschirm: {(settings.Enabled?"AN":"AUS")}; sv_parachute={enabledConvar?.Value}; Falltempo={settings.FallSpeed}; Bremse={settings.BrakePerTick}; Konfiguration={config.Error??"gültig"}."))}))(p);
-    private void SettingsMenu(IPlayer p) => OpenAdmin(p);
+    private void SettingsMenu(IPlayer p) => AdminHome(p,"Allgemein");
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
         ($"Bots automatisch: {settings.BotsAutoDeploy}",a=>{Apply(s=>s with{BotsAutoDeploy=!s.BotsAutoDeploy},a);SettingsMenu(a);}), ($"Botübernahme prüfen: {settings.TakeoverRecovery}",a=>{Apply(s=>s with{TakeoverRecovery=!s.TakeoverRecovery},a);SettingsMenu(a);}), ($"Aktiv: {settings.Enabled}",a=>{Apply(s=>s with{Enabled=!s.Enabled},a);SettingsMenu(a);}),        ($"Geiselsperre: {settings.DisableWhenCarryingHostage}",a=>{Apply(s=>s with{DisableWhenCarryingHostage=!s.DisableWhenCarryingHostage},a);SettingsMenu(a);}),        ("Berechtigung",a=>a.SendLplkChat("[LPLK] Benötigtes Nutzungsrecht: "+(settings.UsePermission.Length==0?"keines":settings.UsePermission)+" (UsePermission in settings.json)."))
     }))(p);
-    private void MovementMenu(IPlayer p) => OpenAdmin(p);
+    private void MovementMenu(IPlayer p) => AdminHome(p,"Bewegung");
     private IReadOnlyList<(string,Action<IPlayer>)> MovementMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
         ($"Falltempo: {settings.FallSpeed:0.##}",a=>Values(a,false)),        ($"Bremsschritt: {settings.BrakePerTick:0.##}",a=>Values(a,true)),        ($"Gleichmäßig: {settings.Linear}",a=>{Apply(s=>s with{Linear=!s.Linear},a);MovementMenu(a);})

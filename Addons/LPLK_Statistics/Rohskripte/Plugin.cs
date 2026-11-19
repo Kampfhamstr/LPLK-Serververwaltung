@@ -12,7 +12,7 @@ using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Statistics;
-[PluginMetadata(Id="LPLK_Statistics",Name="LPLK_Statistics",Version="0.2.22",Author="LPLK; references Michael Zauche, K4ryuu",Description="PvP, Bottraining, Waffen-StatTrak und Schadenübersicht",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Statistics",Name="LPLK_Statistics",Version="0.2.23",Author="LPLK; references Michael Zauche, K4ryuu",Description="PvP, Bottraining, Waffen-StatTrak und Schadenübersicht",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
  private ModuleSupport module=null!;private StatisticsSettings settings=new();private StatsData data=new();
@@ -47,7 +47,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(Human(e.UserIdPlayer)){string s=Session(e.UserIdPlayer!);shots.Remove(s);inspect.Remove(s);shown.Remove(s);}return HookResult.Continue;});
   Core.GameEvent.HookPost<EventRoundStart>(_=>{mapReady=true;ClearTransient();BeginRound();return HookResult.Continue;});
   Core.GameEvent.HookPost<EventRoundEnd>(e=>{var timer=System.Diagnostics.Stopwatch.StartNew();EndRound(e);if(Live&&settings.DamageSummary)foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(Human))Summary(p,null);RequestRoundSave();roundEndMs=timer.Elapsed.TotalMilliseconds;return HookResult.Continue;});
-  RegisterExtended();WriteStatus();Core.Logger.LogInformation("LPLK_Statistics 0.2.22 geladen; Datensätze={Count}; InspectOnly=True",data.Players.Count);
+  RegisterExtended();WriteStatus();Core.Logger.LogInformation("LPLK_Statistics 0.2.23 geladen; Datensätze={Count}; InspectOnly=True",data.Players.Count);
  }
  public override void ConfigureSharedInterface(IInterfaceManager manager)
  {
@@ -173,7 +173,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
  private void WriteStatus()
  {
   CompleteWeaponExport();
-  try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{version="0.2.22",updatedAt=DateTimeOffset.UtcNow,mapReady,settings.Enabled,settings.PvpEnabled,settings.BotTrainingEnabled,settings.WeaponTracking,settings.InspectHud,trigger="InspectOnly",settings.DamageCenter,settings.DamageConsole,players=data.Players.Count,dirty,errors,saveError,reloadError,weaponExportError,weaponExportMs,roundEndMs,statisticsWriteMs,statisticsWriteRunning=statisticsWrite is not null,killSavePending,weaponExportRunning=weaponExportTask is not null,weaponSnapshotRunning=weaponCapture is not null});statusWriteFailed=false;}
+  try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{version="0.2.23",updatedAt=DateTimeOffset.UtcNow,mapReady,settings.Enabled,settings.PvpEnabled,settings.BotTrainingEnabled,settings.WeaponTracking,settings.InspectHud,trigger="InspectOnly",settings.DamageCenter,settings.DamageConsole,players=data.Players.Count,dirty,errors,saveError,reloadError,weaponExportError,weaponExportMs,roundEndMs,statisticsWriteMs,statisticsWriteRunning=statisticsWrite is not null,killSavePending,weaponExportRunning=weaponExportTask is not null,weaponSnapshotRunning=weaponCapture is not null});statusWriteFailed=false;}
   catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Statistics: Status nicht schreibbar.");statusWriteFailed=true;}
  }
  private void Save(IPlayer actor,Func<StatisticsSettings,StatisticsSettings> edit)
@@ -185,5 +185,5 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   SyncSettings();WriteStatus();
  }
  [Command("lplk_statistics")]
- public void Status(ICommandContext c){if(c.Sender is {} p){OpenAdmin(p);return;}WriteStatus();c.ReplyLplk($"LPLK_Statistics 0.2.22: enabled={settings.Enabled}; ready={mapReady}; players={data.Players.Count}; InspectOnly=True; errors={errors}; saveError={saveError??"none"}; reloadError={reloadError??"none"}");}
+ public void Status(ICommandContext c){if(c.Sender is {} p){OpenAdmin(p);return;}WriteStatus();c.ReplyLplk($"LPLK_Statistics 0.2.23: enabled={settings.Enabled}; ready={mapReady}; players={data.Players.Count}; InspectOnly=True; errors={errors}; saveError={saveError??"none"}; reloadError={reloadError??"none"}");}
 }

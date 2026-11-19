@@ -4,7 +4,7 @@
   <Compile Remove="CompatAPI/**"/>
   <ProjectReference Include="CompatAPI/IHanZriotAPI.csproj"/>
   <PackageReference Include="SwiftlyS2.CS2" Version="1.4.14" ExcludeAssets="runtime" PrivateAssets="all"/>
-  <Compile Include="../../_Gemeinsam/ModuleSupport.cs" Link="Shared/ModuleSupport.cs"/>
+  <Compile Include="../../_Gemeinsam/ReleaseCompatibility/LPLK_Zombie-ModuleSupport.cs" Link="Shared/ModuleSupport.cs"/>
   <Compile Include="../../_Gemeinsam/CompactMenu.cs" Link="Shared/CompactMenu.cs"/>
   <Compile Include="../../_Gemeinsam/AdminActionPolicy.cs" Link="Shared/AdminActionPolicy.cs"/>
   <Compile Include="../../_Gemeinsam/ModeScope.cs" Link="Shared/ModeScope.cs"/>

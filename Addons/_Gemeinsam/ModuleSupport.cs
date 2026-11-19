@@ -16,6 +16,30 @@ namespace LPLK.Common;
 // same short label (for example "Aktiv", "Status", or "Mindestspieler").
 public static class MenuRows
 {
+    // Explicit module actions and settings factories; never classify player/map names.
+    public static void Home(IPlayer player,string title,
+        Action<IPlayer,string,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>,Action<IPlayer>?> page,
+        Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> actions,string? section,
+        params (string Name,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> Rows)[] settings)
+    {
+        IReadOnlyList<(string,Action<IPlayer>)> Display(IReadOnlyList<(string,Action<IPlayer>)> rows)
+            =>rows.Select(r=>(MenuColors.SwitchLabel(r.Item1),r.Item2)).ToArray();
+        void Root(IPlayer p)=>page(p,title,a=>Display(actions(a).Take(3).Append(("Einstellungen",(Action<IPlayer>)Settings)).ToArray()),null);
+        IReadOnlyList<(string,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)> Groups(IPlayer p)
+        {
+            var groups=settings.GroupBy(g=>g.Name).Select(g=>(g.Key,(Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(a=>Join(g.Select(x=>(x.Name,x.Rows(a))).ToArray())))).ToList();
+            if(actions(p).Count>3)groups.Insert(0,("Aktionen",a=>actions(a).Skip(3).ToArray()));
+            return groups.Where(g=>g.Item2(p).Count>0).ToArray();
+        }
+        void Settings(IPlayer p)=>page(p,title+" · Einstellungen",a=>Groups(a).Select(g=>(g.Item1,(Action<IPlayer>)(b=>Group(b,g.Item1)))).ToArray(),Root);
+        void Group(IPlayer p,string name)
+        {
+            var group=Groups(p).FirstOrDefault(g=>g.Item1==name);
+            if(group.Item2 is null){Settings(p);return;}
+            page(p,title+" · "+name,a=>Display(group.Item2(a)),Settings);
+        }
+        if(section is null)Root(player);else if(section.Length==0)Settings(player);else Group(player,section);
+    }
     public static (string,Action<IPlayer>)[] Join(params (string Group,IReadOnlyList<(string Label,Action<IPlayer> Action)> Rows)[] groups)
     {
         string Key(string label)=>label.Split(':')[0].Trim();
@@ -42,6 +66,12 @@ public static class MenuColors
     public static string Paint(string text,string color)=>$"<font color='{color}'>{text}</font>";
     public static string Heading(string text)=>Paint(text,White);
     public static string Back(string text)=>Paint(text,White);
+    public static string SwitchLabel(string text)
+    {
+        foreach(string suffix in new[]{": True",": Ja"})if(text.EndsWith(suffix,StringComparison.Ordinal))return text[..^suffix.Length]+": AN";
+        foreach(string suffix in new[]{": False",": Nein"})if(text.EndsWith(suffix,StringComparison.Ordinal))return text[..^suffix.Length]+": AUS";
+        return text;
+    }
     // Config-menu labels are controlled by us. Never apply this inference to player, map or sound names.
     public static bool? SwitchValue(string label)
     {

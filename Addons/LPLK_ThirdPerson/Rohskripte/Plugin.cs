@@ -14,7 +14,7 @@ using Vec=System.Numerics.Vector3;
 
 namespace LPLK_ThirdPerson;
 
-[PluginMetadata(Id="LPLK_ThirdPerson",Name="LPLK_ThirdPerson",Version="0.1.10",Author="LPLK; reference criskkky",Description="ThirdPerson-Kamera mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_ThirdPerson",Name="LPLK_ThirdPerson",Version="0.1.11",Author="LPLK; reference criskkky",Description="ThirdPerson-Kamera mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
     private ModuleSupport module=null!;
@@ -47,7 +47,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerTeam>(e=>{if(e.UserIdPlayer is {} p)Release(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventRoundPrestart>(_=>{if(ready)cameras.Clear(Error);knifeWarnings.Clear();return HookResult.Continue;});
         Core.GameEvent.HookPost<EventWeaponFire>(KnifeWarning);
-        ReconcileCommand();WriteStatus();Core.Logger.LogInformation("LPLK_ThirdPerson 0.1.10 geladen: permission={Permission}; damage={Damage}",settings.UseTpPermission,settings.DamageMode);
+        ReconcileCommand();WriteStatus();Core.Logger.LogInformation("LPLK_ThirdPerson 0.1.11 geladen: permission={Permission}; damage={Damage}",settings.UseTpPermission,settings.DamageMode);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)
     {
@@ -130,7 +130,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     {
         try
         {
-            LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.10",settings,ready,effective=Enabled,activeCameras=cameras.Count,blocked,errors,reloadError,commandError,command=activeCommandName.Length==0?null:"sw_"+activeCommandName});
+            LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.11",settings,ready,effective=Enabled,activeCameras=cameras.Count,blocked,errors,reloadError,commandError,command=activeCommandName.Length==0?null:"sw_"+activeCommandName});
             statusWriteFailed=false;
         }
         catch(Exception e)when(e is IOException or UnauthorizedAccessException)

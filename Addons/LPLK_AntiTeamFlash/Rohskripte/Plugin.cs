@@ -10,7 +10,7 @@ using SwiftlyS2.Shared.Plugins;
 
 namespace LPLK_AntiTeamFlash;
 
-[PluginMetadata(Id="LPLK_AntiTeamFlash",Name="LPLK_AntiTeamFlash",Version="0.1.9",Author="LPLK; reference St1nixx",Description="Teamflash-Schutz mit zentraler Administration",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_AntiTeamFlash",Name="LPLK_AntiTeamFlash",Version="0.1.10",Author="LPLK; reference St1nixx",Description="Teamflash-Schutz mit zentraler Administration",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ModuleSupport module = null!;
@@ -40,7 +40,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(e.UserIdPlayer is {} p)history.Remove(p.PlayerID);return HookResult.Continue;});
         Core.GameEvent.HookPost<EventPlayerDeath>(e=>{if(e.UserIdPlayer is {} p)history.Remove(p.PlayerID);return HookResult.Continue;});
         WriteStatus();
-        Core.Logger.LogInformation("LPLK_AntiTeamFlash 0.1.9 geladen: enabled={Enabled}; flashOwner={Owner}; Schutzrecht={Permission}; hotloadWait={Wait}",settings.Enabled,settings.FlashOwner,settings.AccessPermission,!ready);
+        Core.Logger.LogInformation("LPLK_AntiTeamFlash 0.1.10 geladen: enabled={Enabled}; flashOwner={Owner}; Schutzrecht={Permission}; hotloadWait={Wait}",settings.Enabled,settings.FlashOwner,settings.AccessPermission,!ready);
     }
     public override void ConfigureSharedInterface(IInterfaceManager manager)=>module.ConfigureSharedInterface(manager);
     public override void Unload()
@@ -102,7 +102,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     }
     private void WriteStatus()
     {
-        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.9",settings,ready,cleared,preservedOverlaps=preserved,errors,tracked=history.Count,reloadError}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.10",settings,ready,cleared,preservedOverlaps=preserved,errors,tracked=history.Count,reloadError}); statusWriteFailed=false; }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException)
         { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_AntiTeamFlash: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }

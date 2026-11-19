@@ -85,10 +85,10 @@ public sealed partial class Plugin
                 if (Can(a, "team")) entries.Add(("Team", b => PlayerChoices(b, id, session, "team", here)));
                 Add("Töten", "slay"); Add("Respawn", "respawn");
                 Add("Hinteleportieren", "goto_player"); Add("Herholen", "bring_player");
-                Add("Einfrieren", "freeze", new() { ["frozen"] = true, ["seconds"] = 0 });
-                Add("Freigeben", "freeze", new() { ["frozen"] = false, ["seconds"] = 0 });
+                var controls=playerControlState(target);
+                if(controls.Frozen is {} frozen)Add(frozen?"Freigeben":"Einfrieren", "freeze", new() { ["frozen"] = !frozen, ["seconds"] = 0 });
                 Add("Heilen", "health", new() { ["value"] = 100 }); Add("Rüsten", "armor", new() { ["value"] = 100 });
-                Add("Noclip an", "noclip", new() { ["enabled"] = true }); Add("Noclip aus", "noclip", new() { ["enabled"] = false });
+                if(controls.Noclip is {} noclip)Add(noclip?"Noclip ausschalten":"Noclip einschalten", "noclip", new() { ["enabled"] = !noclip });
                 if (Can(a, "private_message")) entries.Add(("Nachricht", b => Input(b, "Nachricht", (c, text) =>
                     Confirm(c, "Nachricht: " + text, session, "private_message", id, new() { ["message"] = text, ["type"] = "chat" }, here), here)));
             entries.AddRange(TargetModuleActions(a,target));
@@ -155,10 +155,26 @@ public sealed partial class Plugin
         {
             ("Bestätigen", a =>
             {
-                if (target is not null && session is not null) Target(target, session);
+                if (target is not null && session is not null)
+                {
+                    var current=Target(target,session);
+                    if(action is "freeze" or "noclip")
+                    {
+                        bool? state=CurrentControl(current,action);
+                        if(state is null)throw new InvalidOperationException("Spielerzustand nicht verfügbar; bitte erneut auswählen.");
+                        bool desired=(bool)payload[action=="freeze"?"frozen":"enabled"];
+                        if(state==desired){a.SendLplkChat("[LPLK] Gewünschter Zustand ist bereits gesetzt.");PlayerActions(a,current.SteamID,session,0);return;}
+                    }
+                }
                 Run(a, action, target, payload, a.SendLplkChat);
                 // Kick/ban can remove the target. Return to a valid player list after execution.
-                if (target is not null && session is not null) PlayerList(a, 0); else OpenAdministration(a);
+                if (target is not null && session is not null)
+                {
+                    var remaining=Find(ulong.Parse(target));
+                    if(action is not ("kick" or "ban")&&remaining is not null&&remaining.SessionId.ToString()==session)PlayerActions(a,remaining.SteamID,session,0);
+                    else PlayerList(a,0);
+                }
+                else OpenAdministration(a);
             })
         }, back, a => Can(a, action));
     }

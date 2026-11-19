@@ -13,7 +13,7 @@ using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Parachute;
 
-[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.13", Author = "LPLK / schwarper", Description = "Fallschirm mit Benutzen-Aktion; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_Parachute", Name = "LPLK_Parachute", Version = "0.1.14", Author = "LPLK / schwarper", Description = "Fallschirm mit Benutzen-Aktion; Mechanik aus Parachute v5", MinimumAPIVersion = "1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private WatchedSettings<ParachuteSettings> config = null!;
@@ -40,7 +40,7 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         Core.GameEvent.HookPre<EventPlayerDeath>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         Core.GameEvent.HookPre<EventPlayerSpawn>(e => { if(e.UserIdPlayer is {} p) Release(p.PlayerID); return HookResult.Continue; });
         module.Active = true;
-        Core.Logger.LogInformation("LPLK_Parachute 0.1.13 bereit; Parachute-v5-Mechanik: +use, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
+        Core.Logger.LogInformation("LPLK_Parachute 0.1.14 bereit; Parachute-v5-Mechanik: +use, FallSpeed={Speed}, Decrease={Step}, Linear={Linear}; ursprüngliche Schwerkraft wird zurückgegeben.", settings.FallSpeed, settings.BrakePerTick, settings.Linear);
         WriteStatus();
     }
 
@@ -111,11 +111,11 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
         if(!ctx.IsSentByPlayer&&ctx.Args.Length==1&&ctx.Args[0]=="probe"){ctx.Reply("LPLK_PARACHUTE_PROBE "+System.Text.Json.JsonSerializer.Serialize(ProbeSnapshot()));return;}
         if(!ctx.IsSentByPlayer&&ctx.Args.Length==1&&ctx.Args[0]=="botfall-test"){ctx.Reply("LPLK_PARACHUTE_TEST "+StartBotProbe());return;}
         if (ctx.IsSentByPlayer && ctx.Sender is { } player) OpenAdmin(player);
-        else ctx.ReplyLplk($"LPLK_Parachute 0.1.13: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored; reloadError={config.Error??"none"}");
+        else ctx.ReplyLplk($"LPLK_Parachute 0.1.14: enabled={settings.Enabled && enabledConvar?.Value == true}; fallSpeed={settings.FallSpeed}; decrease={settings.BrakePerTick}; linear={settings.Linear}; gravity=0.1/restored; reloadError={config.Error??"none"}");
     }
     private void WriteStatus()
     {
-        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.13",settings.Enabled,settings.FallSpeed,settings.BrakePerTick,settings.Linear,settings.DisableWhenCarryingHostage,settings.BotsAutoDeploy,settings.TakeoverRecovery,useRestricted=settings.UsePermission.Length>0,activeFlights=flights.Count,botDeployments,humanDeployments,takeoverDeployments,takeoverChecks,takeoverRecoveries,takeoverBlocked,recoveryError,botProbeResult,reloadError=config.Error}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.14",settings.Enabled,settings.FallSpeed,settings.BrakePerTick,settings.Linear,settings.DisableWhenCarryingHostage,settings.BotsAutoDeploy,settings.TakeoverRecovery,useRestricted=settings.UsePermission.Length>0,activeFlights=flights.Count,botDeployments,humanDeployments,takeoverDeployments,takeoverChecks,takeoverRecoveries,takeoverBlocked,recoveryError,botProbeResult,reloadError=config.Error}); statusWriteFailed=false; }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException)
         { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_Parachute: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }

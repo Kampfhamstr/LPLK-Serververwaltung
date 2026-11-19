@@ -13,26 +13,28 @@ public sealed partial class Plugin
     public void Command(ICommandContext context)
     {
         if(context.Sender is {} player){OpenAdmin(player);return;}
-        WriteStatus();context.ReplyLplk($"LPLK_ChatGuard 0.1.11: enabled={_config.Enabled}; bridge={BridgePresent}; filterContract={_active}; bridgeFilterReady={BridgeFilterReady()}; localData=true; exportedIdentities=0; configError={_configError??"none"}");
+        WriteStatus();context.ReplyLplk($"LPLK_ChatGuard 0.1.12: enabled={_config.Enabled}; bridge={BridgePresent}; filterContract={_active}; bridgeFilterReady={BridgeFilterReady()}; localData=true; exportedIdentities=0; configError={_configError??"none"}");
     }
     private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,title,()=>_active,_module.CanAdmin,rows,back);
-    private void OpenAdmin(IPlayer p) => Page(p,"LPLK · Chat / Werbeschutz",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Schutz",ProtectionMenuRows(actor)),("Sanktionen",SanctionsMenuRows(actor)),("Meldung",MessagesMenuRows(actor)),("Regeln",RulesMenuRows(actor))));
+
+    private void OpenAdmin(IPlayer p)=>AdminHome(p,null);
+    private void AdminHome(IPlayer p,string? section)=>MenuRows.Home(p,"LPLK · Chat / Werbeschutz",(a,t,r,b)=>Page(a,t,r,b),OpenAdminRows,section,("Allgemein",SettingsMenuRows),("Schutz",ProtectionMenuRows),("Sanktionen",SanctionsMenuRows),("Meldung",MessagesMenuRows),("Regeln",RulesMenuRows));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
 ("Status",a=>a.SendLplkChat($"[LPLK] Werbeschutz: {(_config.Enabled?"AN":"AUS")}; Sperrdomains={_config.BlockedDomains.Count}; Freigaben={_config.AllowedDomains.Count}; aktive Gags={_gagUntil.Count}; Konfiguration={_configError??"gültig"}."))}))(p);
-    private void SettingsMenu(IPlayer p) => OpenAdmin(p);
+    private void SettingsMenu(IPlayer p) => AdminHome(p,"Allgemein");
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
 }))(p);
-    private void ProtectionMenu(IPlayer p) => OpenAdmin(p);
+    private void ProtectionMenu(IPlayer p) => AdminHome(p,"Schutz");
     private IReadOnlyList<(string,Action<IPlayer>)> ProtectionMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
         ($"Aktiv: {_config.Enabled}",a=>Change(a,c=>c.Enabled=!c.Enabled,ProtectionMenu)),        ($"Namen prüfen: {_config.CheckPlayerNames}",a=>Change(a,c=>c.CheckPlayerNames=!c.CheckPlayerNames,ProtectionMenu)),        ($"Rollenschutz: {_config.HardActionsOnlyForPlayerRole}",a=>Change(a,c=>c.HardActionsOnlyForPlayerRole=!c.HardActionsOnlyForPlayerRole,ProtectionMenu))}))(p);
     private void Numeric(IPlayer p,string title,int initial,int min,int max,Action<AntiAdConfig,int> edit)=>Input(p,title,initial.ToString(CultureInfo.InvariantCulture),v=>Change(p,c=>edit(c,int.Parse(v,CultureInfo.InvariantCulture)),SanctionsMenu),SanctionsMenu,4,v=>int.TryParse(v,out int n)&&n>=min&&n<=max,$"{min} bis {max} eingeben.");
-    private void SanctionsMenu(IPlayer p) => OpenAdmin(p);
+    private void SanctionsMenu(IPlayer p) => AdminHome(p,"Sanktionen");
     private IReadOnlyList<(string,Action<IPlayer>)> SanctionsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
         ($"Gagschwelle: {_config.GagAtViolation}",a=>Numeric(a,"Gagschwelle",_config.GagAtViolation,2,100,(c,n)=>c.GagAtViolation=n)),        ($"Kickschwelle: {_config.KickAtViolation}",a=>Numeric(a,"Kickschwelle",_config.KickAtViolation,3,100,(c,n)=>c.KickAtViolation=n)),        ($"Zeitfenster: {_config.RepeatWindowMinutes} min",a=>Numeric(a,"Zeitfenster (Minuten)",_config.RepeatWindowMinutes,1,1440,(c,n)=>c.RepeatWindowMinutes=n)),        ($"Gagdauer: {_config.GagMinutes} min",a=>Numeric(a,"Gagdauer (Minuten)",_config.GagMinutes,1,1440,(c,n)=>c.GagMinutes=n)),        ($"Warnabstand: {_config.ElevatedRoleWarningCooldownSeconds}s",a=>Numeric(a,"Warnabstand (Sekunden)",_config.ElevatedRoleWarningCooldownSeconds,1,300,(c,n)=>c.ElevatedRoleWarningCooldownSeconds=n)),        ("Kicktext",a=>Input(a,"Kicknachricht",_config.KickReason,v=>Change(a,c=>c.KickReason=v,SanctionsMenu),SanctionsMenu))}))(p);
-    private void MessagesMenu(IPlayer p) => OpenAdmin(p);
+    private void MessagesMenu(IPlayer p) => AdminHome(p,"Meldung");
     private IReadOnlyList<(string,Action<IPlayer>)> MessagesMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
         ($"Namen maskieren: {_config.MaskAdvertisingPlayerNames}",a=>Change(a,c=>c.MaskAdvertisingPlayerNames=!c.MaskAdvertisingPlayerNames,MessagesMenu)),        ($"Joinfilter: {_config.CensorAdvertisingSystemMessages}",a=>Change(a,c=>c.CensorAdvertisingSystemMessages=!c.CensorAdvertisingSystemMessages,MessagesMenu)),        ($"Leavefilter: {_config.SuppressAdvertisingDisconnectMessages}",a=>Change(a,c=>c.SuppressAdvertisingDisconnectMessages=!c.SuppressAdvertisingDisconnectMessages,MessagesMenu)),        ($"Serverfilter: {_config.SuppressAdvertisingServerMessages}",a=>Change(a,c=>c.SuppressAdvertisingServerMessages=!c.SuppressAdvertisingServerMessages,MessagesMenu)),        ($"Erfolgsmeldung: {_config.BroadcastSuccess}",a=>Change(a,c=>c.BroadcastSuccess=!c.BroadcastSuccess,MessagesMenu)),        ($"Namensanzeige: {_config.BroadcastOffenderName}",a=>Change(a,c=>c.BroadcastOffenderName=!c.BroadcastOffenderName,MessagesMenu)),        ($"Textprotokoll: {_config.LogBlockedText}",a=>Change(a,c=>c.LogBlockedText=!c.LogBlockedText,MessagesMenu)),        ("Ersatzname",a=>Input(a,"Ersatzname",_config.CensoredPlayerName,v=>Change(a,c=>c.CensoredPlayerName=v,MessagesMenu),MessagesMenu,24))}))(p);
-    private void RulesMenu(IPlayer p) => OpenAdmin(p);
+    private void RulesMenu(IPlayer p) => AdminHome(p,"Regeln");
     private IReadOnlyList<(string,Action<IPlayer>)> RulesMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]{
         ($"Sperrdomains ({_config.BlockedDomains.Count})",a=>ListMenu(a,0)),        ($"Freigaben ({_config.AllowedDomains.Count})",a=>ListMenu(a,1)),        ($"Marketing ({_config.MarketingKeywords.Count})",a=>ListMenu(a,2)),        ("Zentralregeln",a=>a.SendLplkChat($"[LPLK] Testkopie: {_globalBlockedDomains.Count} Sperrdomains, {_globalAllowedDomains.Count} erlaubte Domains, {_globalBlockedPhrases.Count} Sperrphrasen. Keine produktiven Werbeidentitäten übernommen."))}))(p);
     private static List<string> List(AntiAdConfig c,int kind)=>kind==0?c.BlockedDomains:kind==1?c.AllowedDomains:c.MarketingKeywords;

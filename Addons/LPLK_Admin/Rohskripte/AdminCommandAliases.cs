@@ -149,7 +149,7 @@ public sealed partial class Plugin
         if(!active)return;
         if(c.Sender is {} p&&!CanManage(p)){c.ReplyLplk("[LPLK] Keine Berechtigung.");return;}
         ReloadSettings();
-        c.ReplyLplk("LPLK_Admin commands: "+JsonSerializer.Serialize(new{version="0.11.10",registered=aliasRegistrations.Keys.Order().ToArray(),
+        c.ReplyLplk("LPLK_Admin commands: "+JsonSerializer.Serialize(new{version="0.11.11",registered=aliasRegistrations.Keys.Order().ToArray(),
             unsupported=settings.Commands.Keys.Where(k=>AdminCommandNames.Unsupported.Contains(k,StringComparer.OrdinalIgnoreCase)).Order().ToArray(),commandError,reloadError=settingsError}));
     }
 
@@ -171,8 +171,8 @@ public sealed partial class Plugin
         // numbered chunk stays well below that limit; consumers require all.
         string run=Guid.NewGuid().ToString("N");var chunks=entries.Chunk(8).ToArray();
         for(int index=0;index<chunks.Length;index++)
-            c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version="0.11.10",run,index,total=chunks.Length+1,entries=chunks[index]}));
-        c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version="0.11.10",run,index=chunks.Length,total=chunks.Length+1,
+            c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version="0.11.11",run,index,total=chunks.Length+1,entries=chunks[index]}));
+        c.Reply("LPLK_COMMAND_AUDIT "+JsonSerializer.Serialize(new{version="0.11.11",run,index=chunks.Length,total=chunks.Length+1,
             entries=Array.Empty<object>(),collisions,entryCount=entries.Length,exactCount=Core.Command.GetAllCommands().Count}));
     }
 }

@@ -1,5 +1,5 @@
-# LPLK_Maps 0.4.29
+# LPLK_Maps 0.4.30
 
-Geprüftes Paket vom 19.11.2026: [Download](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Maps.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK-Plugins-Source.zip) · [Installation, Funktionen dieser Ausgabe und Prüfgrenzen](../../docs/RELEASE-20261119.md).
+[Download](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Maps.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK-Plugins-Source.zip)
 
-Einstellungen, Daten und Rechte bei Updates erhalten; Paket nur im passenden Serverprofil einsetzen. Lizenz- und Herkunftshinweise stehen bei dieser Komponente.
+[Änderungen, Installation und Prüfgrenzen](../../docs/ADMIN-MENUES-20261119.md).

@@ -17,16 +17,18 @@ public sealed partial class Plugin
             var before=settings;try{row.Item2(actor);}catch(Exception e)when(e is IOException or UnauthorizedAccessException or InvalidOperationException or System.Text.Json.JsonException){actor.SendLplkChat("[LPLK] Änderung nicht übernommen: "+e.Message);return;}
             if(!ReferenceEquals(before,settings))Core.Logger.LogInformation("LPLK_Weapons: Admin {Actor}; vorher={Before}; nachher={After}",actor.SteamID,System.Text.Json.JsonSerializer.Serialize(before),System.Text.Json.JsonSerializer.Serialize(settings));
         }))).ToArray(),back,page);
-    private void OpenAdmin(IPlayer p) => AdminPage(p,"LPLK · Waffen & Auswahl",actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Waffen",RestrictionsRows(actor)),("Auswahl",SelectionSettingsRows(actor))));
+
+    private void OpenAdmin(IPlayer p)=>AdminHome(p,null);
+    private void AdminHome(IPlayer p,string? section)=>MenuRows.Home(p,"LPLK · Waffen & Auswahl",(a,t,r,b)=>AdminPage(a,t,r,b),OpenAdminRows,section,("Allgemein",SettingsMenuRows),("Waffen",RestrictionsRows),("Auswahl",SelectionSettingsRows));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
 ("Sonderregeln",SpecialRules),        ("Status",a=>a.SendLplkChat($"[LPLK] Preset {settings.ActivePreset}; {settings.AllowedWeapons.Length} Freigaben; {settings.Rules.Count} Sonderregeln; Fehler {errors}. Mapquoten und Rechte: settings.json / Rules."))
     }))(p);
-    private void SettingsMenu(IPlayer p) => OpenAdmin(p);
+    private void SettingsMenu(IPlayer p) => AdminHome(p,"Allgemein");
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
         ($"Modul aktiv: {settings.Enabled}",a=>{Save(current=>current with{Enabled=!current.Enabled});SettingsMenu(a);})    }))(p);
-    private void Restrictions(IPlayer p) => OpenAdmin(p);
+    private void Restrictions(IPlayer p) => AdminHome(p,"Waffen");
     private IReadOnlyList<(string,Action<IPlayer>)> RestrictionsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
         ($"Beschränkung: {settings.RestrictionEnabled}",a=>{Save(current=>current with{RestrictionEnabled=!current.RestrictionEnabled});Restrictions(a);}),        ("Preset",Presets),("Einzelne Waffen",a=>AdminGroups(a,false)),        ("Weitere Regeln",a=>AdminPage(a,"Waffen · Weitere Regeln",_=>new (string,Action<IPlayer>)[]
@@ -37,7 +39,7 @@ public sealed partial class Plugin
     }))(p);
     private void Presets(IPlayer p)=>AdminPage(p,"Waffen · Presets",_=>new[]{("AllWeapons","Alle Waffen"),("PistolsOnly","Nur Pistolen"),("DeagleOnly","Nur Deagle"),("RiflesOnly","Nur Gewehre"),("SnipersOnly","Nur Scharfschützen"),("AwpOnly","Nur AWP"),("NoSnipers","Keine Scharfschützen")}
         .Select(x=>(x.Item2,(Action<IPlayer>)(a=>{Save(current=>current with{AllowedWeapons=WeaponCatalog.Preset(x.Item1),ActivePreset=x.Item1});a.SendLplkChat("[LPLK] Preset gespeichert; Beschränkung bleibt "+(settings.RestrictionEnabled?"AN":"AUS")+".");Restrictions(a);}))).ToArray(),Restrictions);
-    private void SelectionSettings(IPlayer p) => OpenAdmin(p);
+    private void SelectionSettings(IPlayer p) => AdminHome(p,"Auswahl");
     private IReadOnlyList<(string,Action<IPlayer>)> SelectionSettingsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_=>new (string,Action<IPlayer>)[]
     {
         ($"Kostenlose Auswahl: {settings.MenuEnabled}",a=>{Save(current=>current with{MenuEnabled=!current.MenuEnabled});SelectionSettings(a);}),        ("Angebotene Waffen",a=>AdminGroups(a,true)),        ("Berechtigung",a=>a.SendLplkChat("[LPLK] Menürecht: "+(settings.MenuPermission.Length==0?"alle Spieler":settings.MenuPermission)+". Lebender Spieler in T/CT erforderlich.")),        ("Ausprobieren",a=>Guns(a,null))

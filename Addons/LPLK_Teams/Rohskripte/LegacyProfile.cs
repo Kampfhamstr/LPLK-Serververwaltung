@@ -23,11 +23,11 @@ public sealed partial class Plugin
         AdminCommand(c);
     }
     private void PlayersRoot(IPlayer p)=>CompactMenu.Open(Core,p,"Jakob WTJ Schutz · Matchende",()=>loaded,CanUseSelection,_=>new (string,Action<IPlayer>)[]{
-        ($"Aktiv: {settings.Enabled}",a=>{Set(a,nameof(TeamSettings.Enabled),false,toggle:true);PlayersRoot(a);}),
+        ($"Schutz: {(settings.Enabled?"AN":"AUS")}",a=>{Set(a,nameof(TeamSettings.Enabled),false,toggle:true);PlayersRoot(a);}),
         ("Ausgewählte",a=>PlayersMenu(a,0,SelectionFilter.Active)),
         ("Nicht ausgewählte",a=>PlayersMenu(a,0,SelectionFilter.Inactive)),
         ("Alle Spieler",a=>PlayersMenu(a,0))},OpenAdmin);
-    private void TextSettings(IPlayer p)=>OpenAdmin(p);
+    private void TextSettings(IPlayer p)=>Page(p,"Teams · Texte",_=>TextSettingRows(),SettingsRoot);
     private IReadOnlyList<(string,Action<IPlayer>)> TextSettingRows()=>new (string,Action<IPlayer>)[]{
         ("Chatpräfix",a=>TextInput(a,nameof(TeamSettings.ChatPrefix),"Chatpräfix",128)),
         ("Chatmeldung",a=>TextInput(a,nameof(TeamSettings.BlockedMessage),"Chatmeldung",512)),

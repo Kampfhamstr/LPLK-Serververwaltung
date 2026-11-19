@@ -28,6 +28,7 @@ public sealed partial class Plugin
     private bool Available(MapEntry m)=>CameraMapReady(m)&&m.IsMap&&!m.Removed&&(!settings.BuiltinMapsOnly||!m.Workshop)&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&
         (installed.Contains(m.Id)||(!settings.RequireVpkFile&&m.RemoteMapVerified));
     private bool Votable(MapEntry m)=>Available(m)&&MapPolicy.LimitsUsable(m,settings);
+    private bool AdminAvailable(MapEntry m)=>MapPolicy.AdminSelectable(m,installed.Contains(m.Id),CameraMapReady(m));
     private bool AnyHuman()=>Core.PlayerManager.GetAllPlayers().Any(p=>p.IsValid&&!p.IsFakeClient);
     private MapSettings ReadConfiguration()
     {

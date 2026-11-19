@@ -78,6 +78,6 @@ public sealed partial class Plugin
             return new{slot=p.PlayerID,bot=p.IsFakeClient,takeover=p.Controller.ControllingBot,pawn=pawn is null?(uint?)null:Core.EntitySystem.GetRefEHandle(pawn).Raw,
                 alive=pawn is {LifeState:0,Health:>0},gravity=pawn?.ActualGravityScale,velocityZ=pawn?.AbsVelocity.Z,move=pawn?.MoveType.ToString(),solid,traceError};
         }).ToArray();
-        return new{version="0.1.13",botDeployments,humanDeployments,takeoverDeployments,takeoverChecks,takeoverRecoveries,takeoverBlocked,recoveryError,botProbeResult,pawns};
+        return new{version="0.1.14",botDeployments,humanDeployments,takeoverDeployments,takeoverChecks,takeoverRecoveries,takeoverBlocked,recoveryError,botProbeResult,pawns};
     }
 }

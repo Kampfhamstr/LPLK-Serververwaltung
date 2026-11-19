@@ -22,17 +22,16 @@ public sealed partial class Plugin
         actions.Add(("Einstellungen",MapSettingsMenu));
         module.Menu(player,"Maps",actions.ToArray());
     }
-    private void MapChangeGroups(IPlayer p)=>module.Menu(p,"Mapwechsel",1,
-        ("1–max. Slots",a=>MapChangeList(a,1)),("6–max. Slots",a=>MapChangeList(a,6)),("Zurück",OpenAdmin));
+    private void MapChangeGroups(IPlayer p)=>MapChangeList(p,0);
     private void MapChangeList(IPlayer p,int minimum)
     {
         RefreshSettings();if(!module.CanAdmin(p))return;
         var entries=MapChangeEntries(minimum);
-        Selection(p,$"Mapwechsel · {minimum}–max. Slots",entries,(a,m)=>ConfirmMapChange(a,m),back:MapChangeGroups);
+        Selection(p,"Mapwechsel · Admin",entries,(a,m)=>ConfirmMapChange(a,m),back:OpenAdmin);
     }
-    private List<MapEntry> MapChangeEntries(int minimum)=>maps.Where(m=>m.IsMap&&!m.Removed&&!settings.ExcludedWorkshopIds.Contains(m.Id)&&MapPolicy.LimitsUsable(m,settings)&&m.MinPlayers==minimum).OrderBy(m=>m.Name).ToList();
+    private List<MapEntry> MapChangeEntries(int minimum)=>maps.Where(AdminAvailable).Where(m=>minimum==0||m.MinPlayers==minimum).OrderBy(m=>m.Name).ToList();
     private void ConfirmMapChange(IPlayer p,MapEntry selected)=>module.Menu(p,"Wechsel zu "+MapPolicy.Escape(selected.Name)+"?",1,
-        ("Ja",a=>{var current=maps.FirstOrDefault(m=>m.Id==selected.Id);if(current is not null&&!current.Removed&&!settings.ExcludedWorkshopIds.Contains(current.Id))Schedule(current,settings.ChangeDelaySeconds,actor:a,adminSource:"admin_menu");}),
+        ("Ja",a=>{var current=maps.FirstOrDefault(m=>m.Id==selected.Id);if(current is not null&&module.CanAdmin(a))Schedule(current,settings.ChangeDelaySeconds,actor:a,adminSource:"admin_menu");}),
         ("Nein",OpenAdmin));
     private void MapTestMenu(IPlayer p)=>module.Menu(p,"Maptest",1,
         ("Workshop-ID eingeben",WorkshopTestInput),
@@ -136,7 +135,7 @@ public sealed partial class Plugin
                 if(property.PropertyType==typeof(bool))Apply(current=>{var next=current with{};property.SetValue(next,!(bool)property.GetValue(current)!);return next;},actor);
                 else Input(actor,item.Value,4,v=>int.TryParse(v,out _),(player,v)=>Apply(current=>{var next=current with{};property.SetValue(next,int.Parse(v));return next;},player));
             };
-            return(item.Value+": "+(value is bool b?(b?"Ja":"Nein"):value),action);
+            return(item.Value+": "+(value is bool b?(b?"AN":"AUS"):value),action);
         }).ToArray();return actions;
     }
     private void Input(IPlayer player,string label,int length,Func<string,bool> validator,Action<IPlayer,string> change)

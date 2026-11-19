@@ -16,9 +16,9 @@ public sealed partial class Plugin
     {
         if(c.Sender is {} p){OpenAdmin(p);return;}
         Refresh();WriteStatus();
-        c.Reply($"LPLK_WTJ {JsonSerializer.Serialize(new{version="0.2.16",enabled=settings.Enabled,matchEndProtection=settings.BlockWinningTeamDuringMatchEnd,selectedProtection=settings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd,selected=SelectionIds.Count(),winner=WinningJoinGuard,ready,effective=Effective,errors,reloadError,returnReady,returnError,returnPending=returnTeams.PendingCount})}");
-        c.Reply($"LPLK_BOTPOP {JsonSerializer.Serialize(new{version="0.2.16",humans=botHumans,desired=botDesired,actual=botActual,removalAttempts=botRemovalAttempts,quota=Core.ConVar.Find<int>("bot_quota")?.Value,mode=Core.ConVar.Find<string>("bot_quota_mode")?.Value,teamT=new{humans=botHumanT,bots=botT,targetBots=botTargetT},teamCt=new{humans=botHumanCt,bots=botCt,targetBots=botTargetCt},teamMoves=botTeamMoves,balanceState=botBalanceState})}");
-        c.ReplyLplk($"LPLK_Teams 0.2.16: enabled={settings.Enabled}; ready={ready}; bridgeReady={BridgeReady()}; CT={score?.Ct}; T={score?.T}; source={tracker.Source}; rounds={rounds}; threshold={TeamPolicy.Threshold(settings,rounds)}; selected={SelectionIds.Count()}; errors={errors}; reloadError={reloadError??"none"}");
+        c.Reply($"LPLK_WTJ {JsonSerializer.Serialize(new{version="0.2.17",enabled=settings.Enabled,matchEndProtection=settings.BlockWinningTeamDuringMatchEnd,selectedProtection=settings.BlockConfiguredSteamIdsFromWinningTeamDuringMatchEnd,selected=SelectionIds.Count(),winner=WinningJoinGuard,ready,effective=Effective,errors,reloadError,returnReady,returnError,returnPending=returnTeams.PendingCount})}");
+        c.Reply($"LPLK_BOTPOP {JsonSerializer.Serialize(new{version="0.2.17",humans=botHumans,desired=botDesired,actual=botActual,removalAttempts=botRemovalAttempts,quota=Core.ConVar.Find<int>("bot_quota")?.Value,mode=Core.ConVar.Find<string>("bot_quota_mode")?.Value,teamT=new{humans=botHumanT,bots=botT,targetBots=botTargetT},teamCt=new{humans=botHumanCt,bots=botCt,targetBots=botTargetCt},teamMoves=botTeamMoves,balanceState=botBalanceState})}");
+        c.ReplyLplk($"LPLK_Teams 0.2.17: enabled={settings.Enabled}; ready={ready}; bridgeReady={BridgeReady()}; CT={score?.Ct}; T={score?.T}; source={tracker.Source}; rounds={rounds}; threshold={TeamPolicy.Threshold(settings,rounds)}; selected={SelectionIds.Count()}; errors={errors}; reloadError={reloadError??"none"}");
     }
     [Command("tsbscore")]
     public void ScoreCommand(ICommandContext c)
@@ -28,11 +28,15 @@ public sealed partial class Plugin
         c.ReplyLplk($"[LPLK] Teams {(settings.Enabled?"AN":"AUS")}: CT {score?.Ct.ToString()??"?"} : {score?.T.ToString()??"?"} T; geschützt: {ProtectedText()}; Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds}; Halbzeit {Halftime}; Quelle {tracker.Source}.");
     }
     private void Page(IPlayer p,string title,Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>> rows,Action<IPlayer>? back=null)=>CompactMenu.Open(Core,p,title,()=>loaded,module.CanAdmin,rows,back);
-    private void OpenAdmin(IPlayer p)=>Page(p,"Teams · Jakob WTJ Schutz",_=>new (string,Action<IPlayer>)[]{
-        ("Spielstand",a=>{Refresh();a.SendLplkChat($"[LPLK] CT {score?.Ct} : {score?.T} T | {ProtectedText()} | Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds} | {roundsSource} | {tracker.Source} | Konfiguration: {reloadError??"gültig"}");}),
-        ($"Jakob WTJ Schutz ({SelectionIds.Count()})",PlayersRoot),
-        ($"Aktiv: {settings.Enabled}",a=>Set(a,nameof(TeamSettings.Enabled),false,toggle:true))}.Concat(Groups.SelectMany((g,index)=>SettingRows(index))).Concat(TextSettingRows()).ToArray());
-    private void SettingsRoot(IPlayer p)=>OpenAdmin(p);
+    private void OpenAdmin(IPlayer p)=>Page(p,"Jakob WTJ Schutz",_=>new (string,Action<IPlayer>)[]{
+        ($"Schutz: {(settings.Enabled?"AN":"AUS")}",a=>Set(a,nameof(TeamSettings.Enabled),false,toggle:true)),
+        ($"Spielerauswahl ({SelectionIds.Count()})",PlayersRoot),("Bots",BotSettings),("Einstellungen",SettingsRoot)});
+    private void SettingsRoot(IPlayer p)=>Page(p,"Teams · Einstellungen",_=>new (string,Action<IPlayer>)[]{
+        ("Spielstand",a=>{Refresh();a.SendLplkChat($"[LPLK] CT {score?.Ct} : {score?.T} T | {ProtectedText()} | Grenze {TeamPolicy.Threshold(settings,rounds)} / {rounds}");}),
+        ("Teamregeln",a=>SettingsMenu(a,0)),("Matchende",a=>SettingsMenu(a,1)),("Meldungen",a=>SettingsMenu(a,2)),("Texte",TextSettings)},OpenAdmin);
+    private void BotSettings(IPlayer p)=>Page(p,"Teams · Bots",_=>new (string,Action<IPlayer>)[]{
+        ($"Füllziel: {(settings.BotFillSlots==0?"AUS":settings.BotFillSlots+" Spieler")}",a=>InputNumber(a,nameof(TeamSettings.BotFillSlots),"Füllziel (Menschen + Bots)",3)),
+        ($"Zwei-Spieler-Vote: {(settings.TwoPlayerBotVoteEnabled?"AN":"AUS")}",a=>Set(a,nameof(TeamSettings.TwoPlayerBotVoteEnabled),false,3,toggle:true))},OpenAdmin);
     private static readonly (string Name,string Label)[][] Groups=
     [
         [(nameof(TeamSettings.BotFillSlots),"Bot-Füllziel (0 = aus)"),(nameof(TeamSettings.AutoDetectMaxRounds),"Autorunden"),(nameof(TeamSettings.FallbackMaxRounds),"Ersatz-Rundenzahl"),(nameof(TeamSettings.BlockAtMaxRoundsPercent),"Sperranteil"),
@@ -42,14 +46,16 @@ public sealed partial class Plugin
         [(nameof(TeamSettings.UseRoundEndFallback),"Rundenersatz"),(nameof(TeamSettings.AnnounceWhenTeamBecomesProtected),"Sperrteam ankündigen"),(nameof(TeamSettings.ShowBlockedMessageInChat),"Chathinweis"),
          (nameof(TeamSettings.ShowBlockedMessageInCenter),"Bildschirmhinweis"),(nameof(TeamSettings.ShowForceToLosingTeamMessage),"Verliererteam-Hinweis"),(nameof(TeamSettings.AllowChatStatusCommand),"Spielstandbefehl"),(nameof(TeamSettings.EnableLosingTeamMenu),"Verlierermenü"),(nameof(TeamSettings.Debug),"Diagnose")]
     ];
-    private void SettingsMenu(IPlayer p,int group)=>OpenAdmin(p);
+    private void SettingsMenu(IPlayer p,int group){if(group==3){BotSettings(p);return;}Page(p,"Teams · "+new[]{"Teamregeln","Matchende","Meldungen"}[group],_=>SettingRows(group),SettingsRoot);}
     private IReadOnlyList<(string,Action<IPlayer>)> SettingRows(int group)
     {
         var rows=new List<(string,Action<IPlayer>)>();
         foreach(var (name,label) in Groups[group])
         {
+            if(name==nameof(TeamSettings.BotFillSlots))continue;
             var property=typeof(TeamSettings).GetProperty(name)!;object value=property.GetValue(settings)!;
-            rows.Add(($"{label}: {value}",a=>{if(value is bool)Set(a,name,false,group,toggle:true);else InputNumber(a,name,label,group);}));
+            string display=name==nameof(TeamSettings.BlockAtMaxRoundsPercent)?$"Sperrgrenze: {(double)value*100:0.##} %":$"{label}: {(value is bool b?(b?"AN":"AUS"):value)}";
+            rows.Add((display,a=>{if(value is bool)Set(a,name,false,group,toggle:true);else InputNumber(a,name,label,group);}));
         }
         return rows;
     }
@@ -67,7 +73,7 @@ public sealed partial class Plugin
         catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or ArgumentException)
         {reloadError=config.Error??e.GetType().Name;actor.SendLplkChat("[LPLK] Einstellung nicht gespeichert. Externe Konfiguration prüfen und Menü erneut öffnen.");}
         if(!ReferenceEquals(settings,config.Current)){settings=config.Current;revision++;permits.Clear();intents.Clear();}
-        WriteStatus();if(group is {} g)SettingsMenu(actor,g);else SettingsRoot(actor);
+        WriteStatus();if(group is {} g)SettingsMenu(actor,g);else OpenAdmin(actor);
     }
     private static bool Number(string name,string text,out object value)
     {

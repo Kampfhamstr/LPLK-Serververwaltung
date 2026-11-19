@@ -77,4 +77,21 @@ try
  Call("LoadBotVote",current with{ServerCount=3});Check(File.ReadAllText(path)=="{broken","Readiness retries preserve corrupted state for investigation");
 }
 finally{typeof(Plugin).Assembly.GetType("LPLK.Common.DeferredJson")!.GetMethod("Drain")!.Invoke(null,null);Directory.Delete(data,true);}
+// Regression: a map-unload handler repopulates Swiftly's already-cleared cache.
+// Reusing that native address for another entity must not keep the old proxy.
+var cache=typeof(SwiftlyS2.Shared.ISwiftlyCore).Assembly.GetType("SwiftlyS2.Core.EntitySystem.EntitySystemService")!.GetField("cachedGameRulesProxy",BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)!;
+var implementation=typeof(SwiftlyS2.Shared.ISwiftlyCore).Assembly.GetType("SwiftlyS2.Core.SchemaDefinitions.CCSGameRulesProxyImpl",true)!;
+var stale=(SwiftlyS2.Shared.SchemaDefinitions.CCSGameRulesProxy)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(implementation);
+var fields=new List<FieldInfo>();for(var type=implementation;type is not null;type=type.BaseType)fields.AddRange(type.GetFields(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.DeclaredOnly));
+var address=fields.SingleOrDefault(f=>f.FieldType==typeof(nint))??throw new Exception(string.Join(",",fields.Select(f=>f.Name+":"+f.FieldType.Name)));address.SetValue(stale,(nint)1234);
+object? prior=cache.GetValue(null);
+try
+{
+ var invalidate=typeof(Plugin).GetMethod("InvalidateGameRulesCache",BindingFlags.NonPublic|BindingFlags.Static)!;
+ cache.SetValue(null,stale);invalidate.Invoke(null,[(nint?)5678]);Check(ReferenceEquals(cache.GetValue(null),stale),"Unrelated entity deletion preserves current rules cache");
+ invalidate.Invoke(null,[(nint?)1234]);Check(cache.GetValue(null) is null,"Deleted proxy invalidates cache even when its native address could be reused");
+ cache.SetValue(null,stale);invalidate.Invoke(null,new object?[]{null});Check(cache.GetValue(null) is null,"Map load/hotreload clears a proxy repopulated by later unload callbacks");
+ invalidate.Invoke(null,[(nint?)1234]);Check(cache.GetValue(null) is null,"Empty cache invalidation remains safe");
+}
+finally{cache.SetValue(null,prior);}
 Console.WriteLine($"{checks} BotVote menu/session/quota/startup checks passed");

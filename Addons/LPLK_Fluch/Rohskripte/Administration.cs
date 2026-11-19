@@ -39,8 +39,10 @@ public sealed partial class Plugin
         }
         Status(ctx);
     }
-    private void Status(ICommandContext ctx){WriteStatus();ctx.ReplyLplk($"LPLK_Fluch 0.1.10: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; chickens={settings.ChickenCount}; duration={settings.OrbitDurationSeconds}; damage={settings.TotalDamage}; active={curses.Count}; errors={errors}; reloadError={reloadError??"none"}");}
-    private void OpenAdmin(IPlayer p) => module.Menu(p,"LPLK · Hühnerfluch",((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Allgemein",SettingsMenuRows(actor)),("Wirkung",EffectMenuRows(actor)),("Kreisbahn",OrbitMenuRows(actor)),("Bewegung",WaveMenuRows(actor)),("Meldung",MessageMenuRows(actor)),("Bildschirm",CenterMenuRows(actor)),("Anzeigezeit",MessageTimesRows(actor)))))(p));
+    private void Status(ICommandContext ctx){WriteStatus();ctx.ReplyLplk($"LPLK_Fluch 0.1.11: enabled={settings.Enabled}; effective={Enabled}; ready={ready}; chickens={settings.ChickenCount}; duration={settings.OrbitDurationSeconds}; damage={settings.TotalDamage}; active={curses.Count}; errors={errors}; reloadError={reloadError??"none"}");}
+
+    private void OpenAdmin(IPlayer p)=>AdminHome(p,null);
+    private void AdminHome(IPlayer p,string? section)=>MenuRows.Home(p,"LPLK · Hühnerfluch",(a,t,r,b)=>module.Menu(a,t,b is null?0:1,b is null?r(a).ToArray():r(a).Append(("Zurück",b)).ToArray()),OpenAdminRows,section,("Allgemein",SettingsMenuRows),("Wirkung",EffectMenuRows),("Kreisbahn",OrbitMenuRows),("Bewegung",WaveMenuRows),("Meldung",MessageMenuRows),("Bildschirm",CenterMenuRows),("Anzeigezeit",MessageTimesRows));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Spieler",a=>Targets(a,0)),($"Beenden ({curses.Count})",a=>{if(ready)curses.Clear();OpenAdmin(a);})}))(p);
     private void Targets(IPlayer p,int page)
     {
@@ -74,19 +76,19 @@ public sealed partial class Plugin
         Core.MenusAPI.OpenMenuForPlayer(p,menu.Build());
     }
     public static string SafeLabel(string name)=>name.Replace("&","&amp;").Replace("<","&lt;").Replace(">","&gt;");
-    private void SettingsMenu(IPlayer p) => OpenAdmin(p);
+    private void SettingsMenu(IPlayer p) => AdminHome(p,"Allgemein");
     private IReadOnlyList<(string,Action<IPlayer>)> SettingsMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Aktiv: {(settings.Enabled?"AN":"AUS")}",a=>{Apply(a,s=>s with{Enabled=!s.Enabled});SettingsMenu(a);})}))(p);
-    private void EffectMenu(IPlayer p) => OpenAdmin(p);
+    private void EffectMenu(IPlayer p) => AdminHome(p,"Wirkung");
     private IReadOnlyList<(string,Action<IPlayer>)> EffectMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Hühner: {settings.ChickenCount}",a=>NumberInput(a,nameof(FluchSettings.ChickenCount),"Hühner",1,64,EffectMenu)),($"Dauer: {settings.OrbitDurationSeconds:0.#} s",a=>NumberInput(a,nameof(FluchSettings.OrbitDurationSeconds),"Dauer (Sekunden)",1,60,EffectMenu)),($"Hühnerschaden: {settings.ChickenExplosionDamagePerChicken:0.#} (gesamt {settings.TotalDamage:0.#})",a=>NumberInput(a,nameof(FluchSettings.ChickenExplosionDamagePerChicken),"Schaden je Huhn",0,100,EffectMenu)),($"Gleichzeitige Flüche: {settings.MaxActiveCurses}",a=>NumberInput(a,nameof(FluchSettings.MaxActiveCurses),"Gleichzeitige Flüche",1,4,EffectMenu))}))(p);
-    private void OrbitMenu(IPlayer p) => OpenAdmin(p);
+    private void OrbitMenu(IPlayer p) => AdminHome(p,"Kreisbahn");
     private IReadOnlyList<(string,Action<IPlayer>)> OrbitMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Höhe: {settings.HeadOrbitHeight:0}",a=>NumberInput(a,nameof(FluchSettings.HeadOrbitHeight),"Höhe",0,250,OrbitMenu)),($"Radius: {settings.HeadOrbitRadius:0}",a=>NumberInput(a,nameof(FluchSettings.HeadOrbitRadius),"Radius",10,250,OrbitMenu)),($"Geschwindigkeit: {settings.OrbitSpeed:0.0}",a=>NumberInput(a,nameof(FluchSettings.OrbitSpeed),"Geschwindigkeit",0,20,OrbitMenu))}))(p);
-    private void WaveMenu(IPlayer p) => OpenAdmin(p);
+    private void WaveMenu(IPlayer p) => AdminHome(p,"Bewegung");
     private IReadOnlyList<(string,Action<IPlayer>)> WaveMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Wellenhöhe: {settings.OrbitWaveHeight:0}",a=>NumberInput(a,nameof(FluchSettings.OrbitWaveHeight),"Wellenhöhe",0,100,WaveMenu)),($"Wellenfrequenz: {settings.OrbitWaveSpeed:0.0}",a=>NumberInput(a,nameof(FluchSettings.OrbitWaveSpeed),"Wellenfrequenz",0,20,WaveMenu)),($"Aktualisierung: {settings.OrbitTickSeconds:0.00} s",a=>NumberInput(a,nameof(FluchSettings.OrbitTickSeconds),"Aktualisierung (Sekunden)",0.03,1,WaveMenu))}))(p);
-    private void MessageMenu(IPlayer p) => OpenAdmin(p);
+    private void MessageMenu(IPlayer p) => AdminHome(p,"Meldung");
     private IReadOnlyList<(string,Action<IPlayer>)> MessageMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Selbstverfluchen: {(settings.AllowSelfTarget?"AN":"AUS")}",a=>{Apply(a,s=>s with{AllowSelfTarget=!s.AllowSelfTarget});MessageMenu(a);}),($"Startchat: {(settings.NotifyTargetInChat?"AN":"AUS")}",a=>{Apply(a,s=>s with{NotifyTargetInChat=!s.NotifyTargetInChat});MessageMenu(a);}),($"Menüdauer: {settings.MenuAutoCloseSeconds:0.##} s",a=>NumberInput(a,nameof(FluchSettings.MenuAutoCloseSeconds),"Menüdauer (Sekunden)",5,120,MessageMenu))}))(p);
-    private void CenterMenu(IPlayer p) => OpenAdmin(p);
+    private void CenterMenu(IPlayer p) => AdminHome(p,"Bildschirm");
     private IReadOnlyList<(string,Action<IPlayer>)> CenterMenuRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Start: {(settings.ShowStartCenterMessage?"AN":"AUS")}",a=>{Apply(a,s=>s with{ShowStartCenterMessage=!s.ShowStartCenterMessage});CenterMenu(a);}),($"Ende: {(settings.ShowExplosionCenterMessage?"AN":"AUS")}",a=>{Apply(a,s=>s with{ShowExplosionCenterMessage=!s.ShowExplosionCenterMessage});CenterMenu(a);}),($"Countdown: {(settings.ShowOrbitProgressMessage?"AN":"AUS")}",a=>{Apply(a,s=>s with{ShowOrbitProgressMessage=!s.ShowOrbitProgressMessage});CenterMenu(a);})}))(p);
-    private void MessageTimes(IPlayer p) => OpenAdmin(p);
+    private void MessageTimes(IPlayer p) => AdminHome(p,"Anzeigezeit");
     private IReadOnlyList<(string,Action<IPlayer>)> MessageTimesRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Start: {settings.StartCenterMessageMs} ms",a=>NumberInput(a,nameof(FluchSettings.StartCenterMessageMs),"Startanzeige (Millisekunden)",100,10000,MessageTimes)),($"Ende: {settings.ExplosionCenterMessageMs} ms",a=>NumberInput(a,nameof(FluchSettings.ExplosionCenterMessageMs),"Endanzeige (Millisekunden)",100,10000,MessageTimes)),($"Fortschritt: {settings.OrbitProgressMessageMs} ms",a=>NumberInput(a,nameof(FluchSettings.OrbitProgressMessageMs),"Fortschritt (Millisekunden)",100,2000,MessageTimes))}))(p);
     private void NumberInput(IPlayer p,string propertyName,string title,double min,double max,Action<IPlayer> back)
     {

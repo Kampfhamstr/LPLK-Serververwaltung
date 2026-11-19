@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace LPLK_BombWires;
 
-[PluginMetadata(Id = "LPLK_BombWires", Name = "LPLK_BombWires", Version = "0.1.13", Author = "LPLK / K4ryuu", Description = "Bombendrähte mit gültigkeitsgeprüften Menüs", MinimumAPIVersion = "1.4.14")]
+[PluginMetadata(Id = "LPLK_BombWires", Name = "LPLK_BombWires", Version = "0.1.14", Author = "LPLK / K4ryuu", Description = "Bombendrähte mit gültigkeitsgeprüften Menüs", MinimumAPIVersion = "1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
 {
     private ModuleSupport module = null!;
@@ -127,10 +127,10 @@ public sealed partial class Plugin(ISwiftlyCore core) : BasePlugin(core)
     }
 
     [Command("lplk_bombwires",permission:"lplk.bombwires.admin")]
-    public void Command(ICommandContext ctx) { if(ctx.Sender is {} p) OpenAdmin(p); else ctx.ReplyLplk($"LPLK_BombWires 0.1.13: enabled={settings.Enabled}; menuSeconds={settings.MenuSeconds}; randomize={settings.RandomizeOrder}; planted={round.Planted}; reloadError={config.Error??"none"}"); }
+    public void Command(ICommandContext ctx) { if(ctx.Sender is {} p) OpenAdmin(p); else ctx.ReplyLplk($"LPLK_BombWires 0.1.14: enabled={settings.Enabled}; menuSeconds={settings.MenuSeconds}; randomize={settings.RandomizeOrder}; planted={round.Planted}; reloadError={config.Error??"none"}"); }
     private void WriteStatus()
     {
-        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.13",settings.Enabled,settings.MenuSeconds,settings.RandomizeOrder,round.Planting,round.Planted,round.Resolved,activeMenus=menus.Count,reloadError=config.Error}); statusWriteFailed=false; }
+        try { LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{updatedAt=DateTimeOffset.UtcNow,version="0.1.14",settings.Enabled,settings.MenuSeconds,settings.RandomizeOrder,round.Planting,round.Planted,round.Resolved,activeMenus=menus.Count,reloadError=config.Error}); statusWriteFailed=false; }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException)
         { if(!statusWriteFailed)Core.Logger.LogWarning("LPLK_BombWires: Statusdatei nicht schreibbar ({Error}); Spielregeln bleiben aktiv.",e.GetType().Name);statusWriteFailed=true; }
     }

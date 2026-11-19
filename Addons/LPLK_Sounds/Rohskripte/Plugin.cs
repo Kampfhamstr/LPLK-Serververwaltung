@@ -17,10 +17,10 @@ using SwiftlyS2.Core.Menus.OptionsBase;
 
 namespace LPLK_Sounds;
 
-[PluginMetadata(Id="LPLK_Sounds",Name="LPLK_Sounds",Version="0.1.16",Author="LPLK",Description="Sounds mit Empfängerwahl, Hörfiltern und !admin",MinimumAPIVersion="1.4.13")]
+[PluginMetadata(Id="LPLK_Sounds",Name="LPLK_Sounds",Version="0.1.17",Author="LPLK",Description="Sounds mit Empfängerwahl, Hörfiltern und !admin",MinimumAPIVersion="1.4.13")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
-    private const string PluginVersion="0.1.16";
+    private const string PluginVersion="0.1.17";
     private ILogger Logger=>Core.Logger;
     private ModuleSupport module=null!;
     private SoundsConfig config=new();
@@ -129,9 +129,11 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
     }
     [Command("lplk_sounds")]
     public void Status(ICommandContext c){if(c.Sender is {} p)OpenAdmin(p);else{WriteStatus();c.ReplyLplk($"LPLK_Sounds {PluginVersion}: {precachedSounds.Count}/{catalog.Sounds.Count} vorgeladen; {CatalogSource}; {CommonUnavailable()??"bereit"}; Karten=aus");}}
-    private void OpenAdmin(IPlayer p) => module.Menu(p,"Sounds",((Func<IPlayer,(string,Action<IPlayer>)[]>)(actor => MenuRows.Join(("Allgemein",OpenAdminRows(actor)),("Sound",SoundAdminSettingsRows(actor)))))(p));
+
+    private void OpenAdmin(IPlayer p)=>AdminHome(p,null);
+    private void AdminHome(IPlayer p,string? section)=>MenuRows.Home(p,"Sounds",(a,t,r,b)=>module.Menu(a,t,b is null?0:1,b is null?r(a).ToArray():r(a).Append(("Zurück",b)).ToArray()),OpenAdminRows,section,("Sound",SoundAdminSettingsRows));
     private IReadOnlyList<(string,Action<IPlayer>)> OpenAdminRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{("Abspielen",a=>ShowSoundMenu(a)),("Ansagen",a=>{if(RequireSoundOverride(a,a.SendLplkChat))ShowSoundMenu(a,adminOnly:true);}),("Stoppen",a=>{StopBroadcast();a.SendLplkChat("[LPLK Sounds] Gestoppt; Cooldown und Rundenlimit bleiben erhalten.");})}))(p);
-    private void SoundAdminSettings(IPlayer p) => OpenAdmin(p);
+    private void SoundAdminSettings(IPlayer p) => AdminHome(p,"Sound");
     private IReadOnlyList<(string,Action<IPlayer>)> SoundAdminSettingsRows(IPlayer p) => ((Func<IPlayer,IReadOnlyList<(string,Action<IPlayer>)>>)(_ => new (string,Action<IPlayer>)[]{($"Aktiv: {(config.Enabled?"Ja":"Nein")}",a=>Apply(a,c=>c.Enabled=!c.Enabled)),($"Totenregel: {(config.DeadPlayersOnlyToDead?"Ja":"Nein")}",a=>Apply(a,c=>c.DeadPlayersOnlyToDead=!c.DeadPlayersOnlyToDead)),($"Soundpause: {config.BroadcastCooldownSeconds:0.###}s",SoundPauseInput),("Katalog",a=>ShowCatalogMenu(a,SoundAdminSettings))}))(p);
     private void ShowCatalogMenu(IPlayer p,Action<IPlayer> back)
     {
