@@ -18,6 +18,7 @@
 | LPLK_NadeEffects | 0.1.11 | [LPLK_NadeEffects.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_NadeEffects.zip) |
 | LPLK_Parachute | 0.1.14 | [LPLK_Parachute.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Parachute.zip) |
 | LPLK_Sounds | 0.1.17 | [LPLK_Sounds.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Sounds.zip) |
+| LPLK_LambdaSounds | 0.1.0 | [LPLK_LambdaSounds.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/lambda-sounds-0.1.0/LPLK_LambdaSounds.zip) |
 | LPLK_Statistics | 0.2.23 | [LPLK_Statistics.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Statistics.zip) |
 | LPLK_Surf | 0.1.13 | [LPLK_Surf.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Surf.zip) |
 | LPLK_Teams | 0.2.17 | [LPLK_Teams.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Teams.zip) |
@@ -28,4 +29,4 @@
 | LPLK_Zombie | 0.1.6 | [LPLK_Zombie.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Zombie.zip) |
 | SerververwaltungBridge | 1.8.6 | [SerververwaltungBridge.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/SerververwaltungBridge.zip) |
 
-[Zugehörige Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/admin-0.11.14-supergod-respawn/LPLK-Plugins-Source.zip) · [Prüfsummen](../release-manifest.json)
+[Zugehörige Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/lambda-sounds-0.1.0/LPLK-Plugins-Source.zip) · [Prüfsummen](../release-manifest.json)

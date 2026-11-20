@@ -1,5 +1,5 @@
 {
-  "tag": "admin-0.11.14-supergod-respawn",
+  "tag": "lambda-sounds-0.1.0",
   "versions": {
     "AddonsManager": "2.0.3-lplk.7",
     "LPLK_Admin": "0.11.14",
@@ -23,7 +23,8 @@
     "LPLK_Whitelist": "0.2.14",
     "LPLK_Workshop": "0.1.3",
     "LPLK_Zombie": "0.1.6",
-    "SerververwaltungBridge": "1.8.6"
+    "SerververwaltungBridge": "1.8.6",
+    "LPLK_LambdaSounds": "0.1.0"
   },
   "packages": [
     {
@@ -163,6 +164,12 @@
       "path": "Addons/LPLK_Teams/Build/LPLK_Teams.zip",
       "sha256": "68999da8df7d67d2c88be9c33853e934d78aedb1c758a2b1625ea2a883ca5659",
       "bytes": 111943
+    },
+    {
+      "name": "LPLK_LambdaSounds.zip",
+      "path": "Addons/LPLK_LambdaSounds/Build/LPLK_LambdaSounds.zip",
+      "sha256": "c3b31924e55f9a251a704000c3805584d31763a491747ce126a5b8b7b06c7bfa",
+      "bytes": 45863
     }
   ],
   "compiledSources": {
@@ -631,6 +638,14 @@
       "Addons/_Gemeinsam/RoundFileStore.cs": "61A770A4E31853F4494055FC1EA7643FBA4B64026367277F144CFCD04F25B87E",
       "Addons/_Gemeinsam/WatchedSettings.cs": "7F73BCE8EF899C76DC52624D4C3F00A8885149A83D696A60D27B3D1BB94E60BF",
       "Addons/_Gemeinsam/WeaponCatalog.cs": "53CD26AFDFDD96BF3E8CAFDB943F505C0E35C6EFDC13C1F85C3D916391FA1C53"
+    },
+    "LPLK_LambdaSounds": {
+      "Addons/LPLK_LambdaSounds/Rohskripte/LPLK_LambdaSounds.csproj": "fce45e1791e5ba8af4ed78c04cdbcfcf1883cd6ac19dab38e62fc061676c5f3a",
+      "Addons/LPLK_LambdaSounds/Rohskripte/Plugin.cs": "f9c8da45fba94921f35bfbb60c27a10faad116b0fad6b1380e197e3d2c1efba0",
+      "Addons/_Gemeinsam/ChatTheme.cs": "b2cbf26e0e63559c7a1535487946535be7c9ffb09322bb2b683afce6f6f71497",
+      "Addons/_Gemeinsam/DeferredJson.cs": "f0098d02220b2e6b85349eb2c155c0e2b4be02041274624ebdc3d74dddb0e043",
+      "Addons/_Gemeinsam/RoundData.cs": "3d1672d2930dbc49f7991902f14af27ccbb56dc269446e33deec08537304cec2",
+      "Addons/_Gemeinsam/RoundFileStore.cs": "61a770a4e31853f4494055fc1ea7643fba4b64026367277f144cfcd04f25b87e"
     }
   },
   "sourcePathMappings": {
@@ -649,20 +664,13 @@
     }
   },
   "validation": {
-    "testServer": true,
-    "clientAcceptancePending": true,
-    "baselineFixtureFindings": [
-      "AdminCommandChecks stable and beta: historical alias assertion",
-      "AdminConfigChecks: historical stale settings timing assertion",
-      "MenuRedesignChecks: historical missing ExtraWorkshopMapFile reference"
-    ],
-    "adminMenu": 1394,
-    "respawn": 12,
-    "adminNotice": 14,
-    "apiChecks": 499,
-    "frameworkReferences": 266,
-    "commandFixtures": 15,
-    "commandProfiles": 7
+    "serversVerified": 3,
+    "nativeSoundEvents": 7,
+    "clientAudibilityVerified": false,
+    "compiledProjects": 1,
+    "explicitCompilerInputs": 5,
+    "packagedFiles": 3,
+    "runtimeTransitiveDlls": 0
   },
   "shippedProjectHashes": {
     "AddonsManager": "03bcbace93513383826bb09e42a6a5b5b1dcf4b0c53fa0bcd1d53f6db1038575",
@@ -687,6 +695,7 @@
     "LPLK_Whitelist": "44fa3afcbd4ad9968e2a303166d919fad719ff8b102702a1f17707b9f0d1da93",
     "LPLK_Workshop": "eec75e6febd3a12528a46d94e19f9e161093b43427ec6f6eca0d0c9b723919bd",
     "LPLK_Zombie": "b6b06afccb345bcfe6d4d61070fc92b17e8021f692332ab5a805d3b2929f5c29",
-    "SerververwaltungBridge": "fa0d61256d69cdc089ad0332794d3ad6a0c00b088ccc79bec0a65d14530fdbe0"
+    "SerververwaltungBridge": "fa0d61256d69cdc089ad0332794d3ad6a0c00b088ccc79bec0a65d14530fdbe0",
+    "LPLK_LambdaSounds": "fce45e1791e5ba8af4ed78c04cdbcfcf1883cd6ac19dab38e62fc061676c5f3a"
   }
 }
