@@ -8,6 +8,12 @@ using SwiftlyS2.Shared.Commands;
 using SwiftlyS2.Shared.Events;
 
 int checks=0;void Check(bool ok,string label){checks++;if(!ok)throw new Exception(label);}
+AddonDependencyChecks.Run(Check);
+if(args.Contains("--addon-dependency-only",StringComparer.Ordinal))
+{
+    Console.WriteLine($"SoundMaintenanceChecks: {checks} add-on dependency assertions passed.");
+    return;
+}
 T Field<T>(object p,string n)=>(T)p.GetType().GetField(n,BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(p)!;
 void Set(object p,string n,object? v)=>p.GetType().GetField(n,BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(p,v);
 object? Invoke(object p,string n,params object?[] a)=>p.GetType().GetMethod(n,BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(p,a);
@@ -23,7 +29,7 @@ int resourceReads=0;var core=Proxy.Make<ISwiftlyCore>((m,a)=>{
 });
 w.Permissions.Add("lplk.admin");var p=new Plugin(core);p.Load(false);
 SoundsConfig Config()=>Field<SoundsConfig>(p,"config");
-void Refresh(){Set(p,"nextConfig",0L);Set(p,"nextStatus",0L);Invoke(p,"OnTick");}
+void Refresh(){Set(p,"nextConfig",0L);Set(p,"nextStatus",0L);Invoke(p,"OnTick");DisplayChecks.Settle(p);}
 List<string> added=[];var precache=Proxy.Make<IOnPrecacheResourceEvent>((m,a)=>{if(m.Name=="AddItem")added.Add((string)a![0]!);return Proxy.Empty(m.ReturnType);});
 void Precache()=>Invoke(p,"OnPrecache",precache);
 async Task Click(string label)=>await w.Click(w.FindExact(label));

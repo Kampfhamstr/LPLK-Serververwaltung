@@ -17,15 +17,16 @@ using SwiftlyS2.Core.Menus.OptionsBase;
 
 namespace LPLK_Sounds;
 
-[PluginMetadata(Id="LPLK_Sounds",Name="LPLK_Sounds",Version="0.1.17",Author="LPLK",Description="Sounds mit Empfängerwahl, Hörfiltern und !admin",MinimumAPIVersion="1.4.13")]
+[PluginMetadata(Id="LPLK_Sounds",Name="LPLK_Sounds",Version="0.1.18",Author="LPLK",Description="Sounds mit Empfängerwahl, Hörfiltern und !admin",MinimumAPIVersion="1.4.13")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
-    private const string PluginVersion="0.1.17";
+    private const string PluginVersion="0.1.18";
     private ILogger Logger=>Core.Logger;
     private ModuleSupport module=null!;
     private SoundsConfig config=new();
     private AssetCatalog catalog=new();
     private WorkshopCatalogSync? workshopCatalog;
+    private string[]? configuredAddons;
     private readonly HashSet<string> precachedSounds=new(StringComparer.Ordinal);
     private string ConfigPath=>Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"addons","swiftlys2","configs","plugins","LPLK_Sounds","config.json");
     private string CatalogSource=>workshopCatalog?.Source??"Lokaler Soundkatalog";
@@ -43,6 +44,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         module=new(Core,"LPLK_Sounds","Sounds","lplk.sounds.admin",OpenAdmin,CanOverrideSound);
         if(!File.Exists(ConfigPath))DataFiles.WriteAtomic(ConfigPath,JsonSerializer.Serialize(config,SoundsConfig.Json));
         configFile=new(ConfigPath);config=SoundConfigFile.Clone(configFile.Current);
+        configuredAddons=ReadConfiguredAddons();
         localCatalog=AssetCatalog.Read(Path.Combine(LPLK.Common.RoundFileStore.PluginPath(Core),"catalog.json"));ActivateCatalogSettings();
         soundPreferences=new(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"sound-listening.json"));RefreshSoundNumbers();
         module.Active=true;menusEnabled=true;
@@ -99,14 +101,27 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
         if(!config.RequireAddonsManager)return null;
         if(config.WorkshopIds.Length==0)return "Sound-Workshop-ID fehlt.";
         if(Core.PluginManager.GetPluginStatus("AddonsManager")!=PluginStatus.Loaded)return "AddonsManager ist nicht geladen.";
+        if(configuredAddons is null)return "AddonsManager-Konfiguration nicht lesbar.";
+        return PlaybackPolicy.MissingAddons(config.WorkshopIds,configuredAddons).Length>0?"Sound-Workshop-ID fehlt im AddonsManager.":null;
+    }
+
+    private string[]? ReadConfiguredAddons()
+    {
+        // Snapshot the sibling configuration during our own load. AddonsManager
+        // may still be loading, and gameplay cannot prime this frozen path.
+        string path=Path.Combine(RoundFileStore.GamePath(Core),"addons","swiftlys2","configs","plugins","AddonsManager","config.jsonc");
         try
         {
-            string path=Path.Combine(LPLK.Common.RoundFileStore.GamePath(Core),"addons","swiftlys2","configs","plugins","AddonsManager","config.jsonc");
             using var doc=JsonDocument.Parse(DataFiles.ReadLimited(path),new JsonDocumentOptions{AllowTrailingCommas=true,CommentHandling=JsonCommentHandling.Skip});
-            var ids=doc.RootElement.GetProperty("Main").GetProperty("Addons").EnumerateArray().Select(x=>x.GetString()??"");
-            return PlaybackPolicy.MissingAddons(config.WorkshopIds,ids).Length>0?"Sound-Workshop-ID fehlt im AddonsManager.":null;
+            var ids=Property(Property(doc.RootElement,"Main"),"Addons").EnumerateArray()
+                .Select(value=>value.GetString()??"").ToArray();
+            if(ids.Any(id=>!ulong.TryParse(id,out ulong number)||number==0||number.ToString()!=id))return null;
+            return ids;
         }
-        catch(Exception e)when(e is IOException or JsonException or KeyNotFoundException or InvalidOperationException){return "AddonsManager-Konfiguration nicht lesbar.";}
+        catch(Exception e)when(e is IOException or UnauthorizedAccessException or InvalidDataException or JsonException or InvalidOperationException){return null;}
+
+        static JsonElement Property(JsonElement element,string name)=>element.EnumerateObject()
+            .SingleOrDefault(property=>property.Name.Equals(name,StringComparison.OrdinalIgnoreCase)).Value;
     }
     private string? Unavailable(string id)=>CommonUnavailable()??(!catalog.Sounds.ContainsKey(id)?"Unbekannter Sound.":!precachedSounds.Contains(id)?"Sound noch nicht vorgeladen; Workshop-Assets und nächsten Mapstart prüfen.":null);
     private static IPlayer? AuthenticatedPlayer(ICommandContext c)

@@ -1,5 +1,5 @@
 {
-  "tag": "lambda-sounds-0.1.0",
+  "tag": "sounds-0.1.18",
   "versions": {
     "AddonsManager": "2.0.3-lplk.7",
     "LPLK_Admin": "0.11.14",
@@ -14,7 +14,7 @@
     "LPLK_Maps": "0.4.30",
     "LPLK_NadeEffects": "0.1.11",
     "LPLK_Parachute": "0.1.14",
-    "LPLK_Sounds": "0.1.17",
+    "LPLK_Sounds": "0.1.18",
     "LPLK_Statistics": "0.2.23",
     "LPLK_Surf": "0.1.13",
     "LPLK_Teams": "0.2.17",
@@ -119,9 +119,9 @@
     },
     {
       "name": "LPLK_Sounds.zip",
-      "path": "Addons/LPLK_Sounds/Build/LPLK_Sounds.zip",
-      "sha256": "34fc24203e6c846768b910aadfe7ad1f9ceca8777a65ccd41e9451ec37a2d50c",
-      "bytes": 121630
+      "path": "outputs/sounds-readiness-test/LPLK_Sounds.zip",
+      "sha256": "ecdb64830c9d7466614dc391f5828828b2524e76d99c02e50f9198695f14e0ca",
+      "bytes": 122002
     },
     {
       "name": "LPLK_Statistics.zip",
@@ -453,11 +453,11 @@
     "LPLK_Sounds": {
       "Addons/LPLK_Sounds/Rohskripte/AssetCatalog.cs": "1c99d66464099a9fd59876dfc9d64a4977de2b890eb773cc69102302dd8ec5aa",
       "Addons/LPLK_Sounds/Rohskripte/Configuration.cs": "7c78c79b6836531eab382c0e1867a2c68c771ef7ec8abd22fada258c2043c4fa",
-      "Addons/LPLK_Sounds/Rohskripte/LPLK_Sounds.csproj": "fedff60ad771ac918fafbbce28c2136b69bbe136b5b06a397911de307c6cdab9",
+      "Addons/LPLK_Sounds/Rohskripte/LPLK_Sounds.csproj": "6f5d5887f420bd47925c6e387cd1ea89edb0da729559229812654370390719f7",
       "Addons/LPLK_Sounds/Rohskripte/MenuPolicy.cs": "0d3ea465015051b062f57bd08f2fc2edb43d73c13771ba0c70665010f19c4246",
       "Addons/LPLK_Sounds/Rohskripte/Menus.cs": "59db5413ac564c66e6d405757c2585d3f132c703658d925daeaad35f4139dee6",
       "Addons/LPLK_Sounds/Rohskripte/PlayerActions.cs": "373a243a1ecf58fce414e03b65b0662a3db54c7a951cb89437e0f63e27efde69",
-      "Addons/LPLK_Sounds/Rohskripte/Plugin.cs": "d14e68765de8b287641f345fc1152994c13213907f5954a421a646cbf00bf0b8",
+      "Addons/LPLK_Sounds/Rohskripte/Plugin.cs": "79657ca92da05af21e7fa43420748e9ab6cd2226b476d93318e8a767f412c655",
       "Addons/LPLK_Sounds/Rohskripte/SoundAdmin.cs": "77d9c09e800aa855e98c90302ee681a6233add95189356410b9f0e32dbaa1f48",
       "Addons/LPLK_Sounds/Rohskripte/SoundConfigFile.cs": "7d5c165fe965a215c6b8c65ff2de768c5c5858739efe4fe35dfae69617d46edb",
       "Addons/LPLK_Sounds/Rohskripte/SoundMenu.cs": "4772b4e7798a869f5a0ea28d2b72c93a26151e7690a85ac93a0e5a53bd92c5c4",
@@ -664,13 +664,16 @@
     }
   },
   "validation": {
-    "serversVerified": 3,
-    "nativeSoundEvents": 7,
-    "clientAudibilityVerified": false,
-    "compiledProjects": 1,
-    "explicitCompilerInputs": 5,
-    "packagedFiles": 3,
-    "runtimeTransitiveDlls": 0
+    "testServer": true,
+    "productionVersion": "0.1.17",
+    "nativeSoundsReady": 88,
+    "gameThreadDiskReads": 0,
+    "clientAcceptancePending": true,
+    "soundRules": 186,
+    "addonDependency": 34,
+    "commandFixtures": 15,
+    "commandProfiles": 7,
+    "clientAudioTested": false
   },
   "shippedProjectHashes": {
     "AddonsManager": "03bcbace93513383826bb09e42a6a5b5b1dcf4b0c53fa0bcd1d53f6db1038575",
@@ -686,7 +689,7 @@
     "LPLK_Maps": "e10154c87c1beef95ed362a213e1781b0c65fbbcea7f2c8788c92a11a7265aa2",
     "LPLK_NadeEffects": "b4ee88dc917b1a4664ce702e66bf08c5fc33e3e201e622bfd9b5915c1c2116cd",
     "LPLK_Parachute": "3bfef9e74abd3386d4c0a4dd16a5ccd9e71c0251796d72200e70e79a9aab9797",
-    "LPLK_Sounds": "fedff60ad771ac918fafbbce28c2136b69bbe136b5b06a397911de307c6cdab9",
+    "LPLK_Sounds": "6f5d5887f420bd47925c6e387cd1ea89edb0da729559229812654370390719f7",
     "LPLK_Statistics": "b4f6c2c7f1c13bef7e75b0bf7b63d7e6d23ca1124293e667b39d31499df0ab2f",
     "LPLK_Surf": "87d93559799e2cac6de7eee7c0544267f114e3c4bea8a5dcd93e1ab58c389cc9",
     "LPLK_Teams": "b3161c72b3ed35c786b61a6693143e30060e46e1870bd05dd92c46abd8c56957",
