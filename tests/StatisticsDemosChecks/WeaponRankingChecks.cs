@@ -7,6 +7,22 @@ public static class WeaponRankingChecks
         var data=new StatsData();var settings=new StatisticsSettings();
         long[] knife=[30,30,12,8,4,0];long[] taser=[2,10,2,1,0,0];
         for(int i=0;i<6;i++)data.Players[76561198000000000UL+(ulong)i]=new PlayerStats{Name=i==0?"<script>Spieler</script>":"Spieler "+i,Weapons=new(){["knife"]=knife[i],["taser"]=taser[i],["ak47"]=i+1}};
+        string hud = StatPolicy.WeaponInspectHtml(data, 76561198000000002UL, "knife");
+        check(hud.Contains("Deine Kills: 12 · Rang: 3") &&
+            hud.Contains("Führend: &lt;script&gt;Spieler&lt;/script&gt; · 30 Kills<br>Abstand: 18 Kills"),
+            "Inspect HUD shows own kills, escaped leader, leader total and gap");
+        string tiedHud = StatPolicy.WeaponInspectHtml(data, 76561198000000001UL, "knife");
+        check(tiedHud.Contains("Deine Kills: 30 · Rang: 2") && tiedHud.EndsWith("Abstand: 0 Kills"),
+            "Tied Inspect counts show a zero gap and retain the existing rank order");
+        string leaderHud = StatPolicy.WeaponInspectHtml(data, 76561198000000000UL, "knife");
+        check(leaderHud.Contains("Deine Kills: 30 · Rang: 1") && leaderHud.EndsWith("Abstand: 0 Kills"),
+            "A leader sees their own rank and a zero gap");
+        string newcomerHud = StatPolicy.WeaponInspectHtml(data, 76561198000000008UL, "knife");
+        check(newcomerHud.Contains("Deine Kills: 0 · Rang: –") && newcomerHud.EndsWith("Abstand: 30 Kills"),
+            "An unranked player sees the full gap without gaining a statistics entry");
+        string emptyHud = StatPolicy.WeaponInspectHtml(data, 76561198000000002UL, "hegrenade");
+        check(emptyHud.EndsWith("Deine Kills: 0 · Rang: –<br>Führend: –<br>Abstand: –") && data.Players.Count == 6,
+            "A weapon without scores has no leader or gap");
         data.Players[12]=new PlayerStats{Name="Invalid ID",Weapons=new(){["knife"]=999}};
         var boards=WeaponRankingExport.Boards(data,settings);
         check(boards.Count==44,"Complete weapon catalog, including knife, Zeus and grenades");

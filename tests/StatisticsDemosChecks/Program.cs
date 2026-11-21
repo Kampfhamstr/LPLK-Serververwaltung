@@ -77,4 +77,5 @@ var boards=RankingExport.Boards(rankingData,s);Check(boards["rating"].Length==2,
 var off=RankingExport.Boards(rankingData,s with{PvpEnabled=false,BotTrainingEnabled=false});Check(off.Values.All(v=>v.Length==0),"Disabled collections not ranked");
 string fixtureDir=Path.Combine(root,"fixtures");Directory.CreateDirectory(fixtureDir);string rankFixture=Path.Combine(fixtureDir,"lplk-ranking.json");File.WriteAllText(rankFixture,JsonSerializer.Serialize(RankingExport.Create(rankingData,s,DateTimeOffset.UtcNow)));
 WeaponRankingChecks.Run(Check,Path.Combine(Path.GetDirectoryName(rankFixture)!,"lplk-weapons.json"));
+StatisticsSaveChecks.Run(Check,Path.Combine(root,"async-save"));
 Console.WriteLine($"Statistics/Demos: {checks} checks passed.");

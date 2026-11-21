@@ -12,9 +12,10 @@ using SwiftlyS2.Shared.Plugins;
 using SwiftlyS2.Shared.SchemaDefinitions;
 
 namespace LPLK_Statistics;
-[PluginMetadata(Id="LPLK_Statistics",Name="LPLK_Statistics",Version="0.2.23",Author="LPLK; references Michael Zauche, K4ryuu",Description="PvP, Bottraining, Waffen-StatTrak und Schadenübersicht",MinimumAPIVersion="1.4.14")]
+[PluginMetadata(Id="LPLK_Statistics",Name="LPLK_Statistics",Version="0.2.24",Author="LPLK; references Michael Zauche, K4ryuu",Description="PvP, Bottraining, Waffen-StatTrak und Schadenübersicht",MinimumAPIVersion="1.4.14")]
 public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
 {
+ private const string PluginVersion = "0.2.24";
  private ModuleSupport module=null!;private StatisticsSettings settings=new();private StatsData data=new();
  private readonly ShotLedger shots=new();private readonly FireLedger fires=new();
  private readonly Dictionary<string,(bool Held,long At)> inspect=[];
@@ -47,7 +48,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   Core.GameEvent.HookPost<EventPlayerSpawn>(e=>{if(Human(e.UserIdPlayer)){string s=Session(e.UserIdPlayer!);shots.Remove(s);inspect.Remove(s);shown.Remove(s);}return HookResult.Continue;});
   Core.GameEvent.HookPost<EventRoundStart>(_=>{mapReady=true;ClearTransient();BeginRound();return HookResult.Continue;});
   Core.GameEvent.HookPost<EventRoundEnd>(e=>{var timer=System.Diagnostics.Stopwatch.StartNew();EndRound(e);if(Live&&settings.DamageSummary)foreach(var p in Core.PlayerManager.GetAllValidPlayers().Where(Human))Summary(p,null);RequestRoundSave();roundEndMs=timer.Elapsed.TotalMilliseconds;return HookResult.Continue;});
-  RegisterExtended();WriteStatus();Core.Logger.LogInformation("LPLK_Statistics 0.2.23 geladen; Datensätze={Count}; InspectOnly=True",data.Players.Count);
+  RegisterExtended();WriteStatus();Core.Logger.LogInformation("LPLK_Statistics {Version} geladen; Datensätze={Count}; InspectOnly=True",PluginVersion,data.Players.Count);
  }
  public override void ConfigureSharedInterface(IInterfaceManager manager)
  {
@@ -123,10 +124,8 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   if(data.Players.TryGetValue(p.SteamID,out var existing)&&existing.Hud==false||existing?.Hud is null&&!settings.DefaultHud)return;
   var weapon=p.PlayerPawn?.WeaponServices?.ActiveWeapon.Value;if(weapon is not {IsValid:true})return;
   string? w=StatPolicy.Weapon(Core.Helpers.GetClassnameByDefinitionIndex(weapon.AttributeManager.Item.ItemDefinitionIndex));if(w is null)return;
-  inspect[key]=(held,now);long kills=existing?.Weapons.GetValueOrDefault(w)??0;
-  var ranking=data.Players.OrderByDescending(x=>x.Value.Weapons.GetValueOrDefault(w)).ThenBy(x=>x.Key).Where(x=>x.Value.Weapons.GetValueOrDefault(w)>0).ToArray();
-  int rank=Array.FindIndex(ranking,x=>x.Key==p.SteamID)+1;string leader=ranking.Length>0?StatPolicy.Html(ranking[0].Value.Name):"–";
-  p.SendCenterHTML($"<font color='#D8A63A'>StatTrak · {StatPolicy.Html(w)}</font><br>Kills: {kills} · Rang: {(rank>0?rank.ToString():"–")}<br>Führend: {leader}",settings.HudDurationMs);
+  inspect[key]=(held,now);
+  p.SendCenterHTML(StatPolicy.WeaponInspectHtml(data,p.SteamID,w),settings.HudDurationMs);
  }
  private void Flush()
  {
@@ -173,7 +172,7 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
  private void WriteStatus()
  {
   CompleteWeaponExport();
-  try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{version="0.2.23",updatedAt=DateTimeOffset.UtcNow,mapReady,settings.Enabled,settings.PvpEnabled,settings.BotTrainingEnabled,settings.WeaponTracking,settings.InspectHud,trigger="InspectOnly",settings.DamageCenter,settings.DamageConsole,players=data.Players.Count,dirty,errors,saveError,reloadError,weaponExportError,weaponExportMs,roundEndMs,statisticsWriteMs,statisticsWriteRunning=statisticsWrite is not null,killSavePending,weaponExportRunning=weaponExportTask is not null,weaponSnapshotRunning=weaponCapture is not null});statusWriteFailed=false;}
+  try{LPLK.Common.DeferredJson.Queue(Path.Combine(LPLK.Common.RoundFileStore.DataPath(Core),"status.json"),new{version=PluginVersion,updatedAt=DateTimeOffset.UtcNow,mapReady,settings.Enabled,settings.PvpEnabled,settings.BotTrainingEnabled,settings.WeaponTracking,settings.InspectHud,trigger="InspectOnly",settings.DamageCenter,settings.DamageConsole,players=data.Players.Count,dirty,errors,saveError,reloadError,weaponExportError,weaponExportMs,roundEndMs,statisticsWriteMs,statisticsWriteRunning=statisticsWrite is not null,killSavePending,weaponExportRunning=weaponExportTask is not null,weaponSnapshotRunning=weaponCapture is not null});statusWriteFailed=false;}
   catch(Exception e)when(e is IOException or UnauthorizedAccessException){if(!statusWriteFailed)Core.Logger.LogWarning(e,"LPLK_Statistics: Status nicht schreibbar.");statusWriteFailed=true;}
  }
  private void Save(IPlayer actor,Func<StatisticsSettings,StatisticsSettings> edit)
@@ -185,5 +184,5 @@ public sealed partial class Plugin(ISwiftlyCore core):BasePlugin(core)
   SyncSettings();WriteStatus();
  }
  [Command("lplk_statistics")]
- public void Status(ICommandContext c){if(c.Sender is {} p){OpenAdmin(p);return;}WriteStatus();c.ReplyLplk($"LPLK_Statistics 0.2.23: enabled={settings.Enabled}; ready={mapReady}; players={data.Players.Count}; InspectOnly=True; errors={errors}; saveError={saveError??"none"}; reloadError={reloadError??"none"}");}
+ public void Status(ICommandContext c){if(c.Sender is {} p){OpenAdmin(p);return;}WriteStatus();c.ReplyLplk($"LPLK_Statistics {PluginVersion}: enabled={settings.Enabled}; ready={mapReady}; players={data.Players.Count}; InspectOnly=True; errors={errors}; saveError={saveError??"none"}; reloadError={reloadError??"none"}");}
 }

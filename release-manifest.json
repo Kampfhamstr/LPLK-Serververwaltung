@@ -1,5 +1,5 @@
 {
-  "tag": "sounds-0.1.18",
+  "tag": "statistics-0.2.24-hud",
   "versions": {
     "AddonsManager": "2.0.3-lplk.7",
     "LPLK_Admin": "0.11.14",
@@ -15,7 +15,7 @@
     "LPLK_NadeEffects": "0.1.11",
     "LPLK_Parachute": "0.1.14",
     "LPLK_Sounds": "0.1.18",
-    "LPLK_Statistics": "0.2.23",
+    "LPLK_Statistics": "0.2.24",
     "LPLK_Surf": "0.1.13",
     "LPLK_Teams": "0.2.17",
     "LPLK_ThirdPerson": "0.1.11",
@@ -126,8 +126,8 @@
     {
       "name": "LPLK_Statistics.zip",
       "path": "Addons/LPLK_Statistics/Build/LPLK_Statistics.zip",
-      "sha256": "829eed8e0a1d87b93c5586148a703b861e6a8a9d9f2cbfb6a15589419c302a43",
-      "bytes": 129621
+      "sha256": "151b076fe09e047a4e8845ac7f978a781a0b00eac290f8a25b9f0d2f7a6d4537",
+      "bytes": 129872
     },
     {
       "name": "LPLK_ThirdPerson.zip",
@@ -480,13 +480,13 @@
       "Addons/LPLK_Statistics/Rohskripte/Aliases.cs": "7dc127ebd907047c325861a3b92b300b6ab41e379c56bce5b8ebfb0af1b7ebc5",
       "Addons/LPLK_Statistics/Rohskripte/Damage.cs": "f635b858848459fa1be70eaf1a8c70b9869e086ea4c9d5572d4ac46cb87c59af",
       "Addons/LPLK_Statistics/Rohskripte/Extended.cs": "b6483a71d2ae3642eb7dbf8dfb2dd5b0667c3bf57dde34fdda26aa77e0558d00",
-      "Addons/LPLK_Statistics/Rohskripte/LPLK_Statistics.csproj": "b4f6c2c7f1c13bef7e75b0bf7b63d7e6d23ca1124293e667b39d31499df0ab2f",
+      "Addons/LPLK_Statistics/Rohskripte/LPLK_Statistics.csproj": "ad8a6ea6c6071d85bc4d5a9f1bb095f57a235b8844b52ab9b41410ac73762cff",
       "Addons/LPLK_Statistics/Rohskripte/LegacyImport.cs": "36b5d3a50ba815b3e497f5ca9dcb90d68f798a0ce472375904c2260f0a7add0f",
       "Addons/LPLK_Statistics/Rohskripte/Menus.cs": "5d261b2af7b48426812a984fefdb42288a6a6d200e53911013859d36ff97ead8",
-      "Addons/LPLK_Statistics/Rohskripte/Plugin.cs": "7d158f8928a11130bbb4690982a535867a78bbc16b5b8da3b232cf3a5177c392",
+      "Addons/LPLK_Statistics/Rohskripte/Plugin.cs": "cef15c2f3182c5483ceac3741455f18ed5214311d305261c109149f7697a0059",
       "Addons/LPLK_Statistics/Rohskripte/RankingExport.cs": "09e9d41ca51501ead75d76f221d53d75bcf685de891f28dcd94fae4585f9adb8",
       "Addons/LPLK_Statistics/Rohskripte/SettingsMenus.cs": "bd23389119d900a8cc60372ec945c8d689f4a21eb354b47b0e2b4859bd93385d",
-      "Addons/LPLK_Statistics/Rohskripte/Statistics.cs": "83682f9315432a81e2a9bc63f530f39bf06819910409ae12b7b6d72326685eb9",
+      "Addons/LPLK_Statistics/Rohskripte/Statistics.cs": "5784a248a209605de3bf1065f5213a5bd46b1a61540e3a22ef7527f0f1b35e20",
       "Addons/LPLK_Statistics/Rohskripte/StatisticsSave.cs": "b7a75bea3ea3d0619f2ae3d029fd761e4674fc967982abf783f96a6278aa6d5c",
       "Addons/LPLK_Statistics/Rohskripte/WeaponOwnership.cs": "64653248e1efd16cc5c7babf9e26474e83933cff5f9adbaa1346e28d3ed2fe8a",
       "Addons/LPLK_Statistics/Rohskripte/WeaponRankingExport.cs": "835de67e8998f0edc88077d613f3f3d65c39c18a8fac879791654ebcdfbcd8a9",
@@ -664,16 +664,18 @@
     }
   },
   "validation": {
-    "testServer": true,
-    "productionVersion": "0.1.17",
-    "nativeSoundsReady": 88,
+    "verifiedServers": [
+      "Test",
+      "Atlas",
+      "Inner Circle"
+    ],
+    "statisticsDataPreserved": true,
     "gameThreadDiskReads": 0,
-    "clientAcceptancePending": true,
-    "soundRules": 186,
-    "addonDependency": 34,
+    "statisticsDemos": 232,
+    "weaponInspectHud": 5,
     "commandFixtures": 15,
     "commandProfiles": 7,
-    "clientAudioTested": false
+    "clientHudTested": false
   },
   "shippedProjectHashes": {
     "AddonsManager": "03bcbace93513383826bb09e42a6a5b5b1dcf4b0c53fa0bcd1d53f6db1038575",
@@ -690,7 +692,7 @@
     "LPLK_NadeEffects": "b4ee88dc917b1a4664ce702e66bf08c5fc33e3e201e622bfd9b5915c1c2116cd",
     "LPLK_Parachute": "3bfef9e74abd3386d4c0a4dd16a5ccd9e71c0251796d72200e70e79a9aab9797",
     "LPLK_Sounds": "6f5d5887f420bd47925c6e387cd1ea89edb0da729559229812654370390719f7",
-    "LPLK_Statistics": "b4f6c2c7f1c13bef7e75b0bf7b63d7e6d23ca1124293e667b39d31499df0ab2f",
+    "LPLK_Statistics": "ad8a6ea6c6071d85bc4d5a9f1bb095f57a235b8844b52ab9b41410ac73762cff",
     "LPLK_Surf": "87d93559799e2cac6de7eee7c0544267f114e3c4bea8a5dcd93e1ab58c389cc9",
     "LPLK_Teams": "b3161c72b3ed35c786b61a6693143e30060e46e1870bd05dd92c46abd8c56957",
     "LPLK_ThirdPerson": "a3b7cd7065b9c23ab908d9507be099c14631b7c2af9d99eae68d3427369d705d",

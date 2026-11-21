@@ -17,7 +17,7 @@
 | LPLK_Parachute | 0.1.14 | [LPLK_Parachute.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Parachute.zip) |
 | LPLK_Sounds | 0.1.18 (Testserver) | [LPLK_Sounds.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/sounds-0.1.18/LPLK_Sounds.zip) |
 | LPLK_LambdaSounds | 0.1.0 | [LPLK_LambdaSounds.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/lambda-sounds-0.1.0/LPLK_LambdaSounds.zip) |
-| LPLK_Statistics | 0.2.23 | [LPLK_Statistics.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Statistics.zip) |
+| LPLK_Statistics | 0.2.24 | [LPLK_Statistics.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/statistics-0.2.24-hud/LPLK_Statistics.zip) |
 | LPLK_Surf | 0.1.13 | [LPLK_Surf.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/fleet-2026.11.19-current/LPLK_Surf.zip) |
 | LPLK_Teams | 0.2.17 | [LPLK_Teams.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Teams.zip) |
 | LPLK_ThirdPerson | 0.1.11 | [LPLK_ThirdPerson.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_ThirdPerson.zip) |

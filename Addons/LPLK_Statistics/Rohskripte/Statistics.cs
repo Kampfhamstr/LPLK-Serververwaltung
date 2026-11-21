@@ -108,6 +108,23 @@ public static class StatPolicy
  public static readonly string[] Grenades=["hegrenade","flashbang","smokegrenade","decoy","molotov","incgrenade","inferno"];
  public static string Clean(string value)=>new(value.Where(c=>!char.IsControl(c)).Take(48).ToArray());
  public static string Html(string value)=>WebUtility.HtmlEncode(Clean(value));
+ internal static string WeaponInspectHtml(StatsData data, ulong playerId, string weapon)
+ {
+  long ownKills = data.Players.GetValueOrDefault(playerId)?.Weapons.GetValueOrDefault(weapon) ?? 0;
+  var ranking = data.Players
+   .Select(row => (Id: row.Key, row.Value.Name, Kills: row.Value.Weapons.GetValueOrDefault(weapon)))
+   .Where(row => row.Kills > 0)
+   .OrderByDescending(row => row.Kills)
+   .ThenBy(row => row.Id)
+   .ToArray();
+  int rank = Array.FindIndex(ranking, row => row.Id == playerId) + 1;
+  string header = $"<font color='#D8A63A'>StatTrak · {Html(weapon)}</font><br>Deine Kills: {ownKills} · Rang: {(rank > 0 ? rank.ToString() : "–")}";
+  if (ranking.Length == 0)
+   return header + "<br>Führend: –<br>Abstand: –";
+
+  var leader = ranking[0];
+  return header + $"<br>Führend: {Html(leader.Name)} · {leader.Kills} Kills<br>Abstand: {leader.Kills - ownKills} Kills";
+ }
  public static string? Weapon(string? value)
  {
   string s=(value??"").Trim().ToLowerInvariant();if(s.StartsWith("weapon_"))s=s[7..];if(s.EndsWith("_projectile"))s=s[..^11];
