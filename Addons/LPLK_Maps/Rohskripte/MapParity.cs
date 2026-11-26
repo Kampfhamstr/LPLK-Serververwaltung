@@ -81,7 +81,7 @@ public sealed partial class Plugin
         {
             var legal=Eligible().ToDictionary(m=>m.Id);var choice=directVotes.Values.Where(legal.ContainsKey).GroupBy(x=>x).OrderByDescending(g=>g.Count()).FirstOrDefault();
             if(choice is not null&&choice.Count()>=MapPolicy.RequiredRtv(ids.Count,settings.DirectVotemapPercent))
-            {nextMap=legal[choice.Key];AuditDirectResult(nextMap,MapPolicy.RequiredRtv(ids.Count,settings.DirectVotemapPercent),ids,legal);directVotes.Clear();if(settings.DirectVotemapAtRoundEnd)changeAtRoundEnd=true;else Schedule(nextMap,settings.ChangeDelaySeconds);}
+            {nextMap=legal[choice.Key];AuditDirectResult(nextMap,MapPolicy.RequiredRtv(ids.Count,settings.DirectVotemapPercent),ids,legal);directVotes.Clear();lunacyDirectVote=true;lunacyRoundEnded=false;if(!BeginLunacyVote(nextMap,true))CompleteSelectedVote();}
         }
         if(settings.EndOfMapVote&&!warmup&&RemainingSeconds() is {} seconds)
         {

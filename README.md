@@ -1,5 +1,8 @@
 # LPLK CS2-Plugins
 
+[Maps 0.4.31: Lunacy-Abstimmung und neue Maps](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/maps-0.4.31-lunacy) · [Bedienung und Prüfgrenzen](docs/LUNACY-NEUE-MAPS-20261126.md)
+
+
 [Statistik-HUD 0.2.24](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/statistics-0.2.24-hud) · [Installation und Prüfstand](docs/LPLK-STATISTICS-0.2.24.md)
 
 [Sounds 0.1.18 für den Testserver](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/sounds-0.1.18) · [Prüfgrenzen](docs/LPLK-SOUNDS-0.1.18.md)

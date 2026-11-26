@@ -49,9 +49,12 @@ public static partial class MapPolicy
     public static MapCategory Category(string evidence)=>Regex.IsMatch(evidence,@"(?:^|[^a-z0-9])surf[_\s-]",RegexOptions.IgnoreCase)?MapCategory.Surf:
         Regex.IsMatch(evidence,@"(?:^|[^a-z0-9])(?:kz|xc|bkz)[_\s-]",RegexOptions.IgnoreCase)?MapCategory.Kz:MapCategory.Other;
     public static string CategoryName(MapCategory c)=>c==MapCategory.Surf?"Surf":c==MapCategory.Kz?"KZ":"Sonstige";
-    public static List<MapEntry> CandidateSelection(IReadOnlyList<MapEntry> randomized,IReadOnlySet<string> nominated,int limit,bool balanced)
+    public static List<MapEntry> CandidateSelection(IReadOnlyList<MapEntry> randomized,IReadOnlySet<string> nominated,int limit,bool balanced,IReadOnlySet<string>? newMaps=null)
     {
         var result=randomized.Where(m=>nominated.Contains(m.Id)).Take(limit).ToList();
+        // Retain accepted nominations, then fill open places with eligible NEW
+        // maps before the ordinary random/category selection.
+        if(newMaps is not null)result.AddRange(randomized.Where(m=>newMaps.Contains(m.Id)&&result.All(x=>x.Id!=m.Id)).Take(limit-result.Count).ToArray());
         var remaining=randomized.Where(m=>result.All(x=>x.Id!=m.Id)).ToList();
         if(!balanced){result.AddRange(remaining.Take(limit-result.Count));return result;}
         var queues=Enum.GetValues<MapCategory>().Select(c=>new Queue<MapEntry>(remaining.Where(m=>Category(m)==c))).ToArray();

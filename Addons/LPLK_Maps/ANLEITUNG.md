@@ -1,5 +1,7 @@
-# LPLK_Maps 0.4.30
+# LPLK_Maps 0.4.31
 
-[Download](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Maps.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK-Plugins-Source.zip)
+[Plugin](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/maps-0.4.31-lunacy/LPLK_Maps.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/maps-0.4.31-lunacy/LPLK-Plugins-Source.zip)
 
-[Änderungen, Installation und Prüfgrenzen](../../docs/ADMIN-MENUES-20261119.md).
+[Lunacy, NEW-Regel und aktueller Prüfstand](../../docs/LUNACY-NEUE-MAPS-20261126.md)
+
+[Bisherige Menüfunktionen](../../docs/ADMIN-MENUES-20261119.md)

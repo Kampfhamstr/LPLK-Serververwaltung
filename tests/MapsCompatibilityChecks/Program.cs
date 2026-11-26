@@ -8,6 +8,8 @@ using SwiftlyS2.Shared;
 
 int checks=0;
 void Check(bool ok,string label){if(!ok)throw new Exception(label);checks++;}
+if(!args.Contains("--api-only"))
+{
 foreach(bool workshop in new[]{false,true})foreach(bool nextLevel in new[]{false,true})foreach(bool installed in new[]{false,true}){
  using var w=new World();
  var map=new MapEntry{Id=workshop?"3070192462":"de_dust2",Name="Test",SourceFolder=workshop?"de_drawbridge":""};
@@ -31,6 +33,7 @@ foreach(string folder in new[]{"","bad;quit","../bad","bad\nquit"}){
 using(var w=new World()){w.Call("IssuePending");Check(w.Commands.Count==0,"No pending map does nothing");}
 foreach(string id in new[]{"de_dust2;quit","de_dust2\nquit","3070192462 quit"}){
  try{MapPolicy.Validate(new[]{new MapEntry{Id=id,Name="Test"}});throw new Exception("Unsafe map accepted");}catch(InvalidDataException){checks++;}
+}
 }
 // Resolve every framework reference in the identical stable-built delivery DLL.
 using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(AppContext.BaseDirectory);

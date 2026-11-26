@@ -265,12 +265,13 @@ using(var w=new World(settings))
  Check(w.Get<bool>("nominationStateBlocked")&&!w.Get<bool>("nominationStateReady"),"Malformed state remains blocked separately from engine readiness");
  w.Call("InitializeNominations",nomSession with{ServerCount=99});Check(File.ReadAllText(path)=="{broken","Map readiness retry cannot overwrite corrupt state");
 }
+LunacyChecks.Run(Check,settings);
 Console.WriteLine(JsonSerializer.Serialize(new{checks,result="passed",nativeEngineMocked=true,clientAcceptancePending=true}));
 
 sealed class World:IDisposable
 {
  public MenuWorld Menu=new(){DataDirectory=Path.Combine(Path.GetTempPath(),"LplkMapParity-"+Guid.NewGuid().ToString("N"))};
- public Plugin Plugin;public List<string> Broadcasts=[];public Dictionary<string,object> Limits=new(){["mp_timelimit"]=0f,["mp_maxrounds"]=0,["mp_winlimit"]=0};public string? IgnoreSet;
+ public Plugin Plugin;public List<string> Broadcasts=[];public Dictionary<string,object> Limits=new(){["mp_timelimit"]=0f,["mp_maxrounds"]=0,["mp_winlimit"]=0};public string? IgnoreSet;public string Workshop="";
  public World(MapSettings settings)
  {
   Directory.CreateDirectory(Menu.DataDirectory);Menu.OnlinePlayers=[Menu.Player];
@@ -278,8 +279,8 @@ sealed class World:IDisposable
   {
    if(m.Name=="Find"&&a?[0] is string name&&Limits.ContainsKey(name))return(true,Proxy.Make(m.ReturnType,(op,values)=>op.Name switch{"get_Value"=>Limits[name],"set_Value"=>SetLimit(name,values![0]!),_=>Proxy.Empty(op.ReturnType)}));
    if(m.Name=="SendChat"){Broadcasts.Add((string)a![0]!);return(true,null);}
-   if(m.Name=="get_GlobalVars")throw new NotSupportedException("No native globals in fixture");
-   if(m.Name=="get_WorkshopId")return(true,"");
+   if(m.Name=="get_GlobalVars")throw new InvalidOperationException("No native globals in fixture");
+   if(m.Name=="get_WorkshopId")return(true,Workshop);
    if(m.Name=="CloseMenuForPlayer"){if(Menu.Current==a![1])Menu.Current=null;return(true,null);}
    return(false,null);
   };

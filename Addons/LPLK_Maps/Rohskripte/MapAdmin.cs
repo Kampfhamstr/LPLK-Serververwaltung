@@ -87,6 +87,7 @@ public sealed partial class Plugin
     }
     private static readonly Dictionary<string,string> Labels=new()
     {
+        [nameof(MapSettings.LunacyLowGravityVote)]="Lunacy Low Gravity",
         [nameof(MapSettings.NominationEnabled)]="Nominierungen",
         [nameof(MapSettings.CategorizedMenus)]="Mapkategorien",
         [nameof(MapSettings.BalancedCategories)]="Kategorien ausgleichen",

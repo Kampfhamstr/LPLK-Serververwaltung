@@ -1,5 +1,5 @@
 {
-  "tag": "statistics-0.2.24-hud",
+  "tag": "maps-0.4.31-lunacy",
   "versions": {
     "AddonsManager": "2.0.3-lplk.7",
     "LPLK_Admin": "0.11.14",
@@ -11,7 +11,7 @@
     "LPLK_Demos": "0.2.5",
     "LPLK_Economy": "0.12.17",
     "LPLK_Fluch": "0.1.11",
-    "LPLK_Maps": "0.4.30",
+    "LPLK_Maps": "0.4.31",
     "LPLK_NadeEffects": "0.1.11",
     "LPLK_Parachute": "0.1.14",
     "LPLK_Sounds": "0.1.18",
@@ -156,8 +156,8 @@
     {
       "name": "LPLK_Maps.zip",
       "path": "Addons/LPLK_Maps/Build/LPLK_Maps.zip",
-      "sha256": "3109860b14298153b83ca675f96274d61b532c50f9b706eeb21c8d975c482417",
-      "bytes": 216447
+      "sha256": "dbde25da2d57ea4d99e9efcd8f6d851a601f3d2beed71df0873eed207529d580",
+      "bytes": 224695
     },
     {
       "name": "LPLK_Teams.zip",
@@ -383,24 +383,26 @@
       "Addons/LPLK_Maps/Rohskripte/CameraSafety.cs": "f97f430e43ea2037d758959e2d630ebef2455d92798b0576e609a47dcb76a52e",
       "Addons/LPLK_Maps/Rohskripte/ExtraWorkshopMapsPlugin.cs": "11d53cc6db25eb60ad79adf52730d0557f8d24bc5a323d17d649d6610501b767",
       "Addons/LPLK_Maps/Rohskripte/IdleRotation.cs": "90ecac12750ae8feac868b8a018af1a4ce1a787edd061927eddda835bb4635d5",
-      "Addons/LPLK_Maps/Rohskripte/LPLK_Maps.csproj": "e10154c87c1beef95ed362a213e1781b0c65fbbcea7f2c8788c92a11a7265aa2",
+      "Addons/LPLK_Maps/Rohskripte/LPLK_Maps.csproj": "eb6c8e0f6a9944953ac6f196a0211caece2ce2fdec8d8e649694988b65ea69d7",
       "Addons/LPLK_Maps/Rohskripte/LastVoteHistory.cs": "0145052332780f47c2ce55a39ae98f860c449e03915fd429145d04072d6518d3",
       "Addons/LPLK_Maps/Rohskripte/LastVoteMenu.cs": "f3f5a1dfd9446bdcbd8c70532d030d46594cc954005d58e9273c093cf48492a2",
-      "Addons/LPLK_Maps/Rohskripte/MapAdmin.cs": "bcf57aa5858e47bb29121ea6f6205872bfbe989fc3b4fb8db3079204ab16411d",
+      "Addons/LPLK_Maps/Rohskripte/LunacyGravity.cs": "f319b16c2cc3449e9ac669ea2290afd00d86e53d12c88f81e07c058064ee98d1",
+      "Addons/LPLK_Maps/Rohskripte/LunacyVote.cs": "c059dd286db9fc1c460b63fd1514c4efcaf08f5812e11e5bc18a84b784845098",
+      "Addons/LPLK_Maps/Rohskripte/MapAdmin.cs": "c237a574f1613384448f9b37e3b6ac0876dca9b674d55bee0c1a478d455bea17",
       "Addons/LPLK_Maps/Rohskripte/MapAudit.cs": "fd8064c7eb298f1fe99f278fc54c269a828b5c75c07dbec932a8fc68bc9d6f6e",
       "Addons/LPLK_Maps/Rohskripte/MapAuditJournal.cs": "f06d8724abc445295bb4e99a74cf27bed754c8ae2053be11bc907c31f1406df5",
       "Addons/LPLK_Maps/Rohskripte/MapCatalog.cs": "b03f3494ee767d04f724ffb0f688f3a1219ab187261737406eba8308baa3094f",
-      "Addons/LPLK_Maps/Rohskripte/MapParity.cs": "221d9f4693069fe81b3e48e38594ea0f58efa146e56e64f8b70bfac1c1cb3f10",
-      "Addons/LPLK_Maps/Rohskripte/MapParityPolicy.cs": "592a3bb4189ae8dcbad1a2b3aeaa3b4276c6ba2011d5e06b36199914bf8b51b2",
+      "Addons/LPLK_Maps/Rohskripte/MapParity.cs": "53c55a2d34d425d3ee45ada06b55540a7cc2ec05eb4be218ab2a0e327dd0865a",
+      "Addons/LPLK_Maps/Rohskripte/MapParityPolicy.cs": "f46ceda78b49d62092180e69ca45d01365362d865165c4d6fd1ca89c495ee44e",
       "Addons/LPLK_Maps/Rohskripte/MapParityProbe.cs": "21fe0bfe16275467430be30ccce3c80f54e63bfa9349f5b4023b9770541b868c",
       "Addons/LPLK_Maps/Rohskripte/MapPolicy.cs": "61cd7ea868ba25e1342586e1fbab8a6d2ee9ae29c62af46deb7ff1aacfbb0bfb",
       "Addons/LPLK_Maps/Rohskripte/MapSettingsFile.cs": "1bd0713f1fa4a135643d1c6c1781a2d1698e1c29b5d0a5e8aab2d5c99350fd00",
       "Addons/LPLK_Maps/Rohskripte/NewMapActivationProbe.cs": "480b83a16ee13871f650151cbb120e7ce111d18cb5d3d6688085586ab53a1b90",
       "Addons/LPLK_Maps/Rohskripte/NewMapActivationState.cs": "90c1134085bf5f429e727b1e7b160f274ec26bcd932af380f39b8accdd26270d",
-      "Addons/LPLK_Maps/Rohskripte/NewMapMarkers.cs": "1d603700d6e8e620a3095553608b8961f066bc043b684144feff5a62c4f128d0",
+      "Addons/LPLK_Maps/Rohskripte/NewMapMarkers.cs": "eaebf3db7b577990548e2a7450b1187f4aae69c10e33355d8383de7a4a71691c",
       "Addons/LPLK_Maps/Rohskripte/NominationPersistence.cs": "2ef4b46c5b6ac8d761e4ebe17a516d8b7f33d4ca340fd3c98c08d21a95a0ed6d",
       "Addons/LPLK_Maps/Rohskripte/NominationState.cs": "3aeca26fbf029a530d14db2473a1aeb58ba19698b85234b9827f0cc9c8835885",
-      "Addons/LPLK_Maps/Rohskripte/Plugin.cs": "b220a9043eb8b86fc9b59cf8514af613efb10dd37b00b337ba2d701303b4d2e8",
+      "Addons/LPLK_Maps/Rohskripte/Plugin.cs": "ee902c4797bad5485be7d958200cb6462d33efd7ae865e576baf340960086a09",
       "Addons/LPLK_Maps/Rohskripte/VpkMaps.cs": "24f264e075cd0a1dba058e03883d5916908f6f62f8cc46f1ce7c3d57958225fd",
       "Addons/LPLK_Maps/Rohskripte/WorkshopCollections.cs": "f21ad979270ca9daa9826727945de54a6578e4ec624931c4b1bca371668b84ad",
       "Addons/LPLK_Maps/Rohskripte/WorkshopDetails.cs": "0080a06d588b26dd07cf7d30a70f04c88e5aa040f2aca43a5bcc28e93c66e004",
@@ -664,18 +666,24 @@
     }
   },
   "validation": {
-    "verifiedServers": [
-      "Test",
-      "Atlas",
-      "Inner Circle"
+    "mapAndMenu": 224,
+    "staticApiChecks": 380,
+    "frameworkReferences": 231,
+    "nativeGravity": [
+      400,
+      400,
+      800
     ],
-    "statisticsDataPreserved": true,
-    "gameThreadDiskReads": 0,
-    "statisticsDemos": 232,
-    "weaponInspectHud": 5,
-    "commandFixtures": 15,
-    "commandProfiles": 7,
-    "clientHudTested": false
+    "productionServers": [
+      "153ae3e6",
+      "8528b30f"
+    ],
+    "clientAcceptancePending": true,
+    "limitations": [
+      "CS2 client view/click acceptance pending",
+      "MapsCompatibilityChecks full suite failed in transition fixture; API-only checks passed",
+      "MapsMaintenanceChecks failed in native GlobalVars DispatchProxy fixture; no passing baseline comparison claimed"
+    ]
   },
   "shippedProjectHashes": {
     "AddonsManager": "03bcbace93513383826bb09e42a6a5b5b1dcf4b0c53fa0bcd1d53f6db1038575",
@@ -688,7 +696,7 @@
     "LPLK_Demos": "51b45c0e075ceabb35160a9d27d2d09095fd36ff1c3a91c6ec3f73436a0ac1a9",
     "LPLK_Economy": "5460661d3b5c17bf0f840a3b93f4f561664f36e03793eba3eff659a15bd18acd",
     "LPLK_Fluch": "6aa98287121fe23cd9e4604a39477dcfc10169f71618752710bb961eb8e14dc2",
-    "LPLK_Maps": "e10154c87c1beef95ed362a213e1781b0c65fbbcea7f2c8788c92a11a7265aa2",
+    "LPLK_Maps": "eb6c8e0f6a9944953ac6f196a0211caece2ce2fdec8d8e649694988b65ea69d7",
     "LPLK_NadeEffects": "b4ee88dc917b1a4664ce702e66bf08c5fc33e3e201e622bfd9b5915c1c2116cd",
     "LPLK_Parachute": "3bfef9e74abd3386d4c0a4dd16a5ccd9e71c0251796d72200e70e79a9aab9797",
     "LPLK_Sounds": "6f5d5887f420bd47925c6e387cd1ea89edb0da729559229812654370390719f7",

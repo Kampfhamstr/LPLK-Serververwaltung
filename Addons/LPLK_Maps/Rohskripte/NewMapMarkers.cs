@@ -22,6 +22,6 @@ public sealed class NewMapMarkers
  // Stable grouping preserves the existing order within both groups. Eligibility
  // is decided by the caller; NEW never adds a blocked or unavailable map.
  public List<MapEntry> OrderNominations(IEnumerable<MapEntry> eligible,DateTimeOffset now)=>eligible.OrderByDescending(map=>IsNew(map.Id,now)).ToList();
- public string Label(string id,string existing,DateTimeOffset now)=>(IsNew(id,now)?"<font color='#90EE90'>NEW</font> ":"")+existing;
+ public string Label(string id,string existing,DateTimeOffset now)=>(IsNew(id,now)?"<font color='#90EE90'><b>NEW</b></font> ":"")+existing;
  public Dictionary<string,DateTimeOffset> Snapshot()=>new(firstSeen);
 }

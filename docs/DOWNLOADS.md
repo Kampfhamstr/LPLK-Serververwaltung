@@ -14,7 +14,7 @@
 | LPLK_Demos | 0.2.5 | [LPLK_Demos.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Demos.zip) |
 | LPLK_Economy | 0.12.17 | [LPLK_Economy.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Economy.zip) |
 | LPLK_Fluch | 0.1.11 | [LPLK_Fluch.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Fluch.zip) |
-| LPLK_Maps | 0.4.30 | [LPLK_Maps.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Maps.zip) |
+| LPLK_Maps | 0.4.31 | [LPLK_Maps.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/maps-0.4.31-lunacy/LPLK_Maps.zip) |
 | LPLK_NadeEffects | 0.1.11 | [LPLK_NadeEffects.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_NadeEffects.zip) |
 | LPLK_Parachute | 0.1.14 | [LPLK_Parachute.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/menus-2026.11.19/LPLK_Parachute.zip) |
 | LPLK_Sounds | 0.1.18 (Testserver) | [LPLK_Sounds.zip](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/sounds-0.1.18/LPLK_Sounds.zip) |
