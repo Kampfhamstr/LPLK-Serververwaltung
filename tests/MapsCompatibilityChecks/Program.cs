@@ -39,6 +39,12 @@ foreach(string id in new[]{"de_dust2;quit","de_dust2\nquit","3070192462 quit"}){
 using var resolver=new DefaultAssemblyResolver();resolver.AddSearchDirectory(AppContext.BaseDirectory);
 string inspectedAssembly=args is ["--assembly",var assemblyPath]?Path.GetFullPath(assemblyPath):typeof(Plugin).Assembly.Location;
 using var module=ModuleDefinition.ReadModule(inspectedAssembly,new ReaderParameters{AssemblyResolver=resolver});
+var literals=module.GetTypes().Where(t=>t.Namespace=="LPLK_Maps").SelectMany(t=>t.Methods).Where(m=>m.HasBody)
+ .SelectMany(m=>m.Body.Instructions).Where(i=>i.OpCode==Mono.Cecil.Cil.OpCodes.Ldstr).Select(i=>(string)i.Operand).ToArray();
+Check(literals.Length>100,"Compiled map UI strings present");
+Check(literals.All(s=>!s.Contains('\u00c3')&&!s.Contains('\u00c2')&&!s.Contains('\ufffd')&&!s.Contains("\u00e2\u20ac")),"Compiled map strings contain no broken UTF-8 sequences");
+foreach(string expected in new[]{"LPLK · Nächste Map","Zurück","Die nächste Map steht bereits fest: ","[LPLK] Keine passende Map verfügbar."})
+ Check(literals.Contains(expected),"Correct compiled Unicode text: "+expected);
 int refs=0;
 bool Framework(TypeReference t)=>t.GetElementType().Scope?.Name.StartsWith("SwiftlyS2.",StringComparison.Ordinal)==true;
 foreach(var type in module.GetTypeReferences().Where(Framework)){Check(type.Resolve()!=null,"Framework type "+type.FullName);refs++;}

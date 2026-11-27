@@ -1,5 +1,10 @@
 # Lunacy und neue Maps – 26.11.2026
 
+Ab 0.4.33 ist die besondere Hervorhebung und Bevorzugung neuer Maps auf drei Tage
+begrenzt; NEW bleibt insgesamt 14 Tage. Die aktuelle Regel steht unter
+[Drei Tage Vorrang, 14 Tage NEW](NEW-MAPS-DREI-TAGE.md). Die folgenden Angaben
+beschreiben den ursprünglichen Stand 0.4.31 und den unveränderten Lunacy-Ablauf.
+
 LPLK_Maps 0.4.31 fragt nach einem gewonnenen Lunacy-Mapvote:
 **„Lunacy mit Low Gravity spielen?“ – Ja / Nein.** Die Nachfrage läuft 30 Sekunden;
 `!mapchooser` öffnet sie erneut. Gezählt werden die abgegebenen Stimmen der beim

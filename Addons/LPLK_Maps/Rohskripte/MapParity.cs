@@ -103,7 +103,7 @@ public sealed partial class Plugin
     {
         if(!allowed(p))return;
         var available=choices();var now=DateTimeOffset.UtcNow;
-        if(!settings.CategorizedMenus||newFirst&&available.Any(m=>newMapMarkers.IsNew(m.Id,now))){Selection(p,title,newFirst?newMapMarkers.OrderNominations(available,now):available,(a,m)=>{if(allowed(a))action(a,m);});return;}
+        if(!settings.CategorizedMenus||newFirst&&available.Any(m=>newMapMarkers.IsPromoted(m.Id,now))){Selection(p,title,newFirst?newMapMarkers.OrderNominations(available,now):available,(a,m)=>{if(allowed(a))action(a,m);});return;}
         int serial=generation;
         CompactMenu.Open(Core,p,title,()=>module.Active&&serial==generation,allowed,a=>Enum.GetValues<MapCategory>().Where(c=>choices().Any(m=>MapPolicy.Category(m)==c)).Select(c=>(MapPolicy.CategoryName(c),(Action<IPlayer>)(b=>Selection(b,title+" · "+MapPolicy.CategoryName(c),choices().Where(m=>MapPolicy.Category(m)==c).ToList(),(actor,m)=>{if(allowed(actor))action(actor,m);},back:actor=>Categories(actor,title,choices,action,allowed))))).ToArray(),a=>a.ExecuteCommand("sw_menu"));
     }

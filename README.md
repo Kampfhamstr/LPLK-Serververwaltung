@@ -1,5 +1,7 @@
 # LPLK CS2-Plugins
 
+[Maps 0.4.33: drei Tage Vorrang, 14 Tage NEW](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/maps-0.4.33-new-maps-text) · [Regel und Prüfstand](docs/NEW-MAPS-DREI-TAGE.md)
+
 [Maps 0.4.31: Lunacy-Abstimmung und neue Maps](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/tag/maps-0.4.31-lunacy) · [Bedienung und Prüfgrenzen](docs/LUNACY-NEUE-MAPS-20261126.md)
 
 

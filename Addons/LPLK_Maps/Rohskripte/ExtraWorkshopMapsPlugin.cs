@@ -41,12 +41,12 @@ public sealed partial class Plugin
   try{if(ObserveNewMapActivations(newMapActivations,DateTimeOffset.UtcNow))DeferredJson.Queue(NewMapActivationPath,newMapActivations.Snapshot());}
   catch(InvalidDataException e){newMapMarkerError=e.Message;}
  }
- private object NewMapStatus()=>new{days=NewMapMarkers.Days,automatic=true,initializedAt=newMapActivations?.InitializedAt,error=newMapMarkerError,maps=maps.Where(m=>newMapMarkers.IsNew(m.Id,DateTimeOffset.UtcNow)).Select(m=>new{m.Id,m.Name,votable=Votable(m),inPool=m.InPool,m.Enabled,m.Removed,label=newMapMarkers.Label(m.Id,MapPolicy.VoteLabel(m,false),DateTimeOffset.UtcNow)}).ToArray()};
+ private object NewMapStatus()=>new{days=NewMapMarkers.Days,promotionDays=NewMapMarkers.PromotionDays,automatic=true,initializedAt=newMapActivations?.InitializedAt,error=newMapMarkerError,maps=maps.Where(m=>newMapMarkers.IsNew(m.Id,DateTimeOffset.UtcNow)).Select(m=>new{m.Id,m.Name,promoted=newMapMarkers.IsPromoted(m.Id,DateTimeOffset.UtcNow),votable=Votable(m),inPool=m.InPool,m.Enabled,m.Removed,label=newMapMarkers.Label(m.Id,MapPolicy.VoteLabel(m,false),DateTimeOffset.UtcNow)}).ToArray()};
  private object PoolReadout()
  {
   var builtin=maps.Where(m=>!m.Workshop).ToArray();var eligible=Eligible();var now=DateTimeOffset.UtcNow;
   // Console replies are bounded. Keep this read-only probe compact even on a large pool.
-  return new{at=now,builtin=builtin.Select(m=>m.Id).ToArray(),available=builtin.Where(Available).Select(m=>m.Id).ToArray(),votable=builtin.Where(m=>Votable(m)&&m.InPool&&m.Enabled&&!m.Removed).Select(m=>m.Id).ToArray(),mapChange=builtin.Where(m=>MapChangeEntries(m.MinPlayers).Any(x=>x.Id==m.Id)).Select(m=>m.Id).ToArray(),eligibleNew=eligible.Where(m=>newMapMarkers.IsNew(m.Id,now)).Select(m=>m.Id).ToArray(),nominationFirstPage=newMapMarkers.OrderNominations(eligible,now).Take(10).Select(m=>m.Id).ToArray()};
+  return new{at=now,builtin=builtin.Select(m=>m.Id).ToArray(),available=builtin.Where(Available).Select(m=>m.Id).ToArray(),votable=builtin.Where(m=>Votable(m)&&m.InPool&&m.Enabled&&!m.Removed).Select(m=>m.Id).ToArray(),mapChange=builtin.Where(m=>MapChangeEntries(m.MinPlayers).Any(x=>x.Id==m.Id)).Select(m=>m.Id).ToArray(),eligiblePromoted=eligible.Where(m=>newMapMarkers.IsPromoted(m.Id,now)).Select(m=>m.Id).ToArray(),eligibleNew=eligible.Where(m=>newMapMarkers.IsNew(m.Id,now)).Select(m=>m.Id).ToArray(),nominationFirstPage=newMapMarkers.OrderNominations(eligible,now).Take(10).Select(m=>m.Id).ToArray()};
  }
  private void PollExtraWorkshopMaps(long now)
  {

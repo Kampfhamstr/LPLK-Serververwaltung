@@ -168,7 +168,7 @@ using(var w=new World(settings))
 foreach(bool categorized in new[]{false,true})using(var w=new World(settings with{CategorizedMenus=categorized}))
 {
  var maps=Enumerable.Range(1,20).Select(n=>new MapEntry{Id=n.ToString(),Name="Map "+n,MinPlayers=1,MaxPlayers=30}).ToList();
- var markers=w.Get<NewMapMarkers>("newMapMarkers");markers.Observe(["16","17","18","19","20"],DateTimeOffset.UtcNow.AddDays(-13));
+ var markers=w.Get<NewMapMarkers>("newMapMarkers");markers.Observe(["16","17","18","19","20"],DateTimeOffset.UtcNow.AddDays(-2));
  MapEntry? clicked=null;
  w.Call("Categories",w.Menu.Player,"Map nominieren",(Func<List<MapEntry>>)(()=>maps),(Action<SwiftlyS2.Shared.Players.IPlayer,MapEntry>)((_,m)=>clicked=m),(Func<SwiftlyS2.Shared.Players.IPlayer,bool>)(_=>true),true);
  Check(w.Menu.Labels.Take(5).Select((label,n)=>label.Contains("NEW")&&label.Contains("Map "+(16+n))).All(x=>x),"nomination first page contains all five NEW maps, including categorized config");
@@ -266,6 +266,16 @@ using(var w=new World(settings))
  w.Call("InitializeNominations",nomSession with{ServerCount=99});Check(File.ReadAllText(path)=="{broken","Map readiness retry cannot overwrite corrupt state");
 }
 LunacyChecks.Run(Check,settings);
+PromotionChecks.Run(Check);
+using(var w=new World(settings))
+{
+ var maps=Enumerable.Range(1,11).Select(n=>new MapEntry{Id="de_menu"+n,Name="Menükarte "+n,MinPlayers=1,MaxPlayers=30}).ToList();
+ w.Set("candidates",maps);w.Call("ShowVote",w.Menu.Player);
+ Check(w.Menu.Current!.Configuration.Title.Contains("LPLK · Nächste Map"),"Actual mapvote title preserves umlaut and separator");
+ w.Call("Selection",w.Menu.Player,"Nominierung",maps,(Action<SwiftlyS2.Shared.Players.IPlayer,MapEntry>)((_,_)=>{}),false,(Action<SwiftlyS2.Shared.Players.IPlayer>)(_=>{}),0);
+ Check(w.Menu.Current!.Configuration.Title.Contains("Nominierung · 1/2"),"Actual nomination page separator preserved");
+ Check(w.Menu.Labels.Any(label=>label.Contains("Zurück"))&&w.Menu.Labels.Any(label=>label.Contains("Menükarte")),"Actual nomination rows preserve Unicode and back label");
+}
 Console.WriteLine(JsonSerializer.Serialize(new{checks,result="passed",nativeEngineMocked=true,clientAcceptancePending=true}));
 
 sealed class World:IDisposable

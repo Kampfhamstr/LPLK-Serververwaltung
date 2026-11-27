@@ -1,7 +1,7 @@
-# LPLK_Maps 0.4.31
+# LPLK_Maps 0.4.33
 
-[Plugin](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/maps-0.4.31-lunacy/LPLK_Maps.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/maps-0.4.31-lunacy/LPLK-Plugins-Source.zip)
+[Plugin](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/maps-0.4.33-new-maps-text/LPLK_Maps.zip) · [Quellen](https://github.com/Kampfhamstr/LPLK-Serververwaltung/releases/download/maps-0.4.33-new-maps-text/LPLK-Plugins-Source.zip)
 
-[Lunacy, NEW-Regel und aktueller Prüfstand](../../docs/LUNACY-NEUE-MAPS-20261126.md)
+[Drei Tage Vorrang, 14 Tage NEW](../../docs/NEW-MAPS-DREI-TAGE.md)
 
-[Bisherige Menüfunktionen](../../docs/ADMIN-MENUES-20261119.md)
+[Lunacy-Abstimmung](../../docs/LUNACY-NEUE-MAPS-20261126.md)
